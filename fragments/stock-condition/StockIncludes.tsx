@@ -22,7 +22,7 @@ const items = [
     icon: ShieldCheck,
     title: "Regulatory Compliance Assurance",
     description:
-      "Stay ahead of regulatory requirements, including health and safety standards, building codes and energy efficiency regulations. Our surveys ensure your properties meet all necessary legal standards, providing you with peace of mind. Need help with compliance on energy efficiency? Learn about our Energy Performance Certificates (EPC).",
+      "Stay ahead of regulatory requirements, including health and safety standards, building regulations and energy efficiency regulations. Our surveys ensure your properties meet all necessary legal standards, providing you with peace of mind. Need help with compliance on energy efficiency? Learn about our Energy Performance Certificates (EPC).",
   },
   {
     icon: CalendarClock,

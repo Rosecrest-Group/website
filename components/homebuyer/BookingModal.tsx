@@ -85,6 +85,7 @@ const formSchema = z.object({
   jobPostcode: z.string().min(1, "Postcode is required"),
   propertyType: z.string().min(1, "Please select a property type"),
   propertyValue: z.string().min(1, "Please enter property value"),
+  surveyingFees: z.string().min(1, "Please enter surveying fees"),
   bedrooms: z.string().min(1, "Please select number of bedrooms"),
   timeline: z.string().min(1, "Please select a timeline"),
   helpWith: z.string().optional(),
@@ -118,6 +119,7 @@ const BookingModal = ({
       jobPostcode: "",
       propertyType: "",
       propertyValue: "",
+      surveyingFees: "",
       bedrooms: "",
       surveyType: defaultSurveyType,
       timeline: "",
@@ -145,10 +147,11 @@ const BookingModal = ({
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setSubmitError(false);
     try {
+      const valuesWithPrice = { ...values, surveyingFees: totalPrice };
       const res = await fetch("/api/booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify(valuesWithPrice),
       });
       if (!res.ok) throw new Error("Failed");
     } catch {

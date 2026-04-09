@@ -128,7 +128,7 @@ const Footer: React.FC<FooterProps> = ({ quickLinks }) => {
                 className={`${sourceSans.className} text-[#64748B] text-sm lg:text-base leading-relaxed max-w-sm`}
               >
                 Rosecrest Group Ltd delivers trusted building, maintenance, and
-                property care solutions across London up to the M25.
+                property care solutions across London and the surrounding areas within the M25.
               </p>
             </div>
 

@@ -27,6 +27,7 @@ export async function POST(req: Request) {
       country: "",
       propertyValue: body.propertyValue,
       propertyType: body.propertyType,
+      surveyingFees: body.surveyingFees,
       numberBedrooms: body.bedrooms,
       surveyRequirements: body.helpWith || body.surveyType,
       timeScale: body.timeline,

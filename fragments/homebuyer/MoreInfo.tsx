@@ -68,7 +68,7 @@ const MoreInfo = ({ onOpenBooking }: MoreInfoProps) => {
                     <p
                       className={`${sourceSans.className} text-[#4A5565] text-sm lg:text-base`}
                     >
-                      View our terms of engagements
+                      View our terms of engagement
                     </p>
                   </button>
 

@@ -18,7 +18,7 @@ const AboutDescription = () => {
               className={`${sourceSans.className} text-base lg:text-lg text-[#4A5565] leading-relaxed space-y-5 w-[90%]`}
             >
               <p>
-                At Rosecrest Group, we provide professional, compliant, and
+                At Rosecrest Group Ltd, we provide professional, compliant, and
                 evidence-based property services across London, the M25
                 corridor, and surrounding regions.
               </p>
@@ -27,7 +27,7 @@ const AboutDescription = () => {
                 and commercial clients by first taking the time to understand
                 their objectives, concerns, and requirements. This ensures that
                 any inspections, advice, or building services are correctly
-                scoped and aligned with the client&apos;s intended outcomes.
+                scoped and aligned with the clients’ intended outcomes.
               </p>
               <p>
                 Operating within a RICS-regulated firm framework, our services

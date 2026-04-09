@@ -2,8 +2,8 @@
 
 export const PHONE = "020 4576 5317";
 export const PHONE_HREF = "tel:02045765317";
-export const EMAIL = "rgx@rosecrestgroupltd.co.uk";
-export const EMAIL_HREF = "mailto:rgx@rosecrestgroupltd.co.uk";
+export const EMAIL = "rge@rosecrestgroupltd.co.uk";
+export const EMAIL_HREF = "mailto:rge@rosecrestgroupltd.co.uk";
 
 export const REGISTERED_OFFICE = {
   name: "Rosecrest Group Ltd",

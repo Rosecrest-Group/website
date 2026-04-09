@@ -10,7 +10,7 @@ const Page = () => {
     <div>
       <JourneyHero>
         <p className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
-          About Rosecrest LTD
+          About Rosecrest Group Ltd.
         </p>
         <p
           className={`${sourceSans.className} mt-4 mx-auto text-white text-base lg:text-xl leading-relaxed max-w-3xl`}

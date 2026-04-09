@@ -44,6 +44,28 @@ const nextConfig: NextConfig = {
       },
       { source: "/trade-services", destination: "/services", permanent: true },
 
+      //Blog 
+      {
+        source: "/start-building-without-party-wall-agreement",
+        destination: "/blog/start-building-without-party-wall-agreement",
+        permanent: true,
+      },
+      {
+        source: "/reasons-you-might-need-to-hire-a-building-surveyor",
+        destination: "/blog/reasons-you-might-need-to-hire-a-building-surveyor",
+        permanent: true,
+      },
+      {
+        source: "/ultimate-guide-party-wall-act-1996",
+        destination: "/blog/ultimate-guide-party-wall-act-1996",
+        permanent: true,
+      },
+      {
+        source: "/what-building-surveyors-do",
+        destination: "/blog/what-building-surveyors-do",
+        permanent: true,
+      },
+
       // Services
       {
         source: "/service/rics-level-1-to-3-surveys",

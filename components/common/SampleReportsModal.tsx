@@ -24,14 +24,16 @@ const SAMPLE_REPORTS = [
     title: "Level 2 — HomeBuyer Survey",
     description:
       "A sample Level 2 HomeBuyer Report for a conventional residential property. Shows how defects are rated and reported with our traffic light system.",
-    pdfUrl: "/assets/documents/sample-report-level-2.pdf",
+    pdfUrl: "",
+    // pdfUrl: "/assets/documents/sample-report-level-2.pdf",
   },
   {
     id: "level-3",
     title: "Level 3 — Building Survey",
     description:
       "A sample Level 3 Building Survey for an older, more complex property. Demonstrates the depth of analysis, defect descriptions, repair implications and cost guidance included.",
-    pdfUrl: "/assets/documents/sample-report-level-3.pdf",
+    pdfUrl: "",
+    // pdfUrl: "/assets/documents/sample-report-level-3.pdf",
   },
 ];
 

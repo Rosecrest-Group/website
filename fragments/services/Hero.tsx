@@ -18,7 +18,7 @@ const ServicesHero = () => {
       <div className="absolute inset-0 bg-[#151515CC]" />
 
       {/* Content */}
-      <div className="relative z-10 rounded-4xl w-full pt-44 lg:pt-56 text-center px-4">
+      <div className="relative z-10 rounded-4xl w-full pt-44 lg:pt-56 pb-72 lg:pb-80 text-center px-4">
         <div className="text-white text-4xl lg:text-7xl tracking-tight leading-[100%]">
           Our Comprehensive Services
         </div>

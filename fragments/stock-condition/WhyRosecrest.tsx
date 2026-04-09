@@ -15,7 +15,7 @@ export default function WhyChooseSection() {
           <p
             className={`${sourceSans.className} text-[#101828] text-base lg:text-lg leading-relaxed`}
           >
-            At Rosecrest group Ltd, our expert team is dedicated to delivering
+            At Rosecrest Group Ltd, our expert team is dedicated to delivering
             comprehensive and trustworthy{" "}
             <Link
               href="/stock-condition"
