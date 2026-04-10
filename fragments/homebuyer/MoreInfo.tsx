@@ -10,7 +10,6 @@ import { OpenBookingModal } from "@/types/homebuyer";
 import TermsModal from "@/components/common/TermsModal";
 import SampleReportsModal from "@/components/common/SampleReportsModal";
 import { Reveal } from "@/components/common/Reveal";
-import { useRouter } from "next/navigation";
 
 interface MoreInfoProps {
   onOpenBooking: OpenBookingModal;
@@ -19,7 +18,6 @@ interface MoreInfoProps {
 const MoreInfo = ({ onOpenBooking }: MoreInfoProps) => {
   const [termsOpen, setTermsOpen] = useState(false);
   const [samplesOpen, setSamplesOpen] = useState(false);
-  const router = useRouter();
   
   return (
     <>
@@ -116,8 +114,7 @@ const MoreInfo = ({ onOpenBooking }: MoreInfoProps) => {
                           size="lg"
                           className="bg-[#DBB38E] h-12 hover:bg-[#DBB38E]/90 text-[#151515] px-8 py-6 rounded-full text-base lg:text-lg mb-12 leading-7"
                           onClick={() =>
-                            // onOpenBooking()
-                            router.push("/contact")
+                            onOpenBooking()
                           }
                         >
                           Check Availability & Fixed Price

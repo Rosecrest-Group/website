@@ -34,6 +34,20 @@ interface BookingModalProps {
 
 // ─── Pricing ─────────────────────────────────────────────────────────────────
 
+const LEVEL_1_PRICES: Record<string, number> = {
+  Studio: 275,
+  "1 Bedroom": 300,
+  "2 Bedroom": 350,
+  "3 Bedroom": 400,
+  "4 Bedroom": 450,
+  "5 Bedroom": 500,
+  "6 Bedroom": 550,
+  "7 Bedroom": 600,
+  "8 Bedroom": 650,
+  "9 Bedroom": 700,
+  "10+ Bedroom": 750,
+};
+
 const LEVEL_2_PRICES: Record<string, number> = {
   Studio: 290,
   "1 Bedroom": 320,
@@ -63,7 +77,12 @@ const LEVEL_3_PRICES: Record<string, number> = {
 };
 
 function getPrice(surveyType: string, bedrooms: string): number {
-  const prices = surveyType === "level-3" ? LEVEL_3_PRICES : LEVEL_2_PRICES;
+  const prices =
+    surveyType === "level-3"
+      ? LEVEL_3_PRICES
+      : surveyType === "level-1"
+      ? LEVEL_1_PRICES
+      : LEVEL_2_PRICES;
   return prices[bedrooms] ?? prices["1 Bedroom"];
 }
 
