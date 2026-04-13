@@ -19,8 +19,13 @@ interface Post {
 
 export async function generateStaticParams() {
   if (!process.env.WORDPRESS_GRAPHQL_URL) return [];
-  const posts = await getAllPosts();
-  return posts.map((post: Post): StaticParam => ({ slug: post.slug }));
+  try {
+    const posts = await getAllPosts();
+    return posts.map((post: Post): StaticParam => ({ slug: post.slug }));
+  } catch (err) {
+    console.warn("generateStaticParams: could not fetch posts, skipping static generation", err);
+    return [];
+  }
 }
 
 export async function generateMetadata({
