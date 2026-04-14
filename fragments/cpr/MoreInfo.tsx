@@ -54,7 +54,7 @@ const CPRMoreInfo = () => {
                 <div className="flex flex-wrap items-center justify-center gap-4 mb-8">
                   <Button
                     size="lg"
-                    onClick={() => router.push("/contact")}
+                    onClick={() => router.push("/request-inspection")}
                     className="bg-[#DBB38E] hover:bg-[#DBB38E]/90 text-[#151515] px-8 py-6 rounded-full text-base font-medium"
                   >
                     Request a discussion

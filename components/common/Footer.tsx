@@ -82,7 +82,7 @@ const Footer: React.FC<FooterProps> = ({ quickLinks }) => {
       href: "#",
       onClick: () => setTermsOpen(true),
     },
-    { label: "Complaints Procedure", href: "#" },
+    { label: "Complaints Procedure", href: "/complaints-procedure" },
     { label: "Privacy Policy", href: "/privacy-policy" },
   ];
 

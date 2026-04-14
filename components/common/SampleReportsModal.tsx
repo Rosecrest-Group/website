@@ -16,24 +16,21 @@ const SAMPLE_REPORTS = [
     title: "Level 1 — Home Condition Survey",
     description:
       "A sample Level 1 report for a conventional new-build property. Ideal for understanding the format and condition ratings used in our most basic survey.",
-    pdfUrl: "",
-    // pdfUrl: "/assets/documents/sample-report-level-1.pdf",
+    pdfUrl: "/assets/documents/sample-report-level-1.pdf",
   },
   {
     id: "level-2",
     title: "Level 2 — HomeBuyer Survey",
     description:
       "A sample Level 2 HomeBuyer Report for a conventional residential property. Shows how defects are rated and reported with our traffic light system.",
-    pdfUrl: "",
-    // pdfUrl: "/assets/documents/sample-report-level-2.pdf",
+    pdfUrl: "/assets/documents/sample-report-level-2.pdf",
   },
   {
     id: "level-3",
     title: "Level 3 — Building Survey",
     description:
       "A sample Level 3 Building Survey for an older, more complex property. Demonstrates the depth of analysis, defect descriptions, repair implications and cost guidance included.",
-    pdfUrl: "",
-    // pdfUrl: "/assets/documents/sample-report-level-3.pdf",
+    pdfUrl: "/assets/documents/sample-report-level-3.pdf",
   },
 ];
 
@@ -72,7 +69,7 @@ const SampleReportsModal = ({ isOpen, onClose }: SampleReportsModalProps) => {
         <div className="h-px bg-[#F3F4F6]" />
 
         {/* Report cards */}
-        <div className="px-8 py-6 space-y-4 max-h-[60vh] overflow-y-auto">
+        <div className="px-8 py-6 space-y-4 max-h-[75vh] overflow-y-auto">
           {SAMPLE_REPORTS.map((report) => (
             <div key={report.id}>
               {report.pdfUrl ? (
