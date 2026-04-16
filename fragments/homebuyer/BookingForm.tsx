@@ -114,6 +114,7 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
     register,
     handleSubmit,
     control,
+    reset,
     formState: { errors },
   } = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -196,6 +197,14 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
             Thank you. Check your email for confirmation and next steps. We look
             forward to helping you with your survey!
           </p>
+          <Button
+            onClick={() => {
+              reset();
+            }}
+            className="mt-4 rounded-full px-8 bg-[#262A6F] text-white"
+          >
+            Go back to form
+          </Button>
         </div>
       </section>
     );

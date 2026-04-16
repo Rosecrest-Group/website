@@ -124,6 +124,7 @@ const BookingModal = ({
     register,
     handleSubmit,
     control,
+    reset,
     formState: { errors, isSubmitting, isSubmitSuccessful },
   } = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -227,7 +228,9 @@ const BookingModal = ({
                 look forward to helping you with your survey!
               </p>
               <Button
-                onClick={onClose}
+                onClick={() => { 
+                  reset();
+                  onClose(); }}
                 className="mt-4 rounded-full px-8 bg-[#262A6F] text-white"
               >
                 Close

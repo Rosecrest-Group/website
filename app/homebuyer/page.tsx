@@ -7,7 +7,7 @@ import Surverys from "@/fragments/homebuyer/Surverys";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
 import BookingModal from "@/components/homebuyer/BookingModal";
 import { sourceSans } from "@/lib/fonts";
-import  { useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { OpenBookingModal } from "@/types/homebuyer";
 
 const Page = () => {
@@ -47,7 +47,12 @@ const Page = () => {
       <FAQ />
       <Footer />
 
-      <BookingModal isOpen={modalOpen} onClose={closeModal} {...modalProps} />
+      <BookingModal
+        key={modalProps?.surveyLevel}
+        isOpen={modalOpen}
+        onClose={closeModal}
+        {...modalProps}
+      />
     </div>
   );
 };
