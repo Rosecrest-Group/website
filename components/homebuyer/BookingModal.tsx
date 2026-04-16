@@ -223,13 +223,17 @@ const BookingModal = ({
                 </svg>
               </div>
               <h3 className="text-xl lg:text-2xl font-bold text-[#101828]">
-                Booking Request Received
+                Secure your booking
               </h3>
               <p
-                className={`${sourceSans.className} text-[#4A5565] text-sm lg:text-base max-w-xs`}
+                className={`${sourceSans.className} text-[#4A5565] text-sm lg:text-base max-w-sm`}
               >
-                Thank you. Check your email for confirmation and next steps. We
-                look forward to helping you with your survey!
+                Your quotation and payment details have been seent to your
+                email. Complete payment to confirm your survey and secure your
+                inspection slot
+                <br/>
+                <br/>
+                <span className="text-xs lg:text-sm italic">Booking is only confirmed once payment is received</span>
               </p>
               <Button
                 onClick={() => {
@@ -636,9 +640,10 @@ const BookingModal = ({
                   </h4>
                   <ul className={`space-y-2.5 ${sourceSans.className}`}>
                     {[
-                      "Confirm your booking",
-                      "We'll contact you to arrange the inspection",
-                      "Receive your detailed report",
+                      "Receive your quote sent to your email instantly",
+                      "Secure your booking - complete payment to confirm your slot",
+                      "Inspection arranged - we coordinate access and confirm your date",
+                      "Receive your report - delivered within the stated timeframe"
                     ].map((step, i) => (
                       <li key={i} className="flex items-start gap-3">
                         <div className="bg-[#262A6F] text-white rounded-full w-5 h-5 flex items-center justify-center shrink-0 text-xs font-semibold">
@@ -651,7 +656,7 @@ const BookingModal = ({
                 </div>
                 <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-[#6A7282]">
                   <CheckCircle className="w-3.5 h-3.5" />
-                  <span>No payment taken until booking is confirmed</span>
+                  <span>Payment is required to secure your booking.</span>
                 </div>
               </div>
             </div>

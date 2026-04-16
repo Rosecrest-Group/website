@@ -594,9 +594,10 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
                 </h4>
                 <ul className={`space-y-3 text-sm ${sourceSans.className}`}>
                   {[
-                    "Confirm your booking",
-                    "We'll contact you to arrange the inspection",
-                    "Receive your detailed report",
+                    "Receive your quote sent to your email instantly",
+                      "Secure your booking - complete payment to confirm your slot",
+                      "Inspection arranged - we coordinate access and confirm your date",
+                      "Receive your report - delivered within the stated timeframe"
                   ].map((step, i) => (
                     <li key={i} className="flex items-start gap-3">
                       <div className="bg-[#262A6F] text-white rounded-full w-5 h-5 flex items-center justify-center shrink-0 text-sm font-semibold">
@@ -610,7 +611,7 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
             </div>
             <div className="mt-6 flex items-center justify-center gap-2 text-xs text-[#6A7282]">
               <CheckCircle className="w-4 h-4" />
-              <span>No payment taken until booking is confirmed</span>
+              <span>Payment is required to secure your booking.</span>
             </div>
           </div>
         </div>
