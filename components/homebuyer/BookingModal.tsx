@@ -81,8 +81,8 @@ function getPrice(surveyType: string, bedrooms: string): number {
     surveyType === "level-3"
       ? LEVEL_3_PRICES
       : surveyType === "level-1"
-      ? LEVEL_1_PRICES
-      : LEVEL_2_PRICES;
+        ? LEVEL_1_PRICES
+        : LEVEL_2_PRICES;
   return prices[bedrooms] ?? prices["1 Bedroom"];
 }
 
@@ -104,7 +104,6 @@ const formSchema = z.object({
   jobPostcode: z.string().min(1, "Postcode is required"),
   propertyType: z.string().min(1, "Please select a property type"),
   propertyValue: z.string().min(1, "Please enter property value"),
-  surveyingFees: z.string().min(1, "Please enter surveying fees"),
   bedrooms: z.string().min(1, "Please select number of bedrooms"),
   timeline: z.string().min(1, "Please select a timeline"),
   helpWith: z.string().optional(),
@@ -138,7 +137,6 @@ const BookingModal = ({
       jobPostcode: "",
       propertyType: "",
       propertyValue: "",
-      surveyingFees: "",
       bedrooms: "",
       surveyType: defaultSurveyType,
       timeline: "",
@@ -502,9 +500,8 @@ const BookingModal = ({
                       control={control}
                       render={({ field }) => (
                         <Select
-                          key={defaultSurveyType}
                           onValueChange={field.onChange}
-                          defaultValue={defaultSurveyType}
+                          value={field.value} 
                         >
                           <SelectTrigger className="h-11 rounded-xl border-[#E5E7EB] w-full text-sm">
                             <SelectValue />

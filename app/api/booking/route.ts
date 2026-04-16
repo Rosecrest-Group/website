@@ -1,7 +1,7 @@
 import { config } from "@/config/api";
 import { NextResponse } from "next/server";
 
-const BOOKING_WEBHOOK = config.bookingWebhook || ""
+const BOOKING_WEBHOOK = config.bookingWebhook || "";
 
 const LEAD_TYPE: Record<string, number> = {
   "level-1": 90,
@@ -45,6 +45,10 @@ export async function POST(req: Request) {
 
     const responseText = await res.text();
     console.log("📬 Booking webhook response:", res.status, responseText);
+
+    if (!res.ok) {
+      return NextResponse.json({ success: false }, { status: 502 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
