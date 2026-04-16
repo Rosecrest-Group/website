@@ -186,18 +186,22 @@ const BookingModal = ({
     >
       <div className="relative w-full max-w-5xl max-h-[92vh] flex flex-col bg-white rounded-4xl shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-8 pt-7 pb-5 shrink-0">
-          <h2 className="text-xl font-bold text-[#101828]">
-            Check Availability & Get a Fixed Price
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
+        {isSubmitSuccessful ? (
+          <div></div>
+        ) : (
+          <div className="flex items-center justify-between px-8 pt-7 pb-5 shrink-0">
+            <h2 className="text-xl font-bold text-[#101828]">
+              Check Availability & Get a Fixed Price
+            </h2>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+        )}
 
         {/* Body */}
         <div className="overflow-y-auto px-8 pb-2 flex-1">
@@ -218,19 +222,20 @@ const BookingModal = ({
                   />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-[#101828]">
+              <h3 className="text-xl lg:text-2xl font-bold text-[#101828]">
                 Booking Request Received
               </h3>
               <p
-                className={`${sourceSans.className} text-[#4A5565] text-sm max-w-xs`}
+                className={`${sourceSans.className} text-[#4A5565] text-sm lg:text-base max-w-xs`}
               >
                 Thank you. Check your email for confirmation and next steps. We
                 look forward to helping you with your survey!
               </p>
               <Button
-                onClick={() => { 
+                onClick={() => {
                   reset();
-                  onClose(); }}
+                  onClose();
+                }}
                 className="mt-4 rounded-full px-8 bg-[#262A6F] text-white"
               >
                 Close
@@ -504,7 +509,7 @@ const BookingModal = ({
                       render={({ field }) => (
                         <Select
                           onValueChange={field.onChange}
-                          value={field.value} 
+                          value={field.value}
                         >
                           <SelectTrigger className="h-11 rounded-xl border-[#E5E7EB] w-full text-sm">
                             <SelectValue />
