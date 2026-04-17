@@ -156,11 +156,20 @@ const BookingModal = ({
     defaultValue: defaultSurveyType,
   });
 
+  const selectedTimeline = useWatch({
+    control,
+    name: "timeline",
+    defaultValue: "",
+  });
+
   const activeSurveyTitle =
     SURVEY_LABELS[selectedSurveyType] ?? SURVEY_LABELS[defaultSurveyType];
-  const totalPrice = selectedBedrooms
+
+  const basePrice = selectedBedrooms
     ? getPrice(selectedSurveyType, selectedBedrooms)
     : getPrice(defaultSurveyType, "1 Bedroom");
+  const expressFee = selectedTimeline === "Urgent (1-2 days)" ? 200 : 0;
+  const totalPrice = basePrice + expressFee;
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setSubmitError(false);
@@ -231,9 +240,11 @@ const BookingModal = ({
                 Your quotation and payment details have been seent to your
                 email. Complete payment to confirm your survey and secure your
                 inspection slot
-                <br/>
-                <br/>
-                <span className="text-xs lg:text-sm italic">Booking is only confirmed once payment is received</span>
+                <br />
+                <br />
+                <span className="text-xs lg:text-sm italic">
+                  Booking is only confirmed once payment is received
+                </span>
               </p>
               <Button
                 onClick={() => {
@@ -558,7 +569,7 @@ const BookingModal = ({
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="Urgent (1-2 days)">
-                                Urgent (1–2 days)
+                                Urgent (1–2 days) (+£200)
                               </SelectItem>
                               <SelectItem value="Within 1 week">
                                 Within a week
@@ -616,8 +627,14 @@ const BookingModal = ({
                       Survey price{" "}
                       {selectedBedrooms ? `(${selectedBedrooms})` : ""}
                     </span>
-                    <span className="font-medium">£{totalPrice}</span>
+                    <span className="font-medium">£{basePrice}</span>
                   </div>
+                  {expressFee > 0 && (
+                    <div className="flex items-center justify-between text-sm text-[#4A5565]">
+                      <span>Express delivery</span>
+                      <span className="font-medium">£{expressFee}</span>
+                    </div>
+                  )}
                   <div className="pt-3 border-t border-gray-200">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-[#101828]">
@@ -643,7 +660,7 @@ const BookingModal = ({
                       "Receive your quote sent to your email instantly",
                       "Secure your booking - complete payment to confirm your slot",
                       "Inspection arranged - we coordinate access and confirm your date",
-                      "Receive your report - delivered within the stated timeframe"
+                      "Receive your report - delivered within the stated timeframe",
                     ].map((step, i) => (
                       <li key={i} className="flex items-start gap-3">
                         <div className="bg-[#262A6F] text-white rounded-full w-5 h-5 flex items-center justify-center shrink-0 text-xs font-semibold">

@@ -146,9 +146,17 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
     defaultValue: surveyType,
   });
 
-  const totalPrice = selectedBedrooms
+  const selectedTimeline = useWatch({
+    control,
+    name: "timeline",
+    defaultValue: "",
+  });
+
+  const basePrice = selectedBedrooms
     ? getPrice(selectedSurveyType, selectedBedrooms)
     : getPrice(surveyType, "1 Bedroom");
+  const expressFee = selectedTimeline === "Urgent (1-2 days)" ? 200 : 0;
+  const totalPrice = basePrice + expressFee;
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
@@ -518,7 +526,7 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Urgent (1-2 days)">
-                            Urgent (1–2 days)
+                            Urgent (1–2 days) (+£200)
                           </SelectItem>
                           <SelectItem value="Within 1 week">
                             Within a week
@@ -570,8 +578,14 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
                     Survey price{" "}
                     {selectedBedrooms ? `(${selectedBedrooms})` : ""}
                   </span>
-                  <span className="font-medium">£{totalPrice}</span>
+                  <span className="font-medium">£{basePrice}</span>
                 </div>
+                {expressFee > 0 && (
+                  <div className="flex items-center justify-between text-[#4A5565] text-sm">
+                    <span>Express delivery</span>
+                    <span className="font-medium">£{expressFee}</span>
+                  </div>
+                )}
                 <div className="pt-4 border-t border-gray-200">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-[#101828]">
@@ -595,9 +609,9 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
                 <ul className={`space-y-3 text-sm ${sourceSans.className}`}>
                   {[
                     "Receive your quote sent to your email instantly",
-                      "Secure your booking - complete payment to confirm your slot",
-                      "Inspection arranged - we coordinate access and confirm your date",
-                      "Receive your report - delivered within the stated timeframe"
+                    "Secure your booking - complete payment to confirm your slot",
+                    "Inspection arranged - we coordinate access and confirm your date",
+                    "Receive your report - delivered within the stated timeframe",
                   ].map((step, i) => (
                     <li key={i} className="flex items-start gap-3">
                       <div className="bg-[#262A6F] text-white rounded-full w-5 h-5 flex items-center justify-center shrink-0 text-sm font-semibold">
