@@ -1,20 +1,31 @@
 "use client";
 
 import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { useEnquiryStore } from "@/store/enquiry-store";
 import ContactForm from "@/components/common/ContactForm";
 
 const EnquiryModal = () => {
+  const router = useRouter();
   const { isOpen, context, closeEnquiry } = useEnquiryStore();
 
   // Lock body scroll when open
   useEffect(() => {
     document.body.style.overflow = isOpen ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  // Close modal, then navigate. We push to /thank-you so conversion tracking
+  // fires on a real pageview rather than relying on DOM-based triggers.
+  const handleSuccess = () => {
+    closeEnquiry();
+    router.push("/thank-you");
+  };
 
   return (
     <div
@@ -51,7 +62,7 @@ const EnquiryModal = () => {
             }
             prefillHelpWith={context}
             submitLabel="Submit Enquiry"
-            onSuccess={closeEnquiry}
+            onSuccess={handleSuccess}
           />
         </div>
 
