@@ -7,7 +7,7 @@ import { ChevronLeft } from "lucide-react";
 import Footer from "@/components/common/Footer";
 import BlogHero from "@/fragments/blog/BlogHero";
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 interface StaticParam {
   slug: string;
@@ -36,12 +36,14 @@ export async function generateMetadata({
   const { slug } = await params;
   const post = await getPostBySlug(slug);
 
+  if (!post) {
+    return { title: "Post not found | Rosecrest Group" };
+  }
+
   return {
-    title: post.seo?.title ?? post.title,
-    description: post.seo?.metaDesc ?? "",
+    title: post.title,
     openGraph: {
-      title: post.seo?.opengraphTitle ?? post.title,
-      description: post.seo?.opengraphDescription ?? post.seo?.metaDesc ?? "",
+      title: post.title,
       images: post.featuredImage?.node?.sourceUrl
         ? [post.featuredImage.node.sourceUrl]
         : [],
@@ -92,6 +94,7 @@ export default async function BlogPostPage({
                   alt={post.featuredImage.node.altText ?? post.title}
                   fill
                   className="object-cover"
+                  priority
                 />
               </div>
             )}
@@ -105,20 +108,26 @@ export default async function BlogPostPage({
             </h1>
 
             <div
-              className={`${sourceSans.className} prose prose-lg max-w-none text-[#4A5565]
-                prose-headings:text-[#101828] prose-headings:font-bold
-                prose-a:text-[#262A6F] prose-a:no-underline hover:prose-a:underline
-                prose-img:rounded-2xl
+              className={`${sourceSans.className} blog-content prose prose-lg max-w-none text-[#4A5565]
+                prose-headings:text-[#262A6F] prose-headings:font-bold prose-headings:tracking-tight
+                prose-h2:text-3xl lg:prose-h2:text-4xl prose-h2:mt-12 prose-h2:mb-5
+                prose-h3:text-2xl lg:prose-h3:text-3xl prose-h3:mt-10 prose-h3:mb-4
+                prose-h4:text-2xl lg:prose-h4:text-3xl prose-h4:mt-10 prose-h4:mb-4
+                prose-h5:text-xl prose-h5:mt-8 prose-h5:mb-3
+                prose-p:leading-relaxed prose-p:mb-5
+                prose-a:text-[#262A6F] prose-a:font-medium prose-a:underline prose-a:underline-offset-4 prose-a:decoration-[#DBB38E] prose-a:decoration-2 hover:prose-a:decoration-[#262A6F]
+                prose-strong:text-[#101828] prose-strong:font-semibold
+                prose-ul:my-5 prose-ul:pl-6 prose-ol:my-5 prose-ol:pl-6
+                prose-li:my-2 prose-li:marker:text-[#DBB38E]
+                prose-blockquote:border-l-4 prose-blockquote:border-[#DBB38E]
+                prose-blockquote:bg-white prose-blockquote:py-3 prose-blockquote:px-5
+                prose-blockquote:rounded-r-xl prose-blockquote:not-italic
+                prose-blockquote:text-[#262A6F] prose-blockquote:font-medium
+                prose-img:rounded-2xl prose-img:shadow-sm
+                prose-hr:border-[#E5E7EB] prose-hr:my-10
               `}
               dangerouslySetInnerHTML={{ __html: post.content }}
             />
-
-            {post.seo?.schema?.raw && (
-              <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: post.seo.schema.raw }}
-              />
-            )}
           </article>
 
           {/* ── Sidebar ── */}

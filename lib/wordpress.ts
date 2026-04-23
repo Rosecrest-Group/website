@@ -1,6 +1,37 @@
 import { GraphQLClient } from "graphql-request";
 
-const client = new GraphQLClient("https://cms.rosecrestgroupltd.co.uk/graphql");
+function getClient() {
+  const endpoint =
+    process.env.WORDPRESS_GRAPHQL_URL ??
+    "https://cms.rosecrestgroupltd.co.uk/graphql";
+
+  return new GraphQLClient(endpoint);
+}
+
+interface AllPostsResponse {
+  posts?: {
+    nodes: {
+      slug: string;
+      title: string;
+      date: string;
+      excerpt: string;
+      featuredImage?: {
+        node: { sourceUrl: string; altText?: string };
+      } | null;
+    }[];
+  };
+}
+
+interface PostBySlugResponse {
+  postBy?: {
+    title: string;
+    date: string;
+    content: string;
+    featuredImage?: {
+      node: { sourceUrl: string; altText?: string };
+    } | null;
+  } | null;
+}
 
 export async function getAllPosts() {
   const query = `
@@ -22,7 +53,7 @@ export async function getAllPosts() {
     }
   `;
 
-  const data = await client.request(query);
+  const data = await getClient().request<AllPostsResponse>(query);
   return data?.posts?.nodes ?? [];
 }
 
@@ -43,6 +74,6 @@ export async function getPostBySlug(slug: string) {
     }
   `;
 
-  const data = await client.request(query, { slug });
+  const data = await getClient().request<PostBySlugResponse>(query, { slug });
   return data?.postBy ?? null;
 }
