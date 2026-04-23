@@ -1,9 +1,7 @@
 import { GraphQLClient } from "graphql-request";
 
 function getClient() {
-  const endpoint =
-    process.env.WORDPRESS_GRAPHQL_URL ??
-    "https://cms.rosecrestgroupltd.co.uk/graphql";
+  const endpoint = "https://cms.rosecrestgroupltd.co.uk/graphql";
 
   return new GraphQLClient(endpoint);
 }
