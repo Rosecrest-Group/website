@@ -13,6 +13,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/request-inspection`, lastModified: new Date() },
     { url: `${baseUrl}/privacy-policy`, lastModified: new Date() },
     { url: `${baseUrl}/cookie-policy`, lastModified: new Date() },
+    { url: `${baseUrl}/thank-you`, lastModified: new Date() },
 
     // Sectors
     { url: `${baseUrl}/homebuyer`, lastModified: new Date() },
@@ -55,5 +56,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/services/plastering`, lastModified: new Date() },
     { url: `${baseUrl}/services/plumbing`, lastModified: new Date() },
     { url: `${baseUrl}/services/tiling`, lastModified: new Date() },
+
   ];
 }
