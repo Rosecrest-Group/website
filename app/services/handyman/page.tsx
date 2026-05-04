@@ -3,7 +3,10 @@ import HandymanDescription from "@/fragments/handyman/HandymanDesc";
 import HandymanMoreInfo from "@/fragments/handyman/HandymanMoreInfo";
 import HandymanServices from "@/fragments/handyman/HandymanServices";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
-import React from "react";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/handyman");
 
 const Page = () => {
   return (

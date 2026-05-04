@@ -6,6 +6,10 @@ import PartyWallFAQ from "@/fragments/partywall/PartywallFAQ";
 import PartyWallIncludes from "@/fragments/partywall/PartywallIncludes";
 import SingleAppointedSurveyor from "@/fragments/partywall/SingleAppointed";
 import { sourceSans } from "@/lib/fonts";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/party-wall");
 
 const Page = () => {
   return (

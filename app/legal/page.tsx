@@ -8,6 +8,9 @@ import ProfessionalStandardsLegal from "@/fragments/legal/LegalProfessionalStand
 import LegalServices from "@/fragments/legal/LegalServices";
 import MLATestimonials from "@/fragments/legal/MLATestimonials";
 import { sourceSans } from "@/lib/fonts";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+export const metadata = getPageMetadata("/legal");
 
 const Page = () => {
   return (

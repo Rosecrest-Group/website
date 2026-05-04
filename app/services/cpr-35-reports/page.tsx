@@ -6,6 +6,9 @@ import ExpertWitness from "@/fragments/cpr/ExpertWitness";
 import CPRMoreInfo from "@/fragments/cpr/MoreInfo";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
 import { sourceSans } from "@/lib/fonts";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+export const metadata = getPageMetadata("/services/cpr-35-reports");
 
 const Page = () => {
   return (

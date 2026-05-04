@@ -2,7 +2,10 @@ import Footer from "@/components/common/Footer";
 import FAQSection from "@/components/faqs/FAQSection";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
 import { sourceSans } from "@/lib/fonts";
-import React from "react";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/faqs");
 
 const Page = () => {
   return (

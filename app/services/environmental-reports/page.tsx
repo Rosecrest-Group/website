@@ -5,6 +5,10 @@ import EnvironmentalDescription from "@/fragments/environmental-reports/Environm
 import EnvironmentalWhoNeeds from "@/fragments/environmental-reports/EnvironmentalWhoNeeds";
 import EnvironmentalWhyChoose from "@/fragments/environmental-reports/EnvironmentalWhyChoose";
 import EnvironmentalMoreInfo from "@/fragments/environmental-reports/EnvironmentalMoreInfo";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/environmental-reports");
 
 const Page = () => {
   return (

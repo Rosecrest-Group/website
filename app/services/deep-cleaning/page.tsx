@@ -3,6 +3,10 @@ import DeepCleaningDescription from "@/fragments/deep-cleaning/DeepCleaningDesc"
 import DeepCleaningMoreInfo from "@/fragments/deep-cleaning/DeepCleaningMoreInfo";
 import DeepCleaningServices from "@/fragments/deep-cleaning/DeepCleaningServices";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/deep-cleaning");
 
 const Page = () => {
   return (

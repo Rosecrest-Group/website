@@ -11,6 +11,9 @@ import ProfessionalStandards from "@/fragments/councils/ProfessionalStandards";
 import RecentWork from "@/fragments/councils/RecentWork";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
 import { sourceSans } from "@/lib/fonts";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+export const metadata = getPageMetadata("/councils");
 
 const Page = () => {
   return (

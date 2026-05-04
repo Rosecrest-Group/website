@@ -4,6 +4,9 @@ import LandlordsDesc from "@/fragments/landlord/Description";
 import LandlordMoreInfo from "@/fragments/landlord/MoreInfo";
 import LandlordsServices from "@/fragments/landlord/Services";
 import { sourceSans } from "@/lib/fonts";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+export const metadata = getPageMetadata("/landlord");
 
 const Page = () => {
   return (

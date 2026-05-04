@@ -4,9 +4,14 @@ import Navbar from "@/components/common/Navbar";
 import { manrope } from "@/lib/fonts";
 import EnquiryModal from "@/components/common/EnquiryModal";
 import Script from "next/script";
+import { siteConfig } from "@/lib/page-metadata";
 
 export const metadata: Metadata = {
-  title: "Expert Property Surveys and Building Consultancy | Rosecrest",
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: "Expert Property Surveys and Building Consultancy | Rosecrest",
+    template: "%s",
+  },
   description:
     "Professional property inspection and surveying services across London and the M25",
 };

@@ -11,7 +11,10 @@ import EPCStepByStep from "@/fragments/epc/EPCSteps";
 import GetStarted from "@/fragments/epc/GetStarted";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
 import { sourceSans } from "@/lib/fonts";
-import React from "react";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/epc");
 
 const Page = () => {
   return (

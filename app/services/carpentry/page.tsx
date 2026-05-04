@@ -3,7 +3,11 @@ import CarpentryDescription from "@/fragments/carpentry/CarpentryDesc";
 import CarpentryMoreInfo from "@/fragments/carpentry/CarpentryMoreInfo";
 import CarpentryServices from "@/fragments/carpentry/CarpentryServices";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
-import React from "react";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/carpentry");
+
 
 const Page = () => {
   return (

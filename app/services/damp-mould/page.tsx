@@ -5,9 +5,11 @@ import DampMouldMoreInfo from "@/fragments/damp-mould/DampMouldMoreInfo";
 import DampMouldSurveySection from "@/fragments/damp-mould/DampMouldSection";
 import DampMouldServices from "@/fragments/damp-mould/DampMouldServices";
 import MouldTreatmentSection from "@/fragments/damp-mould/MouldTreatmentSection";
-
 import JourneyHero from "@/fragments/journeys/JourneyHero";
-import React from "react";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/damp-mould");
 
 const Page = () => {
   return (

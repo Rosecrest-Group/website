@@ -3,6 +3,10 @@ import PlasteringDescription from "@/fragments/plastering/PlasteringDesc";
 import PlasteringMoreInfo from "@/fragments/plastering/PlasteringMoreInfo";
 import PlasteringServices from "@/fragments/plastering/PlasteringServices";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/plastering");
 
 const Page = () => {
   return (
