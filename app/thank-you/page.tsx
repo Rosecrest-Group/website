@@ -13,6 +13,7 @@ import {
   FileText,
   MessageCircle,
 } from "lucide-react";
+import { PHONE } from "@/lib/constants";
 
 // Block search engines — this page should only be reached via a form
 // submission, not indexed as organic content.
@@ -182,11 +183,11 @@ export default function ThankYouPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
-                  href="tel:02030111144"
+                  href={`tel:${PHONE.replace(/\s/g, '')}`}
                   className="inline-flex items-center justify-center gap-2 bg-[#DBB38E] hover:bg-[#DBB38E]/90 text-[#262A6F] font-semibold rounded-full px-6 py-3 transition-colors"
                 >
                   <Phone className="w-4 h-4" />
-                  020 3011 1144
+                  {PHONE}
                 </a>
                 <a
                   href="mailto:info@rosecrestgroupltd.co.uk"
