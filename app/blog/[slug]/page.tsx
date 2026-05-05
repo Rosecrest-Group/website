@@ -1,4 +1,6 @@
-import { getPostBySlug, getAllPosts } from "@/lib/wordpress";
+import { sanityFetch } from "@/sanity/lib/client";
+import { postBySlugQuery, postSlugsQuery, allPostsQuery } from "@/sanity/lib/queries";
+import { urlFor } from "@/sanity/lib/image";
 import { sourceSans } from "@/lib/fonts";
 import Image from "next/image";
 import Link from "next/link";
@@ -6,26 +8,31 @@ import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import Footer from "@/components/common/Footer";
 import BlogHero from "@/fragments/blog/BlogHero";
+import { PortableText } from "@portabletext/react";
+import type { PortableTextBlock } from "@portabletext/types";
 
 export const revalidate = 60;
 
-interface StaticParam {
-  slug: string;
-}
-
 interface Post {
+  _id: string;
+  title: string;
   slug: string;
+  excerpt?: string;
+  publishedAt: string;
+  heroImage?: {
+    asset: { _ref: string };
+    alt?: string;
+  };
+  body?: PortableTextBlock[];
+  seo?: {
+    metaTitle?: string;
+    metaDescription?: string;
+  };
 }
 
 export async function generateStaticParams() {
-  if (!process.env.WORDPRESS_GRAPHQL_URL) return [];
-  try {
-    const posts = await getAllPosts();
-    return posts.map((post: Post): StaticParam => ({ slug: post.slug }));
-  } catch (err) {
-    console.warn("generateStaticParams: could not fetch posts, skipping static generation", err);
-    return [];
-  }
+  const slugs: string[] = await sanityFetch<string[]>(postSlugsQuery);
+  return slugs.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({
@@ -34,22 +41,45 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = await getPostBySlug(slug);
+  const post: Post | null = await sanityFetch<Post | null>(postBySlugQuery, { slug });
 
   if (!post) {
     return { title: "Post not found | Rosecrest Group" };
   }
 
   return {
-    title: post.title,
+    title: post.seo?.metaTitle || post.title,
+    description: post.seo?.metaDescription || post.excerpt,
     openGraph: {
-      title: post.title,
-      images: post.featuredImage?.node?.sourceUrl
-        ? [post.featuredImage.node.sourceUrl]
+      title: post.seo?.metaTitle || post.title,
+      description: post.seo?.metaDescription || post.excerpt,
+      images: post.heroImage
+        ? [urlFor(post.heroImage).width(1200).format("webp").url()]
         : [],
     },
   };
 }
+
+const portableTextComponents = {
+  types: {
+    image: ({ value }: { value: { asset: { _ref: string }; alt?: string; caption?: string } }) => (
+      <figure className="my-8">
+        <Image
+          src={urlFor(value).width(1200).format("webp").url()}
+          alt={value.alt || ""}
+          width={1200}
+          height={675}
+          className="rounded-2xl"
+        />
+        {value.caption && (
+          <figcaption className="text-center text-sm text-[#6A7282] mt-2">
+            {value.caption}
+          </figcaption>
+        )}
+      </figure>
+    ),
+  },
+};
 
 export default async function BlogPostPage({
   params,
@@ -57,16 +87,14 @@ export default async function BlogPostPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [post, allPosts] = await Promise.all([
-    getPostBySlug(slug),
-    getAllPosts(),
+  const [post, allPosts]: [Post | null, Post[]] = await Promise.all([
+    sanityFetch<Post | null>(postBySlugQuery, { slug }),
+    sanityFetch<Post[]>(allPostsQuery),
   ]);
 
   if (!post) notFound();
 
-  const relatedPosts = allPosts
-    .filter((p: Post) => p.slug !== slug)
-    .slice(0, 5);
+  const relatedPosts = allPosts.filter((p) => p.slug !== slug).slice(0, 5);
 
   return (
     <div className="bg-[#FBF7F4] min-h-screen">
@@ -76,8 +104,6 @@ export default async function BlogPostPage({
 
       <div className="max-w-7xl mx-auto px-4 py-16">
         <div className="grid lg:grid-cols-[1fr_320px] gap-12 items-start">
-
-          {/* ── Main article ── */}
           <article>
             <Link
               href="/blog"
@@ -87,25 +113,44 @@ export default async function BlogPostPage({
               Back to News & Insights
             </Link>
 
-            {post.featuredImage?.node && (
-              <div className="relative h-64 lg:h-96 w-full rounded-2xl overflow-hidden mb-8">
+            {/* Article Header */}
+            <header className="mb-10">
+              <div className="flex items-center gap-3 mb-5">
+                <span className="w-8 h-[2px] bg-[#DBB38E]" />
+                <time 
+                  dateTime={post.publishedAt}
+                  className={`${sourceSans.className} text-sm font-medium text-[#6A7282] uppercase tracking-wider`}
+                >
+                  {new Date(post.publishedAt).toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  })}
+                </time>
+              </div>
+
+              <h1 className="text-3xl lg:text-5xl font-bold text-[#101828] leading-tight mb-6">
+                {post.title}
+              </h1>
+
+              {post.excerpt && (
+                <p className={`${sourceSans.className} text-lg lg:text-xl text-[#4A5565] leading-relaxed`}>
+                  {post.excerpt}
+                </p>
+              )}
+            </header>
+
+            {post.heroImage && (
+              <div className="relative h-64 lg:h-96 w-full rounded-2xl overflow-hidden mb-10 shadow-sm">
                 <Image
-                  src={post.featuredImage.node.sourceUrl}
-                  alt={post.featuredImage.node.altText ?? post.title}
+                  src={urlFor(post.heroImage).width(1200).format("webp").url()}
+                  alt={post.heroImage.alt ?? post.title}
                   fill
                   className="object-cover"
                   priority
                 />
               </div>
             )}
-
-            <p className={`${sourceSans.className} text-sm text-[#6A7282] mb-3`}>
-              {post.date.slice(0, 10)}
-            </p>
-
-            <h1 className="text-3xl lg:text-5xl font-bold text-[#101828] mb-10 leading-tight">
-              {post.title}
-            </h1>
 
             <div
               className={`${sourceSans.className} blog-content prose prose-lg max-w-none text-[#4A5565]
@@ -126,28 +171,30 @@ export default async function BlogPostPage({
                 prose-img:rounded-2xl prose-img:shadow-sm
                 prose-hr:border-[#E5E7EB] prose-hr:my-10
               `}
-              dangerouslySetInnerHTML={{ __html: post.content }}
-            />
+            >
+              {post.body && (
+                <PortableText value={post.body} components={portableTextComponents} />
+              )}
+            </div>
           </article>
 
-          {/* ── Sidebar ── */}
           {relatedPosts.length > 0 && (
             <aside className="sticky top-8">
               <h2 className="text-sm font-bold text-[#101828] uppercase tracking-widest mb-5">
                 More Stories
               </h2>
               <ul className="space-y-5">
-                {relatedPosts.map((related: (typeof allPosts)[number]) => (
-                  <li key={related.slug}>
+                {relatedPosts.map((related) => (
+                  <li key={related._id}>
                     <Link
                       href={`/blog/${related.slug}`}
                       className="group flex gap-3 items-start"
                     >
-                      {related.featuredImage?.node ? (
+                      {related.heroImage ? (
                         <div className="relative w-20 h-16 rounded-xl overflow-hidden shrink-0">
                           <Image
-                            src={related.featuredImage.node.sourceUrl}
-                            alt={related.featuredImage.node.altText ?? related.title}
+                            src={urlFor(related.heroImage).width(160).format("webp").url()}
+                            alt={related.heroImage.alt ?? related.title}
                             fill
                             className="object-cover group-hover:scale-105 transition-transform duration-300"
                           />
@@ -157,7 +204,7 @@ export default async function BlogPostPage({
                       )}
                       <div className="flex-1 min-w-0">
                         <p className={`${sourceSans.className} text-xs text-[#6A7282] mb-1`}>
-                          {related.date.slice(0, 10)}
+                          {related.publishedAt?.slice(0, 10)}
                         </p>
                         <p className="text-sm font-semibold text-[#101828] leading-snug line-clamp-2 group-hover:text-[#262A6F] transition-colors">
                           {related.title}

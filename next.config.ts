@@ -9,10 +9,15 @@ const nextConfig: NextConfig = {
         hostname: "rosecrestgroupltd.co.uk",
         pathname: "/wp-content/uploads/**",
       },
-       {
+      {
         protocol: "https",
         hostname: "cms.rosecrestgroupltd.co.uk",
         pathname: "/wp-content/uploads/**",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn.sanity.io",
+        pathname: "/images/**",
       },
     ],
   },

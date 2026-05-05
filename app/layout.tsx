@@ -3,7 +3,8 @@ import "./globals.css";
 import Navbar from "@/components/common/Navbar";
 import { manrope } from "@/lib/fonts";
 import EnquiryModal from "@/components/common/EnquiryModal";
-import Script from "next/script";
+import GoogleTagManagerRoot from "@/components/analytics/GoogleTagManagerRoot";
+import { headers } from "next/headers";
 
 export const metadata: Metadata = {
   title: "Expert Property Surveys and Building Consultancy | Rosecrest",
@@ -11,24 +12,19 @@ export const metadata: Metadata = {
     "Professional property inspection and surveying services across London and the M25",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const hideSiteChrome =
+    (await headers()).get("x-rosecrest-hide-site-chrome") === "1";
+
   return (
     <html lang="en">
-      <head>
-        {/* Google Tag Manager */}
-        <Script id="gtm-head" strategy="afterInteractive">
-          {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','GTM-KWX4BX6S');`}
-        </Script>
-      </head>
+      <head />
       <body className={`${manrope.className} relative no-scrollbar scroll-smooth`}>
+        <GoogleTagManagerRoot />
         {/* Google Tag Manager noscript */}
         <noscript>
           <iframe
@@ -39,9 +35,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           />
         </noscript>
 
-        <Navbar />
-        <div className="grow">{children}</div>
-        <EnquiryModal />
+        {!hideSiteChrome && <Navbar />}
+        {hideSiteChrome ? (
+          children
+        ) : (
+          <div className="grow">{children}</div>
+        )}
+        {!hideSiteChrome && <EnquiryModal />}
       </body>
     </html>
   );

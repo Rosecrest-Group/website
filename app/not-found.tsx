@@ -1,14 +1,27 @@
 import Link from "next/link";
 import Image from "next/image";
-import { getAllPosts } from "@/lib/wordpress";
+import { sanityFetch } from "@/sanity/lib/client";
+import { allPostsQuery } from "@/sanity/lib/queries";
+import { urlFor } from "@/sanity/lib/image";
 import { sourceSans } from "@/lib/fonts";
 import Footer from "@/components/common/Footer";
 import { Home, ArrowRight, Phone } from "lucide-react";
 
+interface Post {
+  _id: string;
+  title: string;
+  slug: string;
+  publishedAt: string;
+  heroImage?: {
+    asset: { _ref: string };
+    alt?: string;
+  };
+}
+
 export default async function NotFound() {
-  let recentPosts: Awaited<ReturnType<typeof getAllPosts>> = [];
+  let recentPosts: Post[] = [];
   try {
-    const posts = await getAllPosts();
+    const posts: Post[] = await sanityFetch<Post[]>(allPostsQuery);
     recentPosts = posts.slice(0, 3);
   } catch {
     // fail silently — posts are non-critical
@@ -88,17 +101,17 @@ export default async function NotFound() {
               </p>
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {recentPosts.map((post : (typeof recentPosts)[number]) => (
+                {recentPosts.map((post) => (
                   <Link
-                    key={post.slug}
+                    key={post._id}
                     href={`/blog/${post.slug}`}
                     className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow"
                   >
-                    {post.featuredImage?.node && (
+                    {post.heroImage && (
                       <div className="relative h-40 w-full">
                         <Image
-                          src={post.featuredImage.node.sourceUrl}
-                          alt={post.featuredImage.node.altText ?? post.title}
+                          src={urlFor(post.heroImage).width(400).format("webp").url()}
+                          alt={post.heroImage.alt ?? post.title}
                           fill
                           className="object-cover group-hover:scale-105 transition-transform duration-300"
                         />
@@ -106,7 +119,7 @@ export default async function NotFound() {
                     )}
                     <div className="p-4">
                       <p className={`${sourceSans.className} text-xs text-[#6A7282] mb-1.5`}>
-                        {post.date.slice(0, 10)}
+                        {post.publishedAt?.slice(0, 10)}
                       </p>
                       <h3 className="font-bold text-[#101828] text-sm leading-snug group-hover:text-[#262A6F] transition-colors line-clamp-2">
                         {post.title}

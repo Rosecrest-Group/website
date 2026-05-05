@@ -1,14 +1,28 @@
-import { getAllPosts } from "@/lib/wordpress";
+import { sanityFetch } from "@/sanity/lib/client";
+import { allPostsQuery } from "@/sanity/lib/queries";
+import { urlFor } from "@/sanity/lib/image";
 import Link from "next/link";
 import Image from "next/image";
 import { sourceSans } from "@/lib/fonts";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
 import Footer from "@/components/common/Footer";
 
-export const revalidate = 3600;
+export const revalidate = 60;
+
+interface Post {
+  _id: string;
+  title: string;
+  slug: string;
+  excerpt?: string;
+  publishedAt: string;
+  heroImage?: {
+    asset: { _ref: string };
+    alt?: string;
+  };
+}
 
 export default async function BlogPage() {
-  const posts = await getAllPosts();
+  const posts: Post[] = await sanityFetch<Post[]>(allPostsQuery);
 
   return (
     <div className="bg-[#FBF7F4]">
@@ -31,17 +45,17 @@ export default async function BlogPage() {
           </p>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {posts.map((post: (typeof posts)[number]) => (
+            {posts.map((post) => (
               <Link
-                key={post.slug}
+                key={post._id}
                 href={`/blog/${post.slug}`}
                 className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow"
               >
-                {post.featuredImage?.node && (
+                {post.heroImage && (
                   <div className="relative h-48 w-full">
                     <Image
-                      src={post.featuredImage.node.sourceUrl}
-                      alt={post.featuredImage.node.altText ?? post.title}
+                      src={urlFor(post.heroImage).width(800).format("webp").url()}
+                      alt={post.heroImage.alt ?? post.title}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
                     />
@@ -51,15 +65,18 @@ export default async function BlogPage() {
                   <p
                     className={`${sourceSans.className} text-xs text-[#6A7282] mb-2`}
                   >
-                    {post.date.slice(0, 10)}
+                    {post.publishedAt?.slice(0, 10)}
                   </p>
                   <h2 className="font-bold text-[#101828] text-lg mb-3 leading-snug group-hover:text-[#262A6F] transition-colors">
                     {post.title}
                   </h2>
-                  <p
-                    className={`${sourceSans.className} text-[#4A5565] text-sm line-clamp-3`}
-                    dangerouslySetInnerHTML={{ __html: post.excerpt }}
-                  />
+                  {post.excerpt && (
+                    <p
+                      className={`${sourceSans.className} text-[#4A5565] text-sm line-clamp-3`}
+                    >
+                      {post.excerpt}
+                    </p>
+                  )}
                 </div>
               </Link>
             ))}
