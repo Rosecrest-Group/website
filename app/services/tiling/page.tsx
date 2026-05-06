@@ -3,6 +3,10 @@ import TilingDescription from "@/fragments/tiling/TilingDesc";
 import TilingMoreInfo from "@/fragments/tiling/TilingMoreInfo";
 import TilingServices from "@/fragments/tiling/TilingServices";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/tiling");
 
 const Page = () => {
   return (

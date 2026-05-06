@@ -3,7 +3,10 @@ import HousingContact from "@/fragments/housing-disrepair/HousingContact";
 import HousingDisrepairIncludes from "@/fragments/housing-disrepair/HousingIncludes";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
 import { sourceSans } from "@/lib/fonts";
-import React from "react";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/housing-disrepair");
 
 const Page = () => {
   return (

@@ -11,12 +11,21 @@ import {
   SOCIAL_LINKS,
 } from "@/lib/constants";
 import { Phone, Mail, MapPin } from "lucide-react";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+export const metadata = getPageMetadata("/contact");
 
 // ─── Social icon map ──────────────────────────────────────────────────────────
 const SocialIcon = ({ label }: { label: string }) => {
   if (label === "Instagram")
     return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        className="w-5 h-5"
+      >
         <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
         <circle cx="12" cy="12" r="4" />
         <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none" />
@@ -51,7 +60,9 @@ const Page = () => {
         <p className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
           Contact Rosecrest
         </p>
-        <p className={`${sourceSans.className} mt-4 mx-auto text-white text-base lg:text-xl leading-relaxed max-w-3xl`}>
+        <p
+          className={`${sourceSans.className} mt-4 mx-auto text-white text-base lg:text-xl leading-relaxed max-w-3xl`}
+        >
           If you have an enquiry, need to request an inspection, or would like
           to discuss your requirements, our team will be happy to assist.
         </p>
@@ -61,7 +72,6 @@ const Page = () => {
       <section className="py-10 lg:py-16 px-4 bg-white">
         <div className="max-w-7xl mx-auto bg-[#FBF7F4] rounded-4xl p-6 lg:p-10">
           <div className="grid lg:grid-cols-[0.6fr_0.4fr] gap-8 lg:gap-12 items-start">
-
             {/* Left — Form */}
             <div className="bg-white rounded-3xl p-6 lg:p-8 order-2 lg:order-1">
               <ContactForm
@@ -73,11 +83,15 @@ const Page = () => {
 
             {/* Right — Speak With Us */}
             <div className="bg-white rounded-3xl p-6 lg:p-8 lg:py-17 space-y-8 order-1 lg:order-2">
-              <h2 className="text-2xl font-bold text-[#101828]">Speak With Us</h2>
+              <h2 className="text-2xl font-bold text-[#101828]">
+                Speak With Us
+              </h2>
 
               {/* Telephone */}
               <div>
-                <p className="font-semibold text-[#DBB38E] text-sm mb-2">Telephone</p>
+                <p className="font-semibold text-[#DBB38E] text-sm mb-2">
+                  Telephone
+                </p>
                 <a
                   href={PHONE_HREF}
                   className={`${sourceSans.className} flex items-center gap-2 text-[#4A5565] hover:text-[#262A6F] transition-colors text-sm`}
@@ -89,7 +103,9 @@ const Page = () => {
 
               {/* Email */}
               <div>
-                <p className="font-semibold text-[#DBB38E] text-sm mb-2">Email</p>
+                <p className="font-semibold text-[#DBB38E] text-sm mb-2">
+                  Email
+                </p>
                 <a
                   href={EMAIL_HREF}
                   className={`${sourceSans.className} flex items-center gap-2 text-[#4A5565] hover:text-[#262A6F] transition-colors text-sm`}
@@ -101,21 +117,31 @@ const Page = () => {
 
               {/* Registered Office */}
               <div>
-                <p className="font-semibold text-[#DBB38E] text-sm mb-2">Registered Office</p>
-                <div className={`${sourceSans.className} flex items-start gap-2 text-[#4A5565] text-sm`}>
+                <p className="font-semibold text-[#DBB38E] text-sm mb-2">
+                  Registered Office
+                </p>
+                <div
+                  className={`${sourceSans.className} flex items-start gap-2 text-[#4A5565] text-sm`}
+                >
                   <MapPin className="w-4 h-4 text-[#262A6F] shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium text-[#101828]">{REGISTERED_OFFICE.name}</p>
+                    <p className="font-medium text-[#101828]">
+                      {REGISTERED_OFFICE.name}
+                    </p>
                     <p>{REGISTERED_OFFICE.line1}</p>
                     <p className="mb-2">{REGISTERED_OFFICE.line2}</p>
-                    <p className="text-[#6A7282] text-xs leading-relaxed">{REGISTERED_OFFICE.note}</p>
+                    <p className="text-[#6A7282] text-xs leading-relaxed">
+                      {REGISTERED_OFFICE.note}
+                    </p>
                   </div>
                 </div>
               </div>
 
               {/* Social */}
               <div>
-                <p className="font-semibold text-[#101828] text-sm mb-3">Connect With Us</p>
+                <p className="font-semibold text-[#101828] text-sm mb-3">
+                  Connect With Us
+                </p>
                 <div className="flex items-center gap-4">
                   {SOCIAL_LINKS.map((s) => (
                     <a
@@ -132,7 +158,6 @@ const Page = () => {
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </section>

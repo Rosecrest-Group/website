@@ -3,6 +3,10 @@ import HouseClearanceDescription from "@/fragments/house-clearance/HouseClearanc
 import HouseClearanceMoreInfo from "@/fragments/house-clearance/HouseClearanceMoreInfo";
 import HouseClearanceServices from "@/fragments/house-clearance/HouseClearanceServices";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/house-clearance");
 
 const Page = () => {
   return (

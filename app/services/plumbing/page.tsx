@@ -3,6 +3,10 @@ import PlumbingDescription from "@/fragments/plumbing/PlumbingDesc";
 import PlumbingMoreInfo from "@/fragments/plumbing/PlumbingMoreInfo";
 import PlumbingServices from "@/fragments/plumbing/PlumbingServices";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/plumbing");
 
 const Page = () => {
   return (

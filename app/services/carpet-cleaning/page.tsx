@@ -3,7 +3,10 @@ import CarpetDescription from "@/fragments/carpet-cleaning/CarpetDesc";
 import CarpetMoreInfo from "@/fragments/carpet-cleaning/CarpetMoreInfo";
 import CarpetServices from "@/fragments/carpet-cleaning/CarpetServices";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
-import React from "react";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/carpet-cleaning");
 
 const Page = () => {
   return (

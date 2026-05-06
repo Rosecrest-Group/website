@@ -3,7 +3,10 @@ import JourneyHero from "@/fragments/journeys/JourneyHero";
 import StockDescription from "@/fragments/stock-condition/StockDescription";
 import StockIncludes from "@/fragments/stock-condition/StockIncludes";
 import WhyChooseSection from "@/fragments/stock-condition/WhyRosecrest";
-import React from "react";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/stock-condition");
 
 const Page = () => {
   return (

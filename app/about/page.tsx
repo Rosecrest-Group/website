@@ -4,6 +4,9 @@ import ClientTestimonials from "@/fragments/about/ClientTestimonials";
 import WhyChooseRosecrest from "@/fragments/about/WhyRosecrest";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
 import { sourceSans } from "@/lib/fonts";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+export const metadata = getPageMetadata("/about");
 
 const Page = () => {
   return (

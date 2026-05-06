@@ -4,8 +4,11 @@ import WhatIsIncluded from "@/fragments/homebuyer/survey1/WhatsIncluded";
 import SurveyDetails from "@/fragments/homebuyer/SurveyDetails";
 import SurveysHaeder from "@/fragments/homebuyer/SurveysHaeder";
 import { sourceSans } from "@/lib/fonts";
+import { getPageMetadata } from "@/lib/page-metadata";
 import { Home } from "lucide-react";
-import React from "react";
+
+
+export const metadata = getPageMetadata("/homebuyer/survey-level-1");
 
 const Page = () => {
   return (

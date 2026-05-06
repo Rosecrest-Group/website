@@ -2,6 +2,9 @@ import Footer from "@/components/common/Footer";
 import ContactForm from "@/components/common/ContactForm";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
 import { sourceSans } from "@/lib/fonts";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+export const metadata = getPageMetadata("/request-inspection");
 
 const Page = () => {
   return (

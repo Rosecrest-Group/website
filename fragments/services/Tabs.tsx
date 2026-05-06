@@ -187,12 +187,12 @@ const ServiceTabs = () => {
     activeTab === "survey" ? surveyServices : tradeServices;
 
   return (
-    <section className="relative -mt-64 lg:-mt-64 px-4 lg:px-8 pb-16 lg:pb-24">
+    <section className="relative -mt-64 lg:-mt-64 px-4 lg:px-8 pb-16 lg:pb-24 z-20">
       <div className="max-w-7xl mx-auto bg-white rounded-4xl p-8 overflow-hidden">
 
         {/* Tab selector */}
         <Reveal animation="fade-up" duration={500}>
-          <div className="flex gap-6 lg:gap-12 mb-10 items-center justify-center">
+          <div className="flex gap-6 lg:gap-12 mb-10 items-center justify-center z-80">
             {(["survey", "trade"] as Tab[]).map((tab) => (
               <button
                 key={tab}

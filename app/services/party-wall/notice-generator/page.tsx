@@ -35,6 +35,11 @@ const GENERATOR_URL =
 //   },
 // ];
 
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/party-wall/notice-generator");
+
 const PartyWallGeneratorPage = () => {
   return (
     <div>

@@ -3,7 +3,10 @@ import JourneyHero from "@/fragments/journeys/JourneyHero";
 import PaintDescription from "@/fragments/painting-decorating/PaintDescription";
 import PaintingServices from "@/fragments/painting-decorating/PaintingServices";
 import WhyChooseSection from "@/fragments/painting-decorating/WhyRosecrest";
-import React from "react";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+
+export const metadata = getPageMetadata("/services/painting-decorating");
 
 const Page = () => {
   return (

@@ -5,9 +5,16 @@ import { manrope } from "@/lib/fonts";
 import EnquiryModal from "@/components/common/EnquiryModal";
 import GoogleTagManagerRoot from "@/components/analytics/GoogleTagManagerRoot";
 import { headers } from "next/headers";
+import { siteConfig } from "@/lib/page-metadata";
+import JsonLd from "@/components/common/JsonLd";
+import { buildOrganization, buildWebSite } from "@/lib/schema";
 
 export const metadata: Metadata = {
-  title: "Expert Property Surveys and Building Consultancy | Rosecrest",
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: "Expert Property Surveys and Building Consultancy | Rosecrest",
+    template: "%s",
+  },
   description:
     "Professional property inspection and surveying services across London and the M25",
 };
@@ -22,7 +29,10 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <head />
+      <head>
+        {/* Sitewide structured data — appears on every page */}
+        <JsonLd data={[buildOrganization(), buildWebSite()]} id="sitewide" />
+      </head>
       <body className={`${manrope.className} relative no-scrollbar scroll-smooth`}>
         <GoogleTagManagerRoot />
         {/* Google Tag Manager noscript */}
