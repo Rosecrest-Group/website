@@ -18,7 +18,6 @@ import {
   MapPin,
   Home,
   Bed,
-  Clock,
   CheckCircle,
   Circle,
   PoundSterling,
@@ -97,7 +96,6 @@ const formSchema = z.object({
   propertyType: z.string().min(1, "Please select a property type"),
   propertyValue: z.string().min(1, "Please enter property value"),
   bedrooms: z.string().min(1, "Please select number of bedrooms"),
-  timeline: z.string().min(1, "Please select a timeline"),
   helpWith: z.string().optional(),
   surveyType: z.string().min(1, "Please select survey type"),
 });
@@ -130,7 +128,6 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
       propertyValue: "",
       bedrooms: "",
       surveyType,
-      timeline: "",
       helpWith: "",
     },
   });
@@ -146,17 +143,10 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
     defaultValue: surveyType,
   });
 
-  const selectedTimeline = useWatch({
-    control,
-    name: "timeline",
-    defaultValue: "",
-  });
-
   const basePrice = selectedBedrooms
     ? getPrice(selectedSurveyType, selectedBedrooms)
     : getPrice(surveyType, "1 Bedroom");
-  const expressFee = selectedTimeline === "Urgent (1-2 days)" ? 200 : 0;
-  const totalPrice = basePrice + expressFee;
+  const totalPrice = basePrice;
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
@@ -509,43 +499,6 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
 
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-gray-700">
-                  Timeline
-                </Label>
-                <div className="relative">
-                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10 pointer-events-none" />
-                  <Controller
-                    name="timeline"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
-                        <SelectTrigger className="pl-9 h-11 rounded-xl border-[#E5E7EB] w-full text-sm">
-                          <SelectValue placeholder="Select timeline" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Urgent (1-2 days)">
-                            Urgent (1–2 days) (+£200)
-                          </SelectItem>
-                          <SelectItem value="Within 1 week">
-                            Within a week
-                          </SelectItem>
-                          <SelectItem value="Flexible">Flexible</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
-                {errors.timeline && (
-                  <p className="text-xs text-red-500">
-                    {errors.timeline.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-gray-700">
                   Survey requirements{" "}
                   <span className="text-[#9CA3AF]">(optional)</span>
                 </Label>
@@ -580,12 +533,6 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
                   </span>
                   <span className="font-medium">£{basePrice}</span>
                 </div>
-                {expressFee > 0 && (
-                  <div className="flex items-center justify-between text-[#4A5565] text-sm">
-                    <span>Express delivery</span>
-                    <span className="font-medium">£{expressFee}</span>
-                  </div>
-                )}
                 <div className="pt-4 border-t border-gray-200">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-[#101828]">
