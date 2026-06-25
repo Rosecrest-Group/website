@@ -482,7 +482,8 @@ const MessageRichCompose = forwardRef<MessageRichComposeHandle, MessageRichCompo
       if (typeof emailEditorRef === "function") {
         emailEditorRef(instance);
       } else if (emailEditorRef) {
-        emailEditorRef.current = instance;
+        (emailEditorRef as React.MutableRefObject<EmailRichEditorHandle | null>).current =
+          instance;
       }
     },
     [emailEditorRef]

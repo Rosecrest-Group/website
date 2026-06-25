@@ -1,7 +1,7 @@
 "use client";
 
 import { api } from "@/crm/lib/api";
-import { Button } from "@/components/ui/button";
+import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 
 export default function ExportCsvButton({
   type,
@@ -11,13 +11,11 @@ export default function ExportCsvButton({
   label?: string;
 }) {
   return (
-    <Button
-      type="button"
-      variant="crmSecondary"
+    <SecondaryButton
       className="w-auto"
       onClick={() => api.downloadExport(type).catch(console.error)}
     >
       {label}
-    </Button>
+    </SecondaryButton>
   );
 }

@@ -27,7 +27,16 @@ type Partner = {
   leadCount: number;
 };
 
-type NewPartnerResult = Partner & { apiKey: string };
+type NewPartnerResult = {
+  id: string;
+  name: string;
+  slug: string;
+  apiKey: string;
+  isActive: boolean;
+  description: string | null;
+  contactEmail: string | null;
+  createdAt: string;
+};
 
 export default function PartnersAdmin() {
   const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
@@ -142,7 +151,7 @@ export default function PartnersAdmin() {
       key: "isActive",
       header: "Status",
       render: (value) => (
-        <StatusPill variant={value ? "completed" : "cancelled"} label={value ? "Active" : "Disabled"} />
+        <StatusPill variant={value ? "completed" : "failed"} label={value ? "Active" : "Disabled"} />
       ),
     },
     {
