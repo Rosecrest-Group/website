@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { sourceSans } from "@/lib/fonts";
+import PostcodeFieldHint from "@/components/homebuyer/PostcodeFieldHint";
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -151,6 +152,11 @@ const BookingModal = ({
     control,
     name: "surveyType",
     defaultValue: defaultSurveyType,
+  });
+  const jobPostcode = useWatch({
+    control,
+    name: "jobPostcode",
+    defaultValue: "",
   });
 
   const activeSurveyTitle =
@@ -390,6 +396,7 @@ const BookingModal = ({
                           {errors.jobPostcode.message}
                         </p>
                       )}
+                      <PostcodeFieldHint value={jobPostcode} />
                     </div>
                   </div>
 

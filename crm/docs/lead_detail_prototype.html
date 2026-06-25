@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Rosecrest — Sarah Mitchell</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg: #FBFBFA;
+    --bg-elevated: #FFFFFF;
+    --bg-subtle: #F6F5F2;
+    --bg-hover: #F1EFEB;
+    --bg-active: #ECEAE4;
+    --border: rgba(0,0,0,0.06);
+    --border-strong: rgba(0,0,0,0.10);
+    --border-emphasis: rgba(0,0,0,0.16);
+    --text-1: #18181B;
+    --text-2: #52525B;
+    --text-3: #A1A1AA;
+    --text-4: #D4D4D8;
+    --text-inverse: #FAFAF9;
+    --accent: #18181B;
+    --accent-hover: #27272A;
+    --success: #15803D;
+    --success-bg: #F0FDF4;
+    --warning: #B45309;
+    --warning-bg: #FFFBEB;
+    --danger: #B91C1C;
+    --danger-bg: #FEF2F2;
+    --info: #1E40AF;
+    --info-bg: #EFF6FF;
+
+    --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-mono: 'Geist Mono', ui-monospace, monospace;
+    --font-display: 'Fraunces', 'Geist', serif;
+
+    --radius: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --t-fast: 120ms var(--ease);
+    --t-base: 200ms var(--ease);
+
+    --shadow-sm: 0 1px 0 rgba(0,0,0,0.04);
+    --shadow: 0 1px 2px rgba(0,0,0,0.06), 0 0 0 0.5px rgba(0,0,0,0.04);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text-1);
+    font-family: var(--font-sans);
+    font-size: 13.5px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv11", "ss01", "ss03";
+    letter-spacing: -0.005em;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0.4;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' /%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  }
+
+  button { font-family: inherit; font-size: inherit; border: none; background: none; cursor: pointer; color: inherit; }
+
+  .app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+
+  /* SIDEBAR (collapsed version) */
+  .sidebar {
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    padding: 16px 14px;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+  }
+  .workspace { display: flex; align-items: center; gap: 8px; padding: 8px; margin-bottom: 20px; border-radius: var(--radius); }
+  .workspace-mark { width: 26px; height: 26px; background: var(--accent); color: var(--accent-fg, #fff); border-radius: var(--radius); display: grid; place-items: center; font-family: var(--font-display); font-weight: 500; font-size: 14px; }
+  .workspace-name { font-size: 13.5px; font-weight: 500; }
+  .workspace-tag { font-size: 11px; color: var(--text-3); margin-top: -1px; }
+  .nav-section-label { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; padding: 14px 8px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 9px; padding: 6px 9px; border-radius: var(--radius); font-size: 13.5px; color: var(--text-2); cursor: pointer; margin-bottom: 1px; transition: all var(--t-fast); }
+  .nav-item:hover { background: var(--bg-hover); color: var(--text-1); }
+  .nav-item.active { background: var(--bg-active); color: var(--text-1); font-weight: 500; }
+  .nav-item .ti { font-size: 16px; }
+  .nav-item .count { margin-left: auto; font-size: 11px; color: var(--text-3); font-family: var(--font-mono); }
+
+  /* TOPBAR */
+  .main { overflow-y: auto; min-height: 100vh; }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 28px;
+    height: 52px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(8px);
+    background: rgba(251,251,250,0.85);
+  }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-3); }
+  .breadcrumb-item { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 4px; cursor: pointer; transition: background var(--t-fast); }
+  .breadcrumb-item:hover { background: var(--bg-hover); color: var(--text-1); }
+  .breadcrumb-item.current { color: var(--text-1); font-weight: 500; }
+  .breadcrumb-sep { color: var(--text-4); font-size: 11px; }
+  .topbar-actions { display: flex; gap: 6px; }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 28px; padding: 0 10px;
+    border-radius: var(--radius);
+    font-size: 12.5px; font-weight: 500;
+    color: var(--text-1); background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    transition: all var(--t-fast);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn:hover { background: var(--bg-hover); border-color: var(--border-emphasis); }
+  .btn .ti { font-size: 14px; }
+  .btn-primary { background: var(--accent); color: var(--text-inverse); border-color: var(--accent); }
+  .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn-ghost { background: transparent; border-color: transparent; box-shadow: none; color: var(--text-2); }
+  .btn-ghost:hover { background: var(--bg-hover); color: var(--text-1); }
+  .btn-icon { width: 28px; padding: 0; justify-content: center; }
+  .btn-icon .ti { font-size: 15px; }
+  .btn-sm { height: 24px; font-size: 11.5px; padding: 0 8px; }
+  .btn-sm .ti { font-size: 12px; }
+
+  /* PAGE */
+  .page { max-width: 1500px; padding: 24px 32px; }
+
+  /* HEADER ROW — customer identity */
+  .header-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 28px;
+    animation: fadeUp 500ms var(--ease);
+  }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .avatar-lg {
+    width: 64px; height: 64px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #FEC872 0%, #F4A742 50%, #BA7517 100%);
+    display: grid; place-items: center;
+    color: #fff;
+    font-family: var(--font-display);
+    font-size: 26px; font-weight: 500;
+    letter-spacing: -0.02em;
+    box-shadow: 0 2px 8px rgba(186,117,23,0.25);
+  }
+
+  .ident-block { flex: 1; }
+  .ident-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .customer-name {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 400;
+    letter-spacing: -0.025em;
+    color: var(--text-1);
+    line-height: 1.1;
+  }
+  .lead-id {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--text-3);
+    padding: 2px 7px;
+    background: var(--bg-subtle);
+    border-radius: 4px;
+  }
+  .ident-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 13px;
+    color: var(--text-2);
+    margin-top: 4px;
+  }
+  .ident-meta-item { display: flex; align-items: center; gap: 5px; }
+  .ident-meta-item .ti { font-size: 14px; color: var(--text-3); }
+  .ident-meta-sep { color: var(--text-4); }
+  .ident-meta-link { color: var(--text-2); text-decoration: none; transition: color var(--t-fast); }
+  .ident-meta-link:hover { color: var(--text-1); }
+
+  .header-actions { display: flex; gap: 6px; }
+
+  /* JOURNEY STRIP — the centerpiece. Where they are in the funnel. */
+  .journey-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .journey-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-subtle);
+  }
+  .journey-header-left {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .journey-header-icon {
+    width: 28px; height: 28px;
+    border-radius: var(--radius);
+    background: var(--bg-elevated);
+    display: grid; place-items: center;
+    border: 1px solid var(--border);
+  }
+  .journey-header-icon .ti { font-size: 14px; color: var(--text-2); }
+  .journey-header-title { font-size: 13px; font-weight: 500; }
+  .journey-header-meta { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+
+  .journey-strip {
+    display: flex;
+    align-items: stretch;
+    padding: 20px;
+    gap: 0;
+    overflow-x: auto;
+    position: relative;
+  }
+
+  .journey-step {
+    flex: 1;
+    min-width: 130px;
+    padding: 0 4px;
+    position: relative;
+  }
+
+  .journey-step::before {
+    content: '';
+    position: absolute;
+    top: 24px;
+    left: -50%;
+    right: 50%;
+    height: 1px;
+    background: var(--border-strong);
+    z-index: 0;
+  }
+  .journey-step:first-child::before { display: none; }
+  .journey-step.completed::before, .journey-step.current::before { background: var(--text-1); }
+
+  .step-node {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    border: 1.5px solid var(--border-strong);
+    display: grid; place-items: center;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+    transition: all var(--t-base);
+  }
+  .step-node .ti { font-size: 18px; color: var(--text-3); }
+
+  .journey-step.completed .step-node {
+    background: var(--text-1);
+    border-color: var(--text-1);
+  }
+  .journey-step.completed .step-node .ti { color: var(--text-inverse); }
+
+  .journey-step.current .step-node {
+    background: var(--bg-elevated);
+    border: 2px solid var(--text-1);
+    box-shadow: 0 0 0 4px rgba(24,24,27,0.08), 0 4px 12px -2px rgba(24,24,27,0.15);
+  }
+  .journey-step.current .step-node .ti { color: var(--text-1); }
+  .journey-step.current .step-node::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    border: 2px solid var(--text-1);
+    opacity: 0;
+    animation: ringPulse 2s ease-out infinite;
+  }
+  @keyframes ringPulse {
+    0% { opacity: 0.6; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.4); }
+  }
+
+  .journey-step.failed .step-node { border-color: var(--danger); background: var(--danger-bg); }
+  .journey-step.failed .step-node .ti { color: var(--danger); }
+
+  .step-label {
+    text-align: center;
+    margin-top: 10px;
+  }
+  .step-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-1);
+    letter-spacing: -0.005em;
+  }
+  .journey-step:not(.completed):not(.current) .step-name { color: var(--text-3); font-weight: 400; }
+
+  .step-meta {
+    font-size: 10.5px;
+    color: var(--text-3);
+    margin-top: 2px;
+    font-family: var(--font-mono);
+    font-feature-settings: "tnum";
+  }
+  .step-meta-time {
+    color: var(--text-2);
+    font-weight: 500;
+  }
+  .journey-step.current .step-meta-time { color: var(--text-1); }
+
+  .step-status-pill {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-weight: 500;
+  }
+  .pill-current { background: #18181B; color: #FAFAF9; }
+  .pill-next { background: var(--bg-subtle); color: var(--text-2); border: 1px solid var(--border); }
+
+  .journey-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-subtle);
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .journey-footer-actions { display: flex; gap: 6px; }
+
+  /* QUICK SUMMARY ROW */
+  .summary-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .summary-cell {
+    background: var(--bg-elevated);
+    padding: 14px 18px;
+  }
+  .summary-label {
+    font-size: 10.5px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .summary-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-1);
+    line-height: 1.3;
+  }
+  .summary-value-mono {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: -0.01em;
+  }
+  .summary-sub {
+    font-size: 11.5px;
+    color: var(--text-3);
+    margin-top: 2px;
+  }
+
+  /* MAIN LAYOUT */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 18px;
+  }
+  .tab {
+    position: relative;
+    padding: 9px 14px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-3);
+    cursor: pointer;
+    transition: color var(--t-fast);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tab:first-child { padding-left: 0; }
+  .tab:hover { color: var(--text-1); }
+  .tab.active { color: var(--text-1); }
+  .tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0; right: 0;
+    height: 1.5px;
+    background: var(--text-1);
+  }
+  .tab-count {
+    font-size: 10.5px;
+    color: var(--text-3);
+    padding: 1px 5px;
+    background: var(--bg-subtle);
+    border-radius: 3px;
+    font-family: var(--font-mono);
+  }
+
+  /* ACTIVITY TIMELINE */
+  .timeline {
+    position: relative;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 13px;
+    top: 6px;
+    bottom: 6px;
+    width: 1px;
+    background: var(--border-strong);
+  }
+
+  .timeline-item {
+    display: flex;
+    gap: 16px;
+    padding: 4px 0 18px 0;
+    position: relative;
+  }
+
+  .timeline-dot {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .timeline-dot .ti { font-size: 13px; color: var(--text-2); }
+
+  .timeline-dot-email { background: #EFF6FF; border-color: #BFDBFE; }
+  .timeline-dot-email .ti { color: #1D4ED8; }
+  .timeline-dot-sms { background: #ECFDF5; border-color: #A7F3D0; }
+  .timeline-dot-sms .ti { color: #047857; }
+  .timeline-dot-whatsapp { background: #F0FDF4; border-color: #86EFAC; }
+  .timeline-dot-whatsapp .ti { color: #15803D; }
+  .timeline-dot-stage { background: var(--text-1); border-color: var(--text-1); }
+  .timeline-dot-stage .ti { color: var(--text-inverse); }
+  .timeline-dot-payment { background: #FEF3C7; border-color: #FDE68A; }
+  .timeline-dot-payment .ti { color: #B45309; }
+  .timeline-dot-call { background: #F5F3FF; border-color: #DDD6FE; }
+  .timeline-dot-call .ti { color: #6D28D9; }
+
+  .timeline-body {
+    flex: 1;
+    padding-top: 1px;
+  }
+  .timeline-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .timeline-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-1);
+    letter-spacing: -0.005em;
+  }
+  .timeline-title-muted { color: var(--text-2); font-weight: 400; }
+  .timeline-time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-3);
+    flex-shrink: 0;
+  }
+  .timeline-desc {
+    font-size: 12.5px;
+    color: var(--text-2);
+    margin-top: 2px;
+  }
+  .timeline-tags {
+    display: flex;
+    gap: 5px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .tag {
+    font-size: 10.5px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--bg-subtle);
+    color: var(--text-2);
+    font-weight: 500;
+  }
+  .tag-success { background: var(--success-bg); color: var(--success); }
+  .tag-warning { background: var(--warning-bg); color: var(--warning); }
+  .tag-info { background: var(--info-bg); color: var(--info); }
+  .tag .ti { font-size: 11px; vertical-align: -1px; }
+
+  .timeline-preview {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: var(--bg-subtle);
+    border-radius: var(--radius);
+    border-left: 2px solid var(--border-strong);
+    font-size: 12px;
+    color: var(--text-2);
+    line-height: 1.55;
+  }
+  .timeline-preview strong { color: var(--text-1); font-weight: 500; }
+
+  /* SIDE PANEL */
+  .side-panel {
+    display: flex; flex-direction: column;
+    gap: 16px;
+  }
+  .info-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .info-card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .info-card-title { font-size: 12.5px; font-weight: 500; }
+  .info-card-body { padding: 14px 16px; }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 12.5px;
+  }
+  .info-row + .info-row { border-top: 1px dashed var(--border); }
+  .info-key { color: var(--text-3); }
+  .info-val {
+    color: var(--text-1);
+    font-weight: 500;
+    text-align: right;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .info-val-mono { font-family: var(--font-mono); font-size: 12px; }
+
+  .next-action {
+    background: linear-gradient(180deg, #F8F7F3, #F1EFEB);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+  }
+  .next-action-label {
+    font-size: 10.5px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .next-action-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-1);
+    margin-bottom: 8px;
+  }
+  .next-action-time {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--text-2);
+    margin-bottom: 12px;
+  }
+  .next-action-buttons { display: flex; gap: 6px; }
+  .next-action-buttons .btn { flex: 1; justify-content: center; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="workspace">
+      <div class="workspace-mark">R</div>
+      <div>
+        <div class="workspace-name">Rosecrest</div>
+        <div class="workspace-tag">Operations</div>
+      </div>
+    </div>
+    <div class="nav-section-label">Workspace</div>
+    <div class="nav-item"><i class="ti ti-layout-dashboard"></i>Overview</div>
+    <div class="nav-item"><i class="ti ti-inbox"></i>Inbox<span class="count">12</span></div>
+    <div class="nav-item active"><i class="ti ti-users"></i>Leads<span class="count">147</span></div>
+    <div class="nav-section-label">Operations</div>
+    <div class="nav-item"><i class="ti ti-layout-kanban"></i>Pipelines</div>
+    <div class="nav-item"><i class="ti ti-briefcase"></i>Jobs</div>
+    <div class="nav-item"><i class="ti ti-calendar-event"></i>Schedule</div>
+    <div class="nav-item"><i class="ti ti-file-check"></i>Reports</div>
+    <div class="nav-section-label">Automation</div>
+    <div class="nav-item"><i class="ti ti-vector-bezier"></i>Workflows</div>
+    <div class="nav-item"><i class="ti ti-template"></i>Templates</div>
+  </aside>
+
+  <main class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="breadcrumb">
+        <div class="breadcrumb-item"><i class="ti ti-users" style="font-size:14px;"></i><span>Leads</span></div>
+        <span class="breadcrumb-sep"><i class="ti ti-slash"></i></span>
+        <div class="breadcrumb-item">Active</div>
+        <span class="breadcrumb-sep"><i class="ti ti-slash"></i></span>
+        <div class="breadcrumb-item current">Sarah Mitchell</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn"><i class="ti ti-arrow-left"></i>Back</button>
+        <button class="btn"><i class="ti ti-arrow-up"></i>Previous</button>
+        <button class="btn"><i class="ti ti-arrow-down"></i>Next</button>
+        <button class="btn btn-icon btn-ghost"><i class="ti ti-dots"></i></button>
+      </div>
+    </div>
+
+    <div class="page">
+
+      <!-- HEADER ROW: customer identity -->
+      <div class="header-row">
+        <div class="avatar-lg">SM</div>
+        <div class="ident-block">
+          <div class="ident-row">
+            <div class="customer-name">Sarah Mitchell</div>
+            <span class="lead-id">ld_pl_a3f9c0</span>
+          </div>
+          <div class="ident-meta">
+            <div class="ident-meta-item"><i class="ti ti-mail"></i><a href="#" class="ident-meta-link">sarah.mitchell@gmail.com</a></div>
+            <span class="ident-meta-sep">·</span>
+            <div class="ident-meta-item"><i class="ti ti-phone"></i><a href="#" class="ident-meta-link">+44 7700 900142</a></div>
+            <span class="ident-meta-sep">·</span>
+            <div class="ident-meta-item"><i class="ti ti-map-pin"></i>42 Oakwood Drive, Bromley, BR2 8LN</div>
+            <span class="ident-meta-sep">·</span>
+            <div class="ident-meta-item"><i class="ti ti-radar"></i>From Pinlocal</div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="btn"><i class="ti ti-message-circle"></i>Message</button>
+          <button class="btn"><i class="ti ti-phone"></i>Call</button>
+          <button class="btn btn-primary"><i class="ti ti-bolt"></i>Move to paid</button>
+        </div>
+      </div>
+
+      <!-- JOURNEY STRIP — the centerpiece -->
+      <div class="journey-card">
+        <div class="journey-header">
+          <div class="journey-header-left">
+            <div class="journey-header-icon"><i class="ti ti-route"></i></div>
+            <div>
+              <div class="journey-header-title">Where Sarah is in the funnel</div>
+            </div>
+          </div>
+          <div class="journey-header-meta">cadence run #cr_8x3k9 · started 4d 2h ago</div>
+        </div>
+
+        <div class="journey-strip" id="journey-strip"></div>
+
+        <div class="journey-footer">
+          <div>Cadence will continue automatically — to stop it, click <strong style="color:var(--text-1);">Pause cadence</strong>.</div>
+          <div class="journey-footer-actions">
+            <button class="btn btn-sm"><i class="ti ti-player-pause"></i>Pause cadence</button>
+            <button class="btn btn-sm"><i class="ti ti-player-skip-forward"></i>Skip to next step</button>
+            <button class="btn btn-sm"><i class="ti ti-history"></i>View full timeline</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- QUICK SUMMARY ROW -->
+      <div class="summary-row">
+        <div class="summary-cell">
+          <div class="summary-label">Survey level</div>
+          <div class="summary-value">Level 2 · Homebuyer</div>
+          <div class="summary-sub">£395 quoted</div>
+        </div>
+        <div class="summary-cell">
+          <div class="summary-label">Payment status</div>
+          <div class="summary-value" style="color:var(--warning);">Unpaid</div>
+          <div class="summary-sub">Stripe link sent · not clicked</div>
+        </div>
+        <div class="summary-cell">
+          <div class="summary-label">Owner</div>
+          <div class="summary-value">Barisuka G.</div>
+          <div class="summary-sub">Assigned 4 days ago</div>
+        </div>
+        <div class="summary-cell">
+          <div class="summary-label">Stage</div>
+          <div class="summary-value">Following up</div>
+          <div class="summary-sub">3rd of 6 stages · 63% retain rate</div>
+        </div>
+      </div>
+
+      <!-- MAIN GRID -->
+      <div class="main-grid">
+
+        <!-- LEFT: tabs + timeline -->
+        <div>
+          <div class="tabs">
+            <div class="tab active"><i class="ti ti-activity" style="font-size:14px;"></i>Activity<span class="tab-count">12</span></div>
+            <div class="tab"><i class="ti ti-mail" style="font-size:14px;"></i>Messages<span class="tab-count">8</span></div>
+            <div class="tab"><i class="ti ti-note" style="font-size:14px;"></i>Notes<span class="tab-count">2</span></div>
+            <div class="tab"><i class="ti ti-file" style="font-size:14px;"></i>Files<span class="tab-count">3</span></div>
+          </div>
+
+          <div class="timeline" id="timeline"></div>
+        </div>
+
+        <!-- RIGHT: side panels -->
+        <div class="side-panel">
+
+          <div class="next-action">
+            <div class="next-action-label">Next automated action</div>
+            <div class="next-action-title">2-week follow-up — Email + SMS + WhatsApp</div>
+            <div class="next-action-time">Fires in 9d 17h · Thu 18 Jun, 09:00</div>
+            <div class="next-action-buttons">
+              <button class="btn btn-sm"><i class="ti ti-edit"></i>Edit</button>
+              <button class="btn btn-sm"><i class="ti ti-player-skip-forward"></i>Send now</button>
+            </div>
+          </div>
+
+          <div class="info-card">
+            <div class="info-card-header">
+              <div class="info-card-title">Property</div>
+              <button class="btn btn-sm btn-icon btn-ghost"><i class="ti ti-edit"></i></button>
+            </div>
+            <div class="info-card-body">
+              <div class="info-row"><span class="info-key">Address</span><span class="info-val">42 Oakwood Drive</span></div>
+              <div class="info-row"><span class="info-key">Postcode</span><span class="info-val info-val-mono">BR2 8LN</span></div>
+              <div class="info-row"><span class="info-key">Type</span><span class="info-val">Semi-detached</span></div>
+              <div class="info-row"><span class="info-key">Bedrooms</span><span class="info-val">3</span></div>
+              <div class="info-row"><span class="info-key">Est. value</span><span class="info-val">£625,000</span></div>
+            </div>
+          </div>
+
+          <div class="info-card">
+            <div class="info-card-header">
+              <div class="info-card-title">Engagement</div>
+            </div>
+            <div class="info-card-body">
+              <div class="info-row"><span class="info-key">Emails opened</span><span class="info-val">3 of 3</span></div>
+              <div class="info-row"><span class="info-key">Links clicked</span><span class="info-val">2</span></div>
+              <div class="info-row"><span class="info-key">SMS delivered</span><span class="info-val">3 of 3</span></div>
+              <div class="info-row"><span class="info-key">WhatsApp read</span><span class="info-val">3 of 3</span></div>
+              <div class="info-row"><span class="info-key">Last engagement</span><span class="info-val">2h ago</span></div>
+            </div>
+          </div>
+
+          <div class="info-card">
+            <div class="info-card-header">
+              <div class="info-card-title">Lead origin</div>
+            </div>
+            <div class="info-card-body">
+              <div class="info-row"><span class="info-key">Source</span><span class="info-val">Pinlocal</span></div>
+              <div class="info-row"><span class="info-key">Source ref</span><span class="info-val info-val-mono">PL-AC8420</span></div>
+              <div class="info-row"><span class="info-key">Received</span><span class="info-val">4 days ago</span></div>
+              <div class="info-row"><span class="info-key">Webhook event</span><span class="info-val info-val-mono">wh_a3f9c0</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div style="height:40px;"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ============================================================
+// THE JOURNEY: where Sarah is in the funnel right now
+// ============================================================
+const JOURNEY = [
+  { name: 'Lead received',     icon: 'ti-inbox',          time: '4d 2h ago',  status: 'completed', detail: 'From Pinlocal' },
+  { name: 'Quote sent',         icon: 'ti-send',           time: '4d 2h ago',  status: 'completed', detail: 'Email + SMS + WhatsApp' },
+  { name: '48-hour follow-up',  icon: 'ti-mail-fast',      time: '2d 2h ago',  status: 'completed', detail: 'Sent · opened 2h later' },
+  { name: '72-hour follow-up',  icon: 'ti-mail',           time: '1d 2h ago',  status: 'completed', detail: 'Sent · link clicked' },
+  { name: '1-week follow-up',   icon: 'ti-message-2',      time: 'in 2d 22h',  status: 'current',   detail: 'Currently in this step' },
+  { name: '2-week follow-up',   icon: 'ti-clock',          time: 'in 9d 22h',  status: 'upcoming',  detail: 'Scheduled' },
+  { name: '21-day final',       icon: 'ti-bell',           time: 'in 16d',     status: 'upcoming',  detail: 'Scheduled' },
+  { name: 'Payment received',   icon: 'ti-credit-card',    time: '—',          status: 'upcoming',  detail: 'Awaiting' },
+];
+
+function renderJourney() {
+  const el = document.getElementById('journey-strip');
+  el.innerHTML = JOURNEY.map((step, i) => {
+    let pill = '';
+    if (step.status === 'current') pill = `<div class="step-status-pill pill-current">Current step</div>`;
+    return `
+      <div class="journey-step ${step.status}">
+        <div class="step-node"><i class="ti ${step.icon}"></i></div>
+        <div class="step-label">
+          <div class="step-name">${step.name}</div>
+          <div class="step-meta">
+            <span class="step-meta-time">${step.time}</span>
+          </div>
+          ${pill}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============================================================
+// ACTIVITY TIMELINE — newest first, every touch logged
+// ============================================================
+const ACTIVITIES = [
+  {
+    type: 'email-open',
+    icon: 'ti-mail-opened',
+    dot: 'email',
+    title: '<strong>Sarah opened</strong> the 72-hour follow-up email',
+    desc: 'Opened from mobile Safari · IP from London',
+    time: '2h ago',
+    tags: [{ label: 'Open', kind: 'success', icon: 'ti-eye' }]
+  },
+  {
+    type: 'email-sent',
+    icon: 'ti-mail',
+    dot: 'email',
+    title: '72-hour follow-up — <span class="timeline-title-muted">Email sent</span>',
+    desc: 'Template: Level 2 · 72-hour follow-up',
+    time: '1d 2h ago',
+    tags: [
+      { label: 'Delivered', kind: 'success', icon: 'ti-check' },
+      { label: 'Auto', kind: 'info', icon: 'ti-bolt' }
+    ],
+    preview: '<strong>Hi Sarah,</strong> just a quick reminder about your Level 2 survey quote for 42 Oakwood Drive. The price of £395 is held for you — secure your survey here…'
+  },
+  {
+    type: 'sms-sent',
+    icon: 'ti-message',
+    dot: 'sms',
+    title: '72-hour follow-up — <span class="timeline-title-muted">SMS sent</span>',
+    desc: 'To +44 7700 900142',
+    time: '1d 2h ago',
+    tags: [{ label: 'Delivered', kind: 'success', icon: 'ti-check' }, { label: 'Auto', kind: 'info', icon: 'ti-bolt' }],
+    preview: 'Hi Sarah — your Level 2 survey quote is ready. Reply YES to proceed or check the email we sent.'
+  },
+  {
+    type: 'whatsapp-sent',
+    icon: 'ti-brand-whatsapp',
+    dot: 'whatsapp',
+    title: '72-hour follow-up — <span class="timeline-title-muted">WhatsApp sent</span>',
+    desc: 'Template: hb_l2_72h_followup',
+    time: '1d 2h ago',
+    tags: [{ label: 'Read', kind: 'success', icon: 'ti-checks' }, { label: 'Auto', kind: 'info', icon: 'ti-bolt' }]
+  },
+  {
+    type: 'link-click',
+    icon: 'ti-link',
+    dot: 'email',
+    title: '<strong>Sarah clicked</strong> the payment link',
+    desc: 'Did not complete checkout — Stripe session abandoned at amount confirmation',
+    time: '2d 6h ago',
+    tags: [{ label: 'Click', kind: 'success', icon: 'ti-cursor' }, { label: 'No conversion', kind: 'warning', icon: 'ti-alert-circle' }]
+  },
+  {
+    type: 'stage-change',
+    icon: 'ti-arrow-right',
+    dot: 'stage',
+    title: 'Stage moved to <strong>Following up</strong>',
+    desc: 'Automatic transition · 72hr cadence step fired',
+    time: '1d 2h ago',
+    tags: [{ label: 'Auto', kind: 'info', icon: 'ti-bolt' }]
+  },
+  {
+    type: 'email-sent',
+    icon: 'ti-mail',
+    dot: 'email',
+    title: '48-hour follow-up — <span class="timeline-title-muted">Email sent</span>',
+    desc: 'Template: Level 2 · 48-hour follow-up',
+    time: '2d 2h ago',
+    tags: [{ label: 'Opened', kind: 'success', icon: 'ti-eye' }, { label: 'Auto', kind: 'info', icon: 'ti-bolt' }]
+  },
+  {
+    type: 'call',
+    icon: 'ti-phone',
+    dot: 'call',
+    title: '<strong>Outbound call</strong> by Barisuka G. — no answer',
+    desc: 'Dialpad · 0:42 · Voicemail not left',
+    time: '3d 8h ago',
+    tags: [{ label: 'No answer', kind: 'warning', icon: 'ti-phone-off' }]
+  },
+  {
+    type: 'note',
+    icon: 'ti-note',
+    dot: 'stage',
+    title: 'Note by Barisuka G.',
+    desc: 'Sarah mentioned in her enquiry form that she is in a chain — might be slower to commit. Worth a friendlier 1-week tone if it gets that far.',
+    time: '3d 12h ago',
+    tags: []
+  },
+  {
+    type: 'sms-sent',
+    icon: 'ti-message',
+    dot: 'sms',
+    title: 'Quote SMS sent',
+    desc: 'Template: Level 2 · Initial quote',
+    time: '4d 2h ago',
+    tags: [{ label: 'Delivered', kind: 'success', icon: 'ti-check' }, { label: 'Auto', kind: 'info', icon: 'ti-bolt' }]
+  },
+  {
+    type: 'email-sent',
+    icon: 'ti-mail',
+    dot: 'email',
+    title: 'Quote email sent',
+    desc: 'Template: Level 2 · Initial quotation',
+    time: '4d 2h ago',
+    tags: [{ label: 'Opened', kind: 'success', icon: 'ti-eye' }, { label: 'Clicked', kind: 'success', icon: 'ti-cursor' }, { label: 'Auto', kind: 'info', icon: 'ti-bolt' }],
+    preview: '<strong>Hi Sarah,</strong> thank you for your enquiry through Pinlocal for a Level 2 RICS HomeBuyer Report on 42 Oakwood Drive, Bromley. We\'ve prepared your full quote of <strong>£395</strong> below…'
+  },
+  {
+    type: 'lead-created',
+    icon: 'ti-sparkles',
+    dot: 'stage',
+    title: 'Lead created from <strong>Pinlocal</strong> webhook',
+    desc: 'Source ref PL-AC8420 · Webhook event wh_a3f9c0 · Cadence cr_8x3k9 initiated',
+    time: '4d 2h ago',
+    tags: [{ label: 'Pinlocal', kind: 'info', icon: 'ti-radar' }]
+  },
+];
+
+function renderTimeline() {
+  const el = document.getElementById('timeline');
+  el.innerHTML = ACTIVITIES.map(a => {
+    const tags = a.tags.map(t =>
+      `<span class="tag tag-${t.kind}"><i class="ti ${t.icon}"></i> ${t.label}</span>`
+    ).join('');
+    const preview = a.preview ? `<div class="timeline-preview">${a.preview}</div>` : '';
+    return `
+      <div class="timeline-item">
+        <div class="timeline-dot timeline-dot-${a.dot}">
+          <i class="ti ${a.icon}"></i>
+        </div>
+        <div class="timeline-body">
+          <div class="timeline-row">
+            <div class="timeline-title">${a.title}</div>
+            <div class="timeline-time">${a.time}</div>
+          </div>
+          <div class="timeline-desc">${a.desc}</div>
+          ${tags ? `<div class="timeline-tags">${tags}</div>` : ''}
+          ${preview}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+renderJourney();
+renderTimeline();
+</script>
+
+</body>
+</html>

@@ -1,7 +1,20 @@
 import type { NextConfig } from "next";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const localModules = path.join(projectRoot, "node_modules");
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  outputFileTracingRoot: projectRoot,
+  turbopack: {
+    root: projectRoot,
+    resolveAlias: {
+      tailwindcss: path.join(localModules, "tailwindcss"),
+      "tw-animate-css": path.join(localModules, "tw-animate-css"),
+      "@tailwindcss/typography": path.join(localModules, "@tailwindcss/typography"),
+    },
+  },
   images: {
     qualities: [75, 90],
     remotePatterns: [
@@ -24,7 +37,6 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      // Pages
       { source: "/about-us", destination: "/about", permanent: true },
       { source: "/faq", destination: "/faqs", permanent: true },
       { source: "/contact-us", destination: "/contact", permanent: true },
@@ -162,6 +174,29 @@ const nextConfig: NextConfig = {
         source: "/service/housing-disrepair-surveys",
         destination: "/services/housing-disrepair",
         permanent: true,
+      },
+    ];
+  },
+  async rewrites() {
+    const apiOrigin = process.env.CRM_API_URL ?? "http://localhost:4000";
+    return [
+      {
+        source: "/api/v1/:path*",
+        destination: `${apiOrigin}/api/v1/:path*`,
+      },
+    ];
+  },
+  async headers() {
+    if (process.env.NODE_ENV !== "production") return [];
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains",
+          },
+        ],
       },
     ];
   },

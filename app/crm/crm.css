@@ -1,0 +1,54 @@
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@source "../../crm";
+@source "../../components/ui";
+@source ".";
+
+.crm-theme {
+  font-family: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-manrope);
+
+  --color-primary: #0f2740;
+  --color-nc-10: #fafaf7;
+  --color-nc-20: #f5f5f5;
+  --color-nc-40: #e4e3e3;
+  --color-nc-60: #908d85;
+  --color-pc-10: #e4e3e3;
+  --color-pc-60: #163356;
+  --color-tc-10: #f9f9f9;
+  --color-tc-20: #e8e5dd;
+  --color-tc-30: #908d85;
+  --color-tc-40: #0f2740;
+
+  --radius: 0.75rem;
+  --background: #fafaf7;
+  --foreground: #0f2740;
+  --card: #ffffff;
+  --card-foreground: #0f2740;
+  --popover: #ffffff;
+  --popover-foreground: #0f2740;
+  --primary: #0f2740;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #0f2740;
+  --muted: #f5f5f5;
+  --muted-foreground: #908d85;
+  --accent: #f5f5f5;
+  --accent-foreground: #0f2740;
+  --border: #e8e5dd;
+  --input: #e8e5dd;
+  --ring: #0f2740;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f2740;
+  --sidebar-primary: #0f2740;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #0f2740;
+  --sidebar-border: #e8e5dd;
+}
+
+.crm-theme .wf-builder {
+  --wf-font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+}

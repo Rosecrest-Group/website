@@ -23,6 +23,7 @@ import {
   PoundSterling,
 } from "lucide-react";
 import { sourceSans } from "@/lib/fonts";
+import PostcodeFieldHint from "@/components/homebuyer/PostcodeFieldHint";
 
 interface BookingFormProps {
   surveyLevel: 1 | 2 | 3;
@@ -141,6 +142,11 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
     control,
     name: "surveyType",
     defaultValue: surveyType,
+  });
+  const jobPostcode = useWatch({
+    control,
+    name: "jobPostcode",
+    defaultValue: "",
   });
 
   const basePrice = selectedBedrooms
@@ -354,6 +360,7 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
                       {errors.jobPostcode.message}
                     </p>
                   )}
+                  <PostcodeFieldHint value={jobPostcode} />
                 </div>
               </div>
 

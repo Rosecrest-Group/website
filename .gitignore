@@ -20,6 +20,12 @@
 # production
 /build
 
+# local scripts (admin utilities, one-offs)
+/scripts/
+
+# API lives in a separate repo (Rosecrest-Group/crm-api)
+/api/
+
 # misc
 .DS_Store
 *.pem

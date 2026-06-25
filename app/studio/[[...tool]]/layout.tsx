@@ -3,6 +3,8 @@ export const metadata = {
   description: 'Content management for Rosecrest blog',
 }
 
+import "../../(marketing)/marketing.css";
+
 export default function StudioLayout({
   children,
 }: {

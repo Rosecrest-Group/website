@@ -1,50 +1,49 @@
 import { config } from "@/config/api";
 import { NextResponse } from "next/server";
 
-const BOOKING_WEBHOOK = config.bookingWebhook || "";
-
-const LEAD_TYPE: Record<string, number> = {
-  "level-1": 90,
-  "level-2": 90,
-  "level-3": 92,
-};
+const CRM_INTAKE_URL = `${config.crmApiUrl.replace(/\/$/, "")}/intake/leads/WEBSITE`;
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
+    const reference = `web-booking-${Date.now()}-${String(body.email ?? "unknown").toLowerCase()}`;
+    const propertyAddress = [body.jobAddress, body.jobTown]
+      .filter(Boolean)
+      .join(", ");
+
+    const quotedAmount =
+      typeof body.surveyingFees === "number"
+        ? body.surveyingFees
+        : body.surveyingFees != null
+          ? Number(body.surveyingFees)
+          : undefined;
+
     const payload = {
+      reference,
       firstName: body.firstName,
       lastName: body.lastName,
       email: body.email,
       phone: body.phone,
-      altPhone: body.phone,
-      postCode: body.jobPostcode,
-      addressLine1: body.jobAddress,
-      addressLine2: "",
-      city: body.jobTown,
-      state: "",
-      country: "",
-      propertyValue: body.propertyValue,
-      propertyType: body.propertyType,
-      surveyingFees: body.surveyingFees,
-      numberBedrooms: body.bedrooms,
-      surveyRequirements: body.helpWith || body.surveyType,
-      timeScale: body.timeline,
-      yearConstructed: "",
-      leadType: LEAD_TYPE[body.surveyType] ?? 90,
+      propertyAddress,
+      postcode: body.jobPostcode,
+      surveyLevel: body.surveyType,
+      quotedAmount:
+        quotedAmount != null && !Number.isNaN(quotedAmount)
+          ? quotedAmount
+          : undefined,
     };
 
-    console.log("📋 Booking payload:", JSON.stringify(payload, null, 2));
+    console.log("📋 Booking → CRM payload:", JSON.stringify(payload, null, 2));
 
-    const res = await fetch(BOOKING_WEBHOOK, {
+    const res = await fetch(CRM_INTAKE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
     const responseText = await res.text();
-    console.log("📬 Booking webhook response:", res.status, responseText);
+    console.log("📬 CRM intake response:", res.status, responseText);
 
     if (!res.ok) {
       return NextResponse.json({ success: false }, { status: 502 });
@@ -52,7 +51,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("❌ Booking webhook error:", error);
+    console.error("❌ Booking CRM intake error:", error);
     return NextResponse.json({ success: false }, { status: 500 });
   }
 }

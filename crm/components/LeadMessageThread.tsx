@@ -1,0 +1,621 @@
+"use client";
+
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  AlertCircle,
+  Check,
+  CheckCheck,
+  ChevronUp,
+  Clock3,
+  Eye,
+  Mail,
+  Maximize2,
+  MessageSquare,
+  Minus,
+  Phone,
+} from "lucide-react";
+import { api } from "@/crm/lib/api";
+import type { Message } from "@/crm/types";
+import CurvedContainer from "@/crm/components/ui/CurvedContainer";
+import CrmModal from "@/crm/components/ui/CrmModal";
+import PrimaryButton from "@/crm/components/ui/PrimaryButton";
+import SecondaryButton from "@/crm/components/ui/SecondaryButton";
+import TextField from "@/crm/components/ui/TextField";
+import ChannelSelector, { type MessageChannel } from "@/crm/components/ui/ChannelSelector";
+import MessageRichCompose, {
+  getEmailPayload,
+  type MessageRichComposeHandle,
+} from "@/crm/components/ui/MessageRichCompose";
+import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
+import {
+  formatChatDateSeparator,
+  formatChatTime,
+  initialsFromName,
+} from "@/crm/lib/formatChatTime";
+import { linkifyText } from "@/crm/lib/formatMessageBody";
+import {
+  isHtmlContent,
+  parseWhatsAppFormatting,
+  sanitizeEmailHtml,
+} from "@/crm/lib/messageFormatting";
+import { scrollChatContainerToBottom } from "@/crm/lib/scrollChatThread";
+import { parseTrailingMediaUrls } from "@/crm/lib/messageMediaAttachments";
+import { cn } from "@/lib/utils";
+
+type Channel = MessageChannel;
+
+function channelLabel(channel: string) {
+  if (channel === "EMAIL") return "Email";
+  if (channel === "WHATSAPP") return "WhatsApp";
+  return "SMS";
+}
+
+function messageStatusMeta(
+  status: string,
+  channel: string
+): {
+  label: string;
+  icon: typeof Check;
+  tone: "success" | "neutral" | "pending" | "error" | "read";
+} {
+  switch (status) {
+    case "READ":
+      return {
+        label: channel === "EMAIL" ? "Opened" : "Read",
+        icon: channel === "EMAIL" ? Eye : CheckCheck,
+        tone: "read",
+      };
+    case "DELIVERED":
+      return { label: "Delivered", icon: CheckCheck, tone: "success" };
+    case "SENT":
+      return { label: "Sent", icon: Check, tone: "neutral" };
+    case "QUEUED":
+      return { label: "Sending", icon: Clock3, tone: "pending" };
+    case "FAILED":
+      return { label: "Failed", icon: AlertCircle, tone: "error" };
+    case "BOUNCED":
+      return { label: "Bounced", icon: AlertCircle, tone: "error" };
+    default:
+      return { label: status.charAt(0) + status.slice(1).toLowerCase(), icon: Check, tone: "neutral" };
+  }
+}
+
+function MessageDeliveryStatus({ status, channel }: { status: string; channel: string }) {
+  const meta = messageStatusMeta(status, channel);
+  const Icon = meta.icon;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 text-[11px] font-medium",
+        meta.tone === "read" && "text-sky-600",
+        meta.tone === "success" && "text-emerald-600",
+        meta.tone === "neutral" && "text-(--color-tc-30)",
+        meta.tone === "pending" && "text-amber-600",
+        meta.tone === "error" && "text-red-600"
+      )}
+    >
+      <Icon className="size-3 shrink-0" aria-hidden />
+      {meta.label}
+    </span>
+  );
+}
+
+function suggestEmailSubject(messages: Message[]): string {
+  const latest = [...messages]
+    .reverse()
+    .find((m) => m.channel === "EMAIL" && m.subject?.trim());
+  if (!latest?.subject) return "";
+  const subject = latest.subject.trim();
+  return /^re:/i.test(subject) ? subject : `Re: ${subject}`;
+}
+
+function MessageBody({
+  body,
+  channel,
+  isOutbound,
+}: {
+  body: string;
+  channel: string;
+  isOutbound: boolean;
+}) {
+  const linkClass = isOutbound
+    ? "underline underline-offset-2 opacity-90 hover:opacity-100"
+    : "text-(--color-primary) underline underline-offset-2 hover:opacity-80";
+
+  if (channel === "EMAIL" && isHtmlContent(body)) {
+    return (
+      <div
+        className={cn(
+          "prose prose-sm max-w-none text-sm leading-relaxed [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl",
+          isOutbound
+            ? "prose-invert [&_a]:text-white"
+            : "prose-neutral [&_a]:text-(--color-primary)"
+        )}
+        dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(body) }}
+      />
+    );
+  }
+
+  if (channel === "WHATSAPP" || channel === "SMS") {
+    const { text, mediaUrls } = parseTrailingMediaUrls(body);
+    const content = channel === "WHATSAPP" ? (
+      <div className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed">
+        {parseWhatsAppFormatting(text).map((segment, index) => {
+          if (segment.type === "bold") {
+            return (
+              <strong key={index} className="font-semibold">
+                {segment.value}
+              </strong>
+            );
+          }
+          if (segment.type === "italic") {
+            return (
+              <em key={index} className="italic">
+                {segment.value}
+              </em>
+            );
+          }
+          if (segment.type === "strike") {
+            return (
+              <span key={index} className="line-through opacity-80">
+                {segment.value}
+              </span>
+            );
+          }
+          if (segment.type === "mono") {
+            return (
+              <code
+                key={index}
+                className={cn(
+                  "rounded px-1 py-0.5 font-mono text-[0.85em]",
+                  isOutbound ? "bg-white/15" : "bg-(--color-nc-10)"
+                )}
+              >
+                {segment.value}
+              </code>
+            );
+          }
+          return <span key={index}>{linkifyText(segment.value, linkClass)}</span>;
+        })}
+      </div>
+    ) : (
+      <div className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed">
+        {linkifyText(text, linkClass)}
+      </div>
+    );
+
+    return (
+      <div className="space-y-2">
+        {text ? content : null}
+        {mediaUrls.map((url) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={url} src={url} alt="" className="max-h-48 max-w-full rounded-xl object-contain" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed">
+      {linkifyText(body, linkClass)}
+    </div>
+  );
+}
+
+function ThreadBubble({
+  message,
+  customerName,
+}: {
+  message: Message;
+  customerName: string;
+}) {
+  const isOutbound = message.direction === "OUTBOUND";
+  const authorName = isOutbound ? "Rosecrest" : customerName;
+  const ChannelIcon =
+    message.channel === "EMAIL" ? Mail : message.channel === "WHATSAPP" ? Phone : MessageSquare;
+
+  return (
+    <div className={cn("flex gap-2", isOutbound ? "flex-row-reverse" : "flex-row")}>
+      <div
+        className={cn(
+          "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+          isOutbound ? "bg-(--color-primary) text-white" : "bg-(--color-nc-10) text-(--color-tc-40)"
+        )}
+        aria-hidden
+      >
+        {initialsFromName(authorName)}
+      </div>
+
+      <div className={cn("flex min-w-0 max-w-[min(100%,36rem)] flex-col", isOutbound ? "items-end" : "items-start")}>
+        <div
+          className={cn(
+            "mb-1 flex flex-wrap items-center gap-2 text-xs text-(--color-tc-30)",
+            isOutbound && "justify-end"
+          )}
+        >
+          <span className="font-medium text-(--color-tc-40)">{authorName}</span>
+          <span className="inline-flex items-center gap-1">
+            <ChannelIcon className="size-3" aria-hidden />
+            {channelLabel(message.channel)}
+          </span>
+          <span>{formatChatTime(message.createdAt)}</span>
+          {isOutbound && <MessageDeliveryStatus status={message.status} channel={message.channel} />}
+        </div>
+
+        <CurvedContainer
+          variant={isOutbound ? "primary" : "white"}
+          className={cn(
+            "px-4 py-3",
+            isOutbound ? "text-white [&_a]:text-white" : "text-(--color-tc-40)"
+          )}
+          showBorderAndShadow={!isOutbound}
+        >
+          {message.channel === "EMAIL" && message.subject && (
+            <p
+              className={cn(
+                "mb-2 border-b pb-2 text-sm font-semibold",
+                isOutbound ? "border-white/20" : "border-(--color-tc-20)"
+              )}
+            >
+              {message.subject}
+            </p>
+          )}
+          <MessageBody body={message.body} channel={message.channel} isOutbound={isOutbound} />
+        </CurvedContainer>
+      </div>
+    </div>
+  );
+}
+
+export default function LeadMessageThread({
+  leadId,
+  customerName,
+  messages: initialMessages,
+  onSent,
+  className,
+  headerActions,
+}: {
+  leadId: string;
+  customerName: string;
+  messages: Message[];
+  onSent?: () => void;
+  className?: string;
+  headerActions?: ReactNode;
+}) {
+  const [messages, setMessages] = useState(initialMessages);
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [channel, setChannel] = useState<Channel>("EMAIL");
+  const [subject, setSubject] = useState("");
+  const [plainBody, setPlainBody] = useState("");
+  const [htmlBody, setHtmlBody] = useState("");
+  const [error, setError] = useState("");
+  const [composeCollapsed, setComposeCollapsed] = useState(false);
+  const [composeExpanded, setComposeExpanded] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const composeRef = useRef<MessageRichComposeHandle>(null);
+  const expandedComposeRef = useRef<MessageRichComposeHandle>(null);
+
+  const sortedMessages = useMemo(
+    () => [...messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    [messages]
+  );
+
+  useEffect(() => {
+    // Ignore empty seed arrays — inbox passes `messages={[]}` which would otherwise
+    // clear fetched messages whenever the parent re-renders after send.
+    if (initialMessages.length > 0) {
+      setMessages(initialMessages);
+    }
+  }, [initialMessages]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    api
+      .listMessages({ leadId, limit: "100" })
+      .then((result) => {
+        if (!cancelled) setMessages(result.items);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [leadId]);
+
+  useLayoutEffect(() => {
+    scrollChatContainerToBottom(scrollRef.current, sortedMessages.length > 0 ? "smooth" : "instant");
+  }, [sortedMessages.length, sortedMessages[sortedMessages.length - 1]?.id]);
+
+  useEffect(() => {
+    if (channel !== "EMAIL") return;
+    setSubject((current) => current || suggestEmailSubject(sortedMessages));
+  }, [channel, sortedMessages]);
+
+  useEffect(() => {
+    if (!composeExpanded) return;
+    const urls = composeRef.current?.getMediaUrls() ?? [];
+    if (urls.length === 0) return;
+    requestAnimationFrame(() => {
+      expandedComposeRef.current?.setMediaUrls(urls);
+      composeRef.current?.clearMedia();
+    });
+  }, [composeExpanded]);
+
+  function closeExpandedComposer() {
+    expandedComposeRef.current?.flushDraft();
+    const urls = expandedComposeRef.current?.getMediaUrls() ?? [];
+    setComposeExpanded(false);
+    if (urls.length > 0) {
+      requestAnimationFrame(() => composeRef.current?.setMediaUrls(urls));
+    }
+  }
+
+  async function refreshMessages() {
+    setLoading(true);
+    try {
+      const result = await api.listMessages({ leadId, limit: "100" });
+      setMessages(result.items);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const composePlaceholder =
+    channel === "EMAIL"
+      ? "Write your email…"
+      : channel === "WHATSAPP"
+        ? "Write a WhatsApp message…"
+        : "Write an SMS…";
+
+  const composeWindowControls = (
+    <>
+      <button
+        type="button"
+        onClick={() => setComposeCollapsed(true)}
+        aria-label="Minimize composer"
+        title="Minimize"
+        className="flex size-8 items-center justify-center rounded-lg text-(--color-tc-30) transition hover:bg-(--color-nc-10) hover:text-(--color-tc-40)"
+      >
+        <Minus className="size-4" aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          composeRef.current?.flushDraft();
+          setComposeExpanded(true);
+        }}
+        aria-label="Expand composer"
+        title="Expand"
+        className="flex size-8 items-center justify-center rounded-lg text-(--color-tc-30) transition hover:bg-(--color-nc-10) hover:text-(--color-tc-40)"
+      >
+        <Maximize2 className="size-3.5" aria-hidden />
+      </button>
+    </>
+  );
+
+  async function handleSend() {
+    const emailPayload = channel === "EMAIL" ? getEmailPayload(htmlBody) : null;
+    const activeComposeRef = composeExpanded ? expandedComposeRef : composeRef;
+    const mediaUrls = channel !== "SMS" ? (activeComposeRef.current?.getMediaUrls() ?? []) : [];
+    const text = channel === "EMAIL" ? (emailPayload?.plain ?? "") : plainBody.trim();
+    const hasEmailContent =
+      Boolean(emailPayload?.plain.trim()) ||
+      /<img[\s>]/i.test(emailPayload?.html ?? "") ||
+      mediaUrls.length > 0;
+    const hasContent = channel === "EMAIL" ? hasEmailContent : text.length > 0 || mediaUrls.length > 0;
+    if (!hasContent) return;
+
+    if (channel === "EMAIL" && !subject.trim()) {
+      setError("Subject is required for email.");
+      return;
+    }
+
+    setSending(true);
+    setError("");
+    try {
+      await api.sendMessage({
+        channel,
+        leadId,
+        body: channel === "EMAIL" ? text : text || undefined,
+        htmlBody: channel === "EMAIL" ? emailPayload?.html : undefined,
+        mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
+        subject: channel === "EMAIL" ? subject.trim() : undefined,
+        isTransactional: true,
+      });
+      setPlainBody("");
+      setHtmlBody("");
+      composeRef.current?.clearMedia();
+      expandedComposeRef.current?.clearMedia();
+      if (channel === "EMAIL") {
+        setSubject(suggestEmailSubject(sortedMessages));
+      }
+      await refreshMessages();
+      onSent?.();
+      setComposeExpanded(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to send message");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const threadItems: Array<{ kind: "date"; key: string; label: string } | { kind: "message"; key: string; message: Message }> =
+    [];
+  let lastDate = "";
+
+  for (const message of sortedMessages) {
+    const dateLabel = formatChatDateSeparator(message.createdAt);
+    if (dateLabel !== lastDate) {
+      threadItems.push({ kind: "date", key: `date-${dateLabel}-${message.id}`, label: dateLabel });
+      lastDate = dateLabel;
+    }
+    threadItems.push({ kind: "message", key: message.id, message });
+  }
+
+  return (
+    <CurvedContainer
+      className={cn("flex min-h-[32rem] flex-col overflow-hidden", className)}
+      showBorderAndShadow
+    >
+      <div className="flex items-center justify-between border-b border-(--color-tc-20) px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-(--color-tc-40)">Conversation with {customerName}</p>
+          <p className="text-xs text-(--color-tc-30)">Email, SMS and WhatsApp in one thread</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {headerActions}
+          <SecondaryButton
+            type="button"
+            size="small"
+            className="w-auto"
+            onClick={() => refreshMessages()}
+            disabled={loading}
+          >
+            {loading ? "Refreshing…" : "Refresh"}
+          </SecondaryButton>
+        </div>
+      </div>
+
+      <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-(--color-nc-10) px-4 py-4">
+        {loading && sortedMessages.length === 0 ? (
+          <div className="flex h-full items-center justify-center py-12">
+            <LoadingSpinner />
+          </div>
+        ) : sortedMessages.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center py-12 text-center">
+            <p className="text-sm font-medium text-(--color-tc-40)">No messages yet</p>
+            <p className="mt-1 max-w-sm text-xs text-(--color-tc-30)">
+              Send the first message below. Replies from the customer will appear here in full.
+            </p>
+          </div>
+        ) : (
+          threadItems.map((item) =>
+            item.kind === "date" ? (
+              <div key={item.key} className="flex justify-center">
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-(--color-tc-30) shadow-sm">
+                  {item.label}
+                </span>
+              </div>
+            ) : (
+              <ThreadBubble key={item.key} message={item.message} customerName={customerName} />
+            )
+          )
+        )}
+      </div>
+
+      <div className="shrink-0 border-t border-(--color-tc-20) bg-white p-4">
+        {composeCollapsed ? (
+          <button
+            type="button"
+            onClick={() => setComposeCollapsed(false)}
+            className="flex w-full items-center justify-between rounded-2xl border border-(--color-tc-20) bg-white px-4 py-3 text-left text-sm text-(--color-tc-30) shadow-[0_1px_3px_rgba(15,23,42,0.06)] transition hover:border-(--color-primary)/30 hover:bg-(--color-nc-10)/50"
+          >
+            <span>{composePlaceholder}</span>
+            <ChevronUp className="size-4 shrink-0" aria-hidden />
+          </button>
+        ) : (
+          <>
+            {channel === "EMAIL" && !composeExpanded && (
+              <div className="mb-3">
+                <TextField
+                  id="lead-message-subject"
+                  label="Subject"
+                  inline
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="Email subject"
+                />
+              </div>
+            )}
+
+            <div className={composeExpanded ? "hidden" : undefined}>
+              <MessageRichCompose
+                ref={composeRef}
+                channel={channel}
+                plainValue={plainBody}
+                htmlValue={htmlBody}
+                onPlainChange={setPlainBody}
+                onHtmlChange={setHtmlBody}
+                onSend={handleSend}
+                sending={sending}
+                enableImageAttachments
+                onUploadImage={async (file) => (await api.uploadMessageMedia(file)).url}
+                onAttachmentError={setError}
+                trailingSlot={<ChannelSelector channel={channel} onChange={setChannel} />}
+                placeholder={composePlaceholder}
+                headerActions={composeWindowControls}
+              />
+            </div>
+          </>
+        )}
+
+        {error && !composeCollapsed && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      </div>
+
+      <CrmModal
+        isOpen={composeExpanded}
+        title={`Message ${customerName}`}
+        description="Compose with more space. Your draft is kept when you close this window."
+        onClose={closeExpandedComposer}
+        closeDisabled={sending}
+        size="xl"
+        fitScreen
+        footer={
+          <>
+            <SecondaryButton
+              type="button"
+              size="small"
+              className="w-auto"
+              onClick={closeExpandedComposer}
+              disabled={sending}
+            >
+              Cancel
+            </SecondaryButton>
+            <PrimaryButton
+              type="button"
+              className="w-auto"
+              onClick={() => void handleSend()}
+              disabled={sending}
+            >
+              {sending ? "Sending…" : "Send message"}
+            </PrimaryButton>
+          </>
+        }
+      >
+        <div className="flex h-full min-h-0 flex-1 flex-col gap-4">
+          {channel === "EMAIL" && (
+            <TextField
+              id="lead-message-subject-expanded"
+              label="Subject"
+              inline
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Email subject"
+            />
+          )}
+          <MessageRichCompose
+            ref={expandedComposeRef}
+            channel={channel}
+            plainValue={plainBody}
+            htmlValue={htmlBody}
+            onPlainChange={setPlainBody}
+            onHtmlChange={setHtmlBody}
+            sending={sending}
+            showSendButton={false}
+            enableImageAttachments
+            onUploadImage={async (file) => (await api.uploadMessageMedia(file)).url}
+            onAttachmentError={setError}
+            trailingSlot={<ChannelSelector channel={channel} onChange={setChannel} />}
+            placeholder={composePlaceholder}
+            fillHeight
+          />
+          {error && <p className="shrink-0 text-xs text-red-600">{error}</p>}
+        </div>
+      </CrmModal>
+    </CurvedContainer>
+  );
+}
