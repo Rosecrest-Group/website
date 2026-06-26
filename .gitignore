@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+test-results/
+playwright-report/
 
 # next.js
 /.next/
@@ -22,6 +24,8 @@
 
 # local scripts (admin utilities, one-offs)
 /scripts/
+start.bat
+checkapi.bat
 
 # API lives in a separate repo (Rosecrest-Group/crm-api)
 /api/
@@ -29,6 +33,8 @@
 # misc
 .DS_Store
 *.pem
+.cursor/
+docs.zip
 
 # debug
 npm-debug.log*
