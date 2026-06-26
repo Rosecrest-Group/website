@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 
-const NAV_SECTIONS = [
+type NavItem = { id: string; label: string };
+
+const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
   {
     title: "Lead intake",
     items: [
@@ -24,7 +26,7 @@ const NAV_SECTIONS = [
       { id: "comm-response", label: "Responses" },
     ],
   },
-] as const;
+];
 
 const NAV = NAV_SECTIONS.flatMap((section) => section.items);
 
