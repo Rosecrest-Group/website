@@ -10,6 +10,10 @@ const NAV = [
   { id: "response", label: "Responses" },
   { id: "examples", label: "Code examples" },
   { id: "errors", label: "Errors" },
+  { id: "communications", label: "Communication events" },
+  { id: "comm-request", label: "Comm. request body" },
+  { id: "comm-examples", label: "Comm. code examples" },
+  { id: "comm-response", label: "Comm. responses" },
 ];
 
 export default function ApiDocsShell({ children }: { children: ReactNode }) {
@@ -34,9 +38,9 @@ export default function ApiDocsShell({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="min-h-dvh bg-white text-slate-900">
+    <div className="min-h-dvh overflow-x-hidden bg-white text-slate-900">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-[90rem] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <Link href="/" className="text-lg font-bold tracking-tight text-slate-900">
               Rosecrest
@@ -53,7 +57,25 @@ export default function ApiDocsShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-7xl gap-10 px-4 py-10 sm:px-6 lg:px-8">
+      <nav className="sticky top-[65px] z-10 border-b border-slate-100 bg-white/95 backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-[90rem] gap-2 overflow-x-auto px-4 py-3 sm:px-6">
+          {NAV.map((item) => (
+            <a
+              key={item.id}
+              href={`#${item.id}`}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                active === item.id
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {item.label}
+            </a>
+          ))}
+        </div>
+      </nav>
+
+      <div className="mx-auto flex w-full max-w-[90rem] min-w-0 gap-10 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         <aside className="hidden w-56 shrink-0 lg:block">
           <nav className="sticky top-24 space-y-1">
             <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">

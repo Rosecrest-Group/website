@@ -9,11 +9,13 @@ export default function CodeBlock({
   language,
   languages,
   onLanguageChange,
+  wrap = false,
 }: {
   code: string;
   language?: CodeLanguage;
   languages?: { id: CodeLanguage; label: string }[];
   onLanguageChange?: (lang: CodeLanguage) => void;
+  wrap?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -24,8 +26,8 @@ export default function CodeBlock({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-950 shadow-sm">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-900/80 px-4 py-2.5">
+    <div className="min-w-0 max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-950 shadow-sm">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-900/80 px-3 py-2.5 sm:px-4">
         {languages && languages.length > 0 ? (
           <div className="flex flex-wrap gap-1">
             {languages.map((lang) => (
@@ -64,8 +66,12 @@ export default function CodeBlock({
           )}
         </button>
       </div>
-      <pre className="overflow-x-auto p-4 text-[13px] leading-relaxed text-slate-100">
-        <code>{code}</code>
+      <pre
+        className={`p-3 text-xs leading-relaxed text-slate-100 sm:p-4 sm:text-[13px] ${
+          wrap ? "whitespace-pre-wrap break-all" : "overflow-x-auto"
+        }`}
+      >
+        <code className={wrap ? "break-all" : "block min-w-0"}>{code}</code>
       </pre>
     </div>
   );
