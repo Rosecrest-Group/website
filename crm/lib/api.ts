@@ -65,6 +65,9 @@ import type {
   CreateTaskPayload,
   UpdateTaskPayload,
   DashboardMyTasks,
+  TeamConnectNumber,
+  TeamConnectCallResult,
+  TeamConnectSmsSendResult,
 
 } from "@/crm/types";
 
@@ -583,7 +586,46 @@ export const api = {
 
     isTransactional?: boolean;
 
+    teamConnectPhoneDocId?: string;
+
   }) => request<Message>("/messages/send", { method: "POST", body: JSON.stringify(payload) }),
+
+  listTeamConnectNumbers: () =>
+    request<{
+      enabled: boolean;
+      numbers: TeamConnectNumber[];
+      defaultPhoneDocId: string | null;
+    }>("/teamconnect/numbers"),
+
+  placeTeamConnectCall: (payload: {
+    phoneDocId: string;
+    to: string;
+    agentPhone?: string;
+    leadId?: string;
+    jobId?: string;
+  }) =>
+    request<TeamConnectCallResult>("/teamconnect/calls", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  sendTeamConnectSms: (payload: {
+    phoneDocId: string;
+    to: string;
+    message: string;
+    leadId?: string;
+    jobId?: string;
+  }) =>
+    request<TeamConnectSmsSendResult>("/teamconnect/sms", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  syncLeadSmsFromTeamConnect: (leadId: string) =>
+    request<{ synced: number; deduped: number; total?: number; skipped?: boolean }>(
+      `/teamconnect/sms/sync/${leadId}`,
+      { method: "POST" }
+    ),
 
   uploadMessageMedia: async (file: File) => {
     const { fileToDataUrl } = await import("@/crm/lib/messageMediaAttachments");

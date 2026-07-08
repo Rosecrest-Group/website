@@ -12,8 +12,9 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
       { id: "overview", label: "Overview" },
       { id: "authentication", label: "Authentication" },
       { id: "request", label: "Request body" },
-      { id: "response", label: "Responses" },
+      { id: "idempotency", label: "Idempotency" },
       { id: "examples", label: "Code examples" },
+      { id: "response", label: "Responses" },
       { id: "errors", label: "Errors" },
     ],
   },
@@ -54,7 +55,7 @@ export default function ApiDocsShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh bg-white text-slate-900">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-[90rem] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-360 items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <Link href="/" className="text-lg font-bold tracking-tight text-slate-900">
               Rosecrest
@@ -72,7 +73,7 @@ export default function ApiDocsShell({ children }: { children: ReactNode }) {
       </header>
 
       <nav className="sticky top-[65px] z-10 border-b border-slate-100 bg-white/95 backdrop-blur lg:hidden">
-        <div className="mx-auto flex max-w-[90rem] items-center gap-2 overflow-x-auto px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-360 items-center gap-2 overflow-x-auto px-4 py-3 sm:px-6">
           {NAV_SECTIONS.map((section, sectionIndex) => (
             <div key={section.title} className="flex shrink-0 items-center gap-2">
               {sectionIndex > 0 && (
@@ -99,7 +100,7 @@ export default function ApiDocsShell({ children }: { children: ReactNode }) {
         </div>
       </nav>
 
-      <div className="mx-auto flex w-full max-w-[90rem] min-w-0 gap-10 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+      <div className="mx-auto flex w-full max-w-360 min-w-0 gap-10 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         <aside className="hidden w-56 shrink-0 lg:sticky lg:top-24 lg:block lg:self-start">
           <nav className="max-h-[calc(100dvh-7rem)] space-y-5 overflow-y-auto overscroll-contain pr-2">
             {NAV_SECTIONS.map((section, sectionIndex) => (

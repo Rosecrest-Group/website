@@ -213,8 +213,11 @@ export default function UserProfile() {
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="Optional"
+              placeholder="e.g. 07400 000000"
             />
+            <p className="text-xs text-(--color-tc-30)">
+              Required for Team Connect calls — your phone rings first, then the customer is connected.
+            </p>
             <TextField
               label="Role"
               value={user ? roleLabel(user.role) : ""}

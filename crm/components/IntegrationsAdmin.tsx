@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/crm/lib/api";
-import type { AdminUserSummary, DialpadIntegrationStatus, WebhookEventSummary } from "@/crm/types";
+import type { AdminUserSummary, TeamConnectNumber, WebhookEventSummary } from "@/crm/types";
 import { toast } from "sonner";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
@@ -10,10 +10,8 @@ import CrmPanel from "@/crm/components/ui/CrmPanel";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import StatusPill from "@/crm/components/ui/StatusPill";
-import TextField from "@/crm/components/ui/TextField";
 import SelectField from "@/crm/components/ui/SelectField";
 import Table, { type Column } from "@/crm/components/ui/Table";
-import Toggle from "@/crm/components/ui/Toggle";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 
 const PROVIDERS = [
@@ -32,19 +30,17 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return <StatusPill variant={ok ? "completed" : "in-review"} label={label} />;
 }
 
-type UserEdit = { phoneEnabled: boolean; dialpadUserId: string };
-
 export default function IntegrationsAdmin() {
   const [events, setEvents] = useState<WebhookEventSummary[]>([]);
   const [provider, setProvider] = useState("");
   const [selected, setSelected] = useState<WebhookEventSummary | null>(null);
   const [replayResult, setReplayResult] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [dialpadStatus, setDialpadStatus] = useState<DialpadIntegrationStatus | null>(null);
+  const [teamConnectEnabled, setTeamConnectEnabled] = useState(false);
+  const [teamConnectNumbers, setTeamConnectNumbers] = useState<TeamConnectNumber[]>([]);
+  const [teamConnectLoading, setTeamConnectLoading] = useState(true);
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
-  const [userEdits, setUserEdits] = useState<Record<string, UserEdit>>({});
-  const [savingUserId, setSavingUserId] = useState<string | null>(null);
 
   function load() {
     setLoading(true);
@@ -56,23 +52,20 @@ export default function IntegrationsAdmin() {
       .finally(() => setLoading(false));
   }
 
-  function loadDialpad() {
+  function loadTeamConnect() {
+    setTeamConnectLoading(true);
     setUsersLoading(true);
-    Promise.all([api.getDialpadIntegrationStatus(), api.listAdminUsers()])
-      .then(([status, userList]) => {
-        setDialpadStatus(status);
+    Promise.all([api.listTeamConnectNumbers(), api.listAdminUsers()])
+      .then(([tc, userList]) => {
+        setTeamConnectEnabled(tc.enabled);
+        setTeamConnectNumbers(tc.numbers);
         setUsers(userList.items);
-        setUserEdits(
-          Object.fromEntries(
-            userList.items.map((u) => [
-              u.id,
-              { phoneEnabled: u.phoneEnabled, dialpadUserId: u.dialpadUserId ?? "" },
-            ])
-          )
-        );
       })
-      .catch(() => toast.error("Failed to load Dialpad settings"))
-      .finally(() => setUsersLoading(false));
+      .catch(() => toast.error("Failed to load Team Connect settings"))
+      .finally(() => {
+        setTeamConnectLoading(false);
+        setUsersLoading(false);
+      });
   }
 
   useEffect(() => {
@@ -80,7 +73,7 @@ export default function IntegrationsAdmin() {
   }, [provider]);
 
   useEffect(() => {
-    loadDialpad();
+    loadTeamConnect();
   }, []);
 
   async function replay(id: string, mode: "dry-run" | "safe" | "full") {
@@ -89,48 +82,7 @@ export default function IntegrationsAdmin() {
     load();
   }
 
-  function copyWebhookUrl() {
-    if (!dialpadStatus) return;
-    navigator.clipboard.writeText(dialpadStatus.voiceWebhookUrl);
-    toast.success("Webhook URL copied");
-  }
-
-  async function saveUserPhone(user: AdminUserSummary) {
-    const edit = userEdits[user.id];
-    if (!edit) return;
-    setSavingUserId(user.id);
-    try {
-      const updated = await api.updateUserPhone(user.id, {
-        phoneEnabled: edit.phoneEnabled,
-        dialpadUserId: edit.dialpadUserId.trim() || null,
-      });
-      setUsers((list) => list.map((row) => (row.id === updated.id ? updated : row)));
-      setUserEdits((prev) => ({
-        ...prev,
-        [updated.id]: {
-          phoneEnabled: updated.phoneEnabled,
-          dialpadUserId: updated.dialpadUserId ?? "",
-        },
-      }));
-      toast.success(`Updated phone settings for ${updated.fullName}`);
-      loadDialpad();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save");
-    } finally {
-      setSavingUserId(null);
-    }
-  }
-
-  function isUserDirty(user: AdminUserSummary) {
-    const edit = userEdits[user.id];
-    if (!edit) return false;
-    return (
-      edit.phoneEnabled !== user.phoneEnabled ||
-      (edit.dialpadUserId.trim() || null) !== (user.dialpadUserId ?? null)
-    );
-  }
-
-  const frontendClientId = Boolean(process.env.NEXT_PUBLIC_DIALPAD_CLIENT_ID);
+  const usersWithAgentPhone = users.filter((u) => u.phone?.trim()).length;
 
   const userColumns: Column<AdminUserSummary & Record<string, unknown>>[] = [
     {
@@ -149,65 +101,39 @@ export default function IntegrationsAdmin() {
       render: (value) => <span className="text-xs text-(--color-tc-30)">{value as string}</span>,
     },
     {
-      key: "phoneEnabled",
-      header: "Phone",
-      render: (_, row) => {
-        const edit = userEdits[row.id];
-        return (
-          <label className="flex items-center gap-2 text-sm text-(--color-tc-40)">
-            <Toggle
-              aria-label={`Phone enabled for ${row.fullName}`}
-              checked={edit?.phoneEnabled ?? row.phoneEnabled}
-              onCheckedChange={(checked) =>
-                setUserEdits((prev) => ({
-                  ...prev,
-                  [row.id]: {
-                    ...prev[row.id],
-                    phoneEnabled: checked,
-                    dialpadUserId: prev[row.id]?.dialpadUserId ?? row.dialpadUserId ?? "",
-                  },
-                }))
-              }
-            />
-            Phone enabled
-          </label>
-        );
-      },
+      key: "phone",
+      header: "Agent phone",
+      render: (value) =>
+        value ? (
+          <span className="font-mono text-xs text-(--color-tc-40)">{value as string}</span>
+        ) : (
+          <span className="text-xs text-amber-700">Not set — cannot place calls</span>
+        ),
+    },
+  ];
+
+  const numberColumns: Column<TeamConnectNumber & Record<string, unknown>>[] = [
+    {
+      key: "label",
+      header: "Label",
+      render: (value) => <span className="text-sm text-(--color-tc-40)">{value as string}</span>,
     },
     {
-      key: "dialpadUserId",
-      header: "Dialpad user ID",
-      render: (_, row) => (
-        <TextField
-          className="h-10 font-mono text-xs"
-          placeholder="Dialpad user ID"
-          value={userEdits[row.id]?.dialpadUserId ?? ""}
-          onChange={(e) =>
-            setUserEdits((prev) => ({
-              ...prev,
-              [row.id]: {
-                phoneEnabled: prev[row.id]?.phoneEnabled ?? row.phoneEnabled,
-                dialpadUserId: e.target.value,
-              },
-            }))
-          }
-        />
+      key: "voiceNumber",
+      header: "Voice",
+      render: (value) => <span className="font-mono text-xs">{value as string}</span>,
+    },
+    {
+      key: "smsNumber",
+      header: "SMS",
+      render: (value) => (
+        <span className="font-mono text-xs">{(value as string | null) ?? "—"}</span>
       ),
     },
     {
-      key: "id",
-      header: "",
-      render: (_, row) => (
-        <SecondaryButton
-          type="button"
-          size="small"
-          className="w-auto"
-          disabled={!isUserDirty(row) || savingUserId === row.id}
-          onClick={() => saveUserPhone(row)}
-        >
-          {savingUserId === row.id ? "Saving…" : "Save"}
-        </SecondaryButton>
-      ),
+      key: "status",
+      header: "Status",
+      render: (value) => <StatusPill variant="completed" label={value as string} />,
     },
   ];
 
@@ -251,7 +177,7 @@ export default function IntegrationsAdmin() {
     <CrmPageContent>
       <CrmPageHeader
         title="Integrations"
-        subtitle="Dialpad setup, webhooks, and replay (admin)"
+        subtitle="Team Connect, webhooks, and replay (admin)"
         actions={
           <>
             <SecondaryButton
@@ -284,63 +210,70 @@ export default function IntegrationsAdmin() {
         }
       />
 
-      <CrmPanel title="Dialpad (phone)">
+      <CrmPanel title="Team Connect (phone & SMS)">
         <div className="space-y-4">
-          {dialpadStatus ? (
+          {teamConnectLoading ? (
+            <LoadingSpinner />
+          ) : (
             <>
               <div className="flex flex-wrap gap-2">
-                <StatusBadge ok={dialpadStatus.clientIdConfigured} label="API client ID (server)" />
-                <StatusBadge ok={frontendClientId} label="Client ID (frontend)" />
-                <StatusBadge ok={dialpadStatus.webhookSecretConfigured} label="Webhook secret" />
+                <StatusBadge ok={teamConnectEnabled} label="API key configured" />
                 <StatusPill
                   variant="pending"
-                  label={`${dialpadStatus.phoneEnabledUserCount} users with phone enabled`}
+                  label={`${teamConnectNumbers.length} business number${teamConnectNumbers.length === 1 ? "" : "s"}`}
+                />
+                <StatusPill
+                  variant={usersWithAgentPhone === users.length ? "completed" : "in-review"}
+                  label={`${usersWithAgentPhone}/${users.length} users with agent phone`}
                 />
               </div>
 
               <div className="rounded-lg bg-(--color-nc-10) p-3 text-sm text-(--color-tc-30)">
-                <p className="font-medium text-(--color-tc-40)">Setup steps</p>
+                <p className="font-medium text-(--color-tc-40)">How calling works</p>
                 <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs leading-relaxed">
-                  <li>Request CTI integration access from Dialpad support (Pro Flex plan or higher).</li>
                   <li>
-                    Set <code className="rounded bg-white px-1">DIALPAD_CLIENT_ID</code> in API env and{" "}
-                    <code className="rounded bg-white px-1">NEXT_PUBLIC_DIALPAD_CLIENT_ID</code> in frontend
-                    env.
+                    Set <code className="rounded bg-white px-1">TEAM_CONNECT_API_KEY</code> in API env
+                    (prefix <code className="rounded bg-white px-1">tca_</code>).
                   </li>
                   <li>
-                    Set <code className="rounded bg-white px-1">DIALPAD_WEBHOOK_SECRET</code> and register
-                    the voice webhook URL below in Dialpad.
+                    Each user adds their mobile in <strong>Settings → Profile</strong> — that phone rings
+                    first on outbound calls.
                   </li>
-                  <li>Enable phone for each user below — they sign in once in the Phone sidebar in the CRM.</li>
+                  <li>
+                    Optional fallback: <code className="rounded bg-white px-1">TEAM_CONNECT_AGENT_PHONE</code>{" "}
+                    in API env for users without a profile phone.
+                  </li>
+                  <li>Click Call on a lead — answer your phone, then the customer is connected.</li>
                 </ol>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <code className="rounded-lg bg-(--color-nc-10) px-3 py-2 text-xs text-(--color-tc-30)">
-                  {dialpadStatus.voiceWebhookUrl}
-                </code>
-                <SecondaryButton type="button" size="small" className="w-auto" onClick={copyWebhookUrl}>
-                  Copy webhook URL
-                </SecondaryButton>
-              </div>
-              <p className="text-xs text-(--color-tc-30)">CTI iframe URL: {dialpadStatus.ctiUrl}</p>
-            </>
-          ) : (
-            <p className="text-sm text-(--color-tc-30)">Loading Dialpad status…</p>
-          )}
+              {teamConnectNumbers.length > 0 ? (
+                <Table
+                  columns={numberColumns}
+                  data={teamConnectNumbers as (TeamConnectNumber & Record<string, unknown>)[]}
+                  getRowKey={(r) => r.phoneDocId}
+                />
+              ) : (
+                <p className="text-sm text-(--color-tc-30)">No Team Connect numbers on this account.</p>
+              )}
 
-          <div className="border-t border-(--color-tc-20) pt-4">
-            <p className="mb-3 text-sm font-medium text-(--color-tc-40)">User phone access</p>
-            {usersLoading ? (
-              <LoadingSpinner />
-            ) : (
-              <Table
-                columns={userColumns}
-                data={users as (AdminUserSummary & Record<string, unknown>)[]}
-                getRowKey={(r) => r.id}
-              />
-            )}
-          </div>
+              <div className="border-t border-(--color-tc-20) pt-4">
+                <p className="mb-1 text-sm font-medium text-(--color-tc-40)">Agent phones</p>
+                <p className="mb-3 text-xs text-(--color-tc-30)">
+                  Users set their own agent phone in Settings → Profile.
+                </p>
+                {usersLoading ? (
+                  <LoadingSpinner />
+                ) : (
+                  <Table
+                    columns={userColumns}
+                    data={users as (AdminUserSummary & Record<string, unknown>)[]}
+                    getRowKey={(r) => r.id}
+                  />
+                )}
+              </div>
+            </>
+          )}
         </div>
       </CrmPanel>
 
@@ -415,9 +348,7 @@ export default function IntegrationsAdmin() {
         <p className="text-sm text-(--color-tc-30)">
           PINLOCAL, Compare My Move, ReallyMoving, Get a Surveyor, Website, Website contact form, Party Wall Tool, Direct
         </p>
-        <p className="mt-2 text-xs text-(--color-tc-30)">
-          POST /api/v1/intake/leads/:source · Voice: POST /api/v1/intake/voice/DIALPAD
-        </p>
+        <p className="mt-2 text-xs text-(--color-tc-30)">POST /api/v1/intake/leads/:source</p>
       </CrmPanel>
     </CrmPageContent>
   );

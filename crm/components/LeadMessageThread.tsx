@@ -40,6 +40,8 @@ import {
 } from "@/crm/lib/messageFormatting";
 import { scrollChatContainerToBottom } from "@/crm/lib/scrollChatThread";
 import { parseTrailingMediaUrls } from "@/crm/lib/messageMediaAttachments";
+import SelectField from "@/crm/components/ui/SelectField";
+import { usePhone } from "@/crm/lib/phoneContext";
 import { cn } from "@/lib/utils";
 
 type Channel = MessageChannel;
@@ -238,6 +240,9 @@ function ThreadBubble({
           <span className="inline-flex items-center gap-1">
             <ChannelIcon className="size-3" aria-hidden />
             {channelLabel(message.channel)}
+            {message.channel === "SMS" && isOutbound && message.fromAddress && (
+              <span className="text-[10px] text-(--color-tc-20)">from {message.fromAddress}</span>
+            )}
           </span>
           <span>{formatChatTime(message.createdAt)}</span>
           {isOutbound && <MessageDeliveryStatus status={message.status} channel={message.channel} />}
@@ -293,6 +298,8 @@ export default function LeadMessageThread({
   const [error, setError] = useState("");
   const [composeCollapsed, setComposeCollapsed] = useState(false);
   const [composeExpanded, setComposeExpanded] = useState(false);
+  const { teamConnectEnabled, teamConnectNumbers, selectedPhoneDocId, setSelectedPhoneDocId } =
+    usePhone();
   const scrollRef = useRef<HTMLDivElement>(null);
   const composeRef = useRef<MessageRichComposeHandle>(null);
   const expandedComposeRef = useRef<MessageRichComposeHandle>(null);
@@ -313,18 +320,21 @@ export default function LeadMessageThread({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    api
-      .listMessages({ leadId, limit: "100" })
-      .then((result) => {
+    (async () => {
+      try {
+        if (teamConnectEnabled) {
+          await api.syncLeadSmsFromTeamConnect(leadId).catch(() => undefined);
+        }
+        const result = await api.listMessages({ leadId, limit: "100" });
         if (!cancelled) setMessages(result.items);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [leadId]);
+  }, [leadId, teamConnectEnabled]);
 
   useLayoutEffect(() => {
     scrollChatContainerToBottom(scrollRef.current, sortedMessages.length > 0 ? "smooth" : "instant");
@@ -357,12 +367,23 @@ export default function LeadMessageThread({
   async function refreshMessages() {
     setLoading(true);
     try {
+      if (teamConnectEnabled) {
+        await api.syncLeadSmsFromTeamConnect(leadId).catch(() => undefined);
+      }
       const result = await api.listMessages({ leadId, limit: "100" });
       setMessages(result.items);
     } finally {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!teamConnectEnabled) return;
+    const timer = window.setInterval(() => {
+      void refreshMessages();
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [leadId, teamConnectEnabled]);
 
   const composePlaceholder =
     channel === "EMAIL"
@@ -397,6 +418,9 @@ export default function LeadMessageThread({
     </>
   );
 
+  const smsNumbers = teamConnectNumbers.filter((n) => n.smsEnabled && n.status === "active");
+  const showSmsNumberSelector = channel === "SMS" && teamConnectEnabled && smsNumbers.length > 0;
+
   async function handleSend() {
     const emailPayload = channel === "EMAIL" ? getEmailPayload(htmlBody) : null;
     const activeComposeRef = composeExpanded ? expandedComposeRef : composeRef;
@@ -425,6 +449,10 @@ export default function LeadMessageThread({
         mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
         subject: channel === "EMAIL" ? subject.trim() : undefined,
         isTransactional: true,
+        teamConnectPhoneDocId:
+          channel === "SMS" && teamConnectEnabled
+            ? selectedPhoneDocId ?? smsNumbers[0]?.phoneDocId
+            : undefined,
       });
       setPlainBody("");
       setHtmlBody("");
@@ -532,6 +560,24 @@ export default function LeadMessageThread({
               </div>
             )}
 
+            {showSmsNumberSelector && !composeExpanded && (
+              <div className="mb-3">
+                <SelectField
+                  id="lead-message-sms-number"
+                  label={smsNumbers.length > 1 ? "Send from" : "Sending from"}
+                  value={selectedPhoneDocId ?? smsNumbers[0]?.phoneDocId ?? ""}
+                  onChange={(e) => setSelectedPhoneDocId(e.target.value || null)}
+                  disabled={smsNumbers.length <= 1}
+                >
+                  {smsNumbers.map((n) => (
+                    <option key={n.phoneDocId} value={n.phoneDocId}>
+                      {n.label} ({n.smsNumber ?? n.voiceNumber})
+                    </option>
+                  ))}
+                </SelectField>
+              </div>
+            )}
+
             <div className={composeExpanded ? "hidden" : undefined}>
               <MessageRichCompose
                 ref={composeRef}
@@ -596,6 +642,21 @@ export default function LeadMessageThread({
               onChange={(e) => setSubject(e.target.value)}
               placeholder="Email subject"
             />
+          )}
+          {showSmsNumberSelector && (
+            <SelectField
+              id="lead-message-sms-number-expanded"
+              label={smsNumbers.length > 1 ? "Send from" : "Sending from"}
+              value={selectedPhoneDocId ?? smsNumbers[0]?.phoneDocId ?? ""}
+              onChange={(e) => setSelectedPhoneDocId(e.target.value || null)}
+              disabled={smsNumbers.length <= 1}
+            >
+              {smsNumbers.map((n) => (
+                <option key={n.phoneDocId} value={n.phoneDocId}>
+                  {n.label} ({n.smsNumber ?? n.voiceNumber})
+                </option>
+              ))}
+            </SelectField>
           )}
           <MessageRichCompose
             ref={expandedComposeRef}

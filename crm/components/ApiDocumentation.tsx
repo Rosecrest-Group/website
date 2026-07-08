@@ -15,7 +15,9 @@ import {
   EXAMPLE_LEAD_JSON,
   EXAMPLE_SMS_EVENT_JSON,
   INTAKE_ENDPOINT,
+  RATE_LIMIT_RESPONSE,
   SUCCESS_RESPONSE,
+  VALIDATION_ERROR_RESPONSE,
   getCommunicationSnippet,
   getRequestSnippet,
   type CodeLanguage,
@@ -78,6 +80,7 @@ export default function ApiDocumentation() {
   const [language, setLanguage] = useState<CodeLanguage>("curl");
   const [commLanguage, setCommLanguage] = useState<CodeLanguage>("curl");
   const [commExample, setCommExample] = useState<CommunicationExample>("call");
+  const selectedCommExample = COMMUNICATION_EXAMPLES.find((item) => item.id === commExample) ?? COMMUNICATION_EXAMPLES[0];
 
   return (
     <ApiDocsShell>
@@ -95,11 +98,12 @@ export default function ApiDocumentation() {
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Submit leads to Rosecrest</h1>
         <p className="text-lg leading-relaxed text-slate-600">
           Send surveying and property leads directly into the Rosecrest CRM. Each partner receives a unique API key.
-          Leads appear with source reference{" "}
+          Leads are stored under the <strong>THIRD_PARTY</strong> source with a source reference like{" "}
           <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">TP-yourname-id</code>.
         </p>
         <p className="text-sm text-slate-500">
-          Base URL: <code className="break-all text-slate-700">{API_BASE_URL}</code>
+          Base URL: <code className="break-all text-slate-700">{API_BASE_URL}</code>. Use HTTPS in production and send
+          JSON requests only.
         </p>
       </DocsSection>
 
@@ -117,6 +121,10 @@ export default function ApiDocumentation() {
           Include your partner API key in every request using the{" "}
           <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">X-API-Key</code> header. Contact Rosecrest to
           obtain a key.
+        </p>
+        <p className="text-sm text-slate-500">
+          Intake requests are rate limited to 1,000 requests per minute per IP. Rate limit responses use HTTP 429 and
+          include standard <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">RateLimit-*</code> headers.
         </p>
       </DocsSection>
 
@@ -153,23 +161,46 @@ export default function ApiDocumentation() {
           <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Optional fields</h3>
           <ParamTable
             rows={[
-              { name: "id", type: "string", description: "Your unique reference ID for deduplication" },
+              {
+                name: "id",
+                type: "string",
+                description: "Stable partner reference for idempotency and sourceRef generation",
+              },
               {
                 name: "job_type",
                 type: "string",
                 description:
-                  "RICS_SURVEY, CPR_35_REPORT, DAMP_MOULD, STOCK_CONDITION, HOUSING_DISREPAIR, EPC, ENVIRONMENTAL, PARTY_WALL, TRADE_WORK, OTHER",
+                  "RICS_SURVEY, CPR_35_REPORT, DAMP_MOULD, STOCK_CONDITION, HOUSING_DISREPAIR, EPC, ENVIRONMENTAL, PARTY_WALL, TRADE_WORK, OTHER (defaults to RICS_SURVEY)",
               },
               { name: "survey_level", type: "string", description: "LEVEL_1, LEVEL_2, LEVEL_3, CPR_35" },
-              { name: "customer_type", type: "string", description: "HOMEBUYER, LANDLORD, LEGAL, COUNCIL, TRADE" },
-              { name: "property_value", type: "number", description: "Property value in GBP" },
-              { name: "quoted_amount", type: "number", description: "Pre-quoted amount if applicable" },
-              { name: "message", type: "string", description: "Additional notes from the customer" },
+              {
+                name: "customer_type",
+                type: "string",
+                description: "HOMEBUYER, LANDLORD, LEGAL, COUNCIL, TRADE (defaults to HOMEBUYER)",
+              },
+              { name: "property_value", type: "number", description: "Property value in GBP, used for pricing bands" },
+              { name: "quoted_amount", type: "number", description: "Pre-quoted amount in GBP if applicable" },
+              { name: "message", type: "string", description: "Additional notes from the customer, max 5,000 chars" },
               { name: "company", type: "string", description: "Company name if applicable" },
               { name: "marketing_opt_in", type: "boolean", description: "Marketing consent (default: false)" },
             ]}
           />
         </div>
+      </DocsSection>
+
+      <DocsSection id="idempotency" title="Idempotency and retries">
+        <p className="text-slate-600">
+          Send a stable <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">id</code> for every lead. The API
+          uses it with your partner slug to build{" "}
+          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">sourceRef</code>, for example{" "}
+          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">TP-your-company-your-unique-ref-123</code>.
+        </p>
+        <p className="text-slate-600">
+          Retrying the same <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">id</code> returns the existing
+          processed event with <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">deduped: true</code>. If you
+          omit <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">id</code>, retries can create duplicate
+          leads because the API generates a new reference.
+        </p>
       </DocsSection>
 
       <DocsSection
@@ -202,6 +233,8 @@ export default function ApiDocumentation() {
           <div className="min-w-0 space-y-6 lg:sticky lg:top-24">
             <DocsCodePanel label="201 Created" code={SUCCESS_RESPONSE} />
             <DocsCodePanel label="401 Unauthorized" code={ERROR_RESPONSE} />
+            <DocsCodePanel label="400 Validation error" code={VALIDATION_ERROR_RESPONSE} />
+            <DocsCodePanel label="429 Rate limited" code={RATE_LIMIT_RESPONSE} />
           </div>
         }
       >
@@ -224,6 +257,25 @@ export default function ApiDocumentation() {
           </div>
           <p className="text-slate-600">Returned when the API key is missing or invalid.</p>
         </div>
+
+        <div className="space-y-4 pt-4">
+          <div className="flex items-center gap-2">
+            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">400</span>
+            <span className="font-medium text-slate-900">Validation error</span>
+          </div>
+          <p className="text-slate-600">
+            Returned when required fields are missing or values fail validation, such as an invalid email, phone, or
+            postcode.
+          </p>
+        </div>
+
+        <div className="space-y-4 pt-4">
+          <div className="flex items-center gap-2">
+            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-800">429</span>
+            <span className="font-medium text-slate-900">Rate limited</span>
+          </div>
+          <p className="text-slate-600">Returned when request volume exceeds the intake rate limit.</p>
+        </div>
       </DocsSection>
 
       <DocsSection id="errors" title="Errors & troubleshooting">
@@ -244,6 +296,10 @@ export default function ApiDocumentation() {
               <tr>
                 <td className="px-4 py-3 font-mono text-xs">VALIDATION_ERROR</td>
                 <td className="px-4 py-3">Required field missing or invalid format</td>
+              </tr>
+              <tr>
+                <td className="px-4 py-3 font-mono text-xs">RATE_LIMITED</td>
+                <td className="px-4 py-3">Too many requests in the current rate limit window</td>
               </tr>
             </tbody>
           </table>
@@ -287,8 +343,8 @@ export default function ApiDocumentation() {
         title="Communication request body"
         code={
           <DocsCodePanel
-            label="Example call payload"
-            code={EXAMPLE_CALL_EVENT_JSON}
+            label={`Example ${selectedCommExample.label.toLowerCase()} payload`}
+            code={selectedCommExample.code}
           />
         }
       >
@@ -297,7 +353,8 @@ export default function ApiDocumentation() {
           <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">call</code>,{" "}
           <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">sms</code>, or{" "}
           <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">email</code>. Matching uses phone for calls/SMS
-          and email for email events.
+          and email for email events. Send a stable{" "}
+          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">external_id</code> when retrying events.
         </p>
 
         <div className="space-y-3 pt-2">
@@ -312,7 +369,7 @@ export default function ApiDocumentation() {
               {
                 name: "external_id",
                 type: "string",
-                description: "Your unique event ID for deduplication",
+                description: "Stable event ID for idempotency, scoped to your partner and event type",
               },
               { name: "first_name", type: "string", description: "Customer first name when creating a new lead" },
               { name: "last_name", type: "string", description: "Customer last name when creating a new lead" },
@@ -444,7 +501,10 @@ export default function ApiDocumentation() {
         code={
           <div className="min-w-0 space-y-6 lg:sticky lg:top-24">
             <DocsCodePanel label="201 Created" code={COMMUNICATION_SUCCESS_RESPONSE} />
+            <DocsCodePanel label="401 Unauthorized" code={ERROR_RESPONSE} />
             <DocsCodePanel label="404 Not found" code={COMMUNICATION_NOT_FOUND_RESPONSE} />
+            <DocsCodePanel label="400 Validation error" code={VALIDATION_ERROR_RESPONSE} />
+            <DocsCodePanel label="429 Rate limited" code={RATE_LIMIT_RESPONSE} />
           </div>
         }
       >
@@ -462,6 +522,14 @@ export default function ApiDocumentation() {
 
         <div className="space-y-4 pt-4">
           <div className="flex items-center gap-2">
+            <span className="rounded-md bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-800">401</span>
+            <span className="font-medium text-slate-900">Unauthorized</span>
+          </div>
+          <p className="text-slate-600">Returned when the API key is missing or invalid.</p>
+        </div>
+
+        <div className="space-y-4 pt-4">
+          <div className="flex items-center gap-2">
             <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">404</span>
             <span className="font-medium text-slate-900">Lead not found</span>
           </div>
@@ -470,6 +538,25 @@ export default function ApiDocumentation() {
             <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">create_lead_if_missing</code> is{" "}
             <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">false</code>.
           </p>
+        </div>
+
+        <div className="space-y-4 pt-4">
+          <div className="flex items-center gap-2">
+            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">400</span>
+            <span className="font-medium text-slate-900">Validation error</span>
+          </div>
+          <p className="text-slate-600">
+            Returned when the event type is unsupported, a required event field is missing, or a timestamp, email, URL,
+            or phone number is invalid.
+          </p>
+        </div>
+
+        <div className="space-y-4 pt-4">
+          <div className="flex items-center gap-2">
+            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-800">429</span>
+            <span className="font-medium text-slate-900">Rate limited</span>
+          </div>
+          <p className="text-slate-600">Returned when request volume exceeds the intake rate limit.</p>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">

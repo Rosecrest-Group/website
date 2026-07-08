@@ -64,6 +64,7 @@ export interface AdminUserSummary {
   email: string;
   fullName: string;
   role: UserRole;
+  phone?: string | null;
   phoneEnabled: boolean;
   dialpadUserId: string | null;
   isActive?: boolean;
@@ -255,6 +256,40 @@ export interface Message {
   sentAt?: string | null;
   toAddress?: string;
   fromAddress?: string;
+  teamConnectPhoneDocId?: string | null;
+  teamConnectMessageId?: string | null;
+}
+
+export interface TeamConnectNumber {
+  phoneDocId: string;
+  label: string;
+  voiceNumber: string;
+  smsNumber: string | null;
+  smsEnabled: boolean;
+  status: string;
+}
+
+export interface TeamConnectCallResult {
+  success: boolean;
+  callId: string;
+  callSid: string;
+  status: string;
+  phoneDocId: string;
+  from: string;
+  to: string;
+  agentPhone: string;
+  availableMinutesBefore?: number;
+  callLogId?: string;
+}
+
+export interface TeamConnectSmsSendResult {
+  success: boolean;
+  messageId: string;
+  status: string;
+  from: string;
+  to: string;
+  phoneDocId: string;
+  segmentsUsed: number;
 }
 
 export interface CadenceRunInfo {

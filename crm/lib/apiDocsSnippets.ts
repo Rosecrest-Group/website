@@ -14,7 +14,10 @@ export const EXAMPLE_LEAD = {
   property_address: "10 Downing Street, London",
   job_type: "RICS_SURVEY",
   survey_level: "LEVEL_2",
+  customer_type: "HOMEBUYER",
+  property_value: 450000,
   message: "Interested in a home survey",
+  marketing_opt_in: true,
 } as const;
 
 export const EXAMPLE_LEAD_JSON = JSON.stringify(EXAMPLE_LEAD, null, 2);
@@ -71,18 +74,36 @@ export const CODE_LANGUAGES: { id: CodeLanguage; label: string }[] = [
 
 const bodyJson = JSON.stringify(EXAMPLE_LEAD, null, 2);
 
+function phpJsonDecode(json: string): string {
+  return `json_decode(<<<'JSON'
+${json}
+JSON, true)`;
+}
+
+function pythonJsonLoads(json: string): string {
+  return `json.loads("""
+${json}
+""")`;
+}
+
+function csharpJsonLiteral(json: string): string {
+  return `"""
+${json}
+"""`;
+}
+
 export function getRequestSnippet(language: CodeLanguage, apiKey = EXAMPLE_API_KEY): string {
   switch (language) {
     case "curl":
       return `curl -X POST ${INTAKE_ENDPOINT} \\
   -H "Content-Type: application/json" \\
   -H "X-API-Key: ${apiKey}" \\
-  -d '${JSON.stringify(EXAMPLE_LEAD)}'`;
+  --data-raw '${bodyJson}'`;
 
     case "php":
       return `<?php
 
-$payload = ${bodyJson.replace(/^/gm, "  ")};
+$payload = ${phpJsonDecode(bodyJson)};
 
 $ch = curl_init("${INTAKE_ENDPOINT}");
 curl_setopt_array($ch, [
@@ -103,14 +124,15 @@ echo "HTTP {$status}\\n";
 echo $response;`;
 
     case "python":
-      return `import requests
+      return `import json
+import requests
 
 url = "${INTAKE_ENDPOINT}"
 headers = {
     "Content-Type": "application/json",
     "X-API-Key": "${apiKey}",
 }
-payload = ${bodyJson}
+payload = ${pythonJsonLoads(bodyJson)}
 
 response = requests.post(url, json=payload, headers=headers, timeout=30)
 print(response.status_code)
@@ -150,16 +172,14 @@ puts response.code
 puts response.body`;
 
     case "csharp":
-      return `using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
+      return `using System.Text;
 
 var client = new HttpClient();
 client.DefaultRequestHeaders.Add("X-API-Key", "${apiKey}");
 
-var payload = ${bodyJson};
+var payloadJson = ${csharpJsonLiteral(bodyJson)};
 var content = new StringContent(
-    JsonSerializer.Serialize(payload),
+    payloadJson,
     Encoding.UTF8,
     "application/json"
 );
@@ -193,6 +213,27 @@ export const ERROR_RESPONSE = `{
   "error": {
     "code": "INVALID_API_KEY",
     "message": "Invalid or missing API key"
+  }
+}`;
+
+export const VALIDATION_ERROR_RESPONSE = `{
+  "ok": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid request data",
+    "details": {
+      "fieldErrors": {
+        "email": ["Invalid email"]
+      }
+    }
+  }
+}`;
+
+export const RATE_LIMIT_RESPONSE = `{
+  "ok": false,
+  "error": {
+    "code": "RATE_LIMITED",
+    "message": "Webhook rate limit exceeded"
   }
 }`;
 
@@ -242,12 +283,12 @@ export function getCommunicationSnippet(
       return `curl -X POST ${COMMUNICATIONS_ENDPOINT} \\
   -H "Content-Type: application/json" \\
   -H "X-API-Key: ${apiKey}" \\
-  -d '${JSON.stringify(payload)}'`;
+  --data-raw '${payloadJson}'`;
 
     case "php":
       return `<?php
 
-$payload = ${payloadJson.replace(/^/gm, "  ")};
+$payload = ${phpJsonDecode(payloadJson)};
 
 $ch = curl_init("${COMMUNICATIONS_ENDPOINT}");
 curl_setopt_array($ch, [
@@ -268,14 +309,15 @@ echo "HTTP {$status}\\n";
 echo $response;`;
 
     case "python":
-      return `import requests
+      return `import json
+import requests
 
 url = "${COMMUNICATIONS_ENDPOINT}"
 headers = {
     "Content-Type": "application/json",
     "X-API-Key": "${apiKey}",
 }
-payload = ${payloadJson}
+payload = ${pythonJsonLoads(payloadJson)}
 
 response = requests.post(url, json=payload, headers=headers, timeout=30)
 print(response.status_code)
@@ -315,16 +357,14 @@ puts response.code
 puts response.body`;
 
     case "csharp":
-      return `using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
+      return `using System.Text;
 
 var client = new HttpClient();
 client.DefaultRequestHeaders.Add("X-API-Key", "${apiKey}");
 
-var payload = ${payloadJson};
+var payloadJson = ${csharpJsonLiteral(payloadJson)};
 var content = new StringContent(
-    JsonSerializer.Serialize(payload),
+    payloadJson,
     Encoding.UTF8,
     "application/json"
 );

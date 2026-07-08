@@ -8,13 +8,11 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import CrmAuthKeeper from "@/crm/components/CrmAuthKeeper";
 import CrmSidebar from "@/crm/components/layout/CrmSidebar";
 import NotificationBell from "@/crm/components/NotificationBell";
-import DialpadSidebar from "@/crm/components/DialpadSidebar";
 import { CrmTopBarProvider, useCrmTopBar } from "@/crm/lib/crmTopBarContext";
-import { PhoneProvider, usePhone } from "@/crm/lib/phoneContext";
+import { PhoneProvider } from "@/crm/lib/phoneContext";
 import { Toaster } from "sonner";
 
 function CrmShellInner({ children }: { children: React.ReactNode }) {
-  const { phoneEnabled } = usePhone();
   const { left: topBarLeft } = useCrmTopBar();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pathname = usePathname();
@@ -83,21 +81,7 @@ function CrmShellInner({ children }: { children: React.ReactNode }) {
 
           {/* Page content */}
           <main className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</main>
-
-          {/* Mobile dialpad */}
-          {phoneEnabled && (
-            <div className="shrink-0 border-t border-(--color-tc-20) lg:hidden">
-              <DialpadSidebar enabled={phoneEnabled} />
-            </div>
-          )}
         </div>
-
-        {/* Desktop dialpad */}
-        {phoneEnabled && (
-          <div className="hidden shrink-0 lg:block">
-            <DialpadSidebar enabled={phoneEnabled} />
-          </div>
-        )}
       </div>
     </>
   );

@@ -1,21 +1,27 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { api } from "@/crm/lib/api";
-import { initDialpadListener } from "@/crm/lib/dialpad";
+import type { TeamConnectNumber } from "@/crm/types";
 
 type PhoneContextValue = {
-  phoneEnabled: boolean;
-  dialpadReady: boolean;
+  teamConnectEnabled: boolean;
+  teamConnectNumbers: TeamConnectNumber[];
+  userPhone: string | null;
+  selectedPhoneDocId: string | null;
+  setSelectedPhoneDocId: (phoneDocId: string | null) => void;
   refreshPhoneSettings: () => Promise<void>;
+  refreshTeamConnectNumbers: () => Promise<void>;
 };
 
 const PhoneContext = createContext<PhoneContextValue>({
-  phoneEnabled: false,
-  dialpadReady: false,
+  teamConnectEnabled: false,
+  teamConnectNumbers: [],
+  userPhone: null,
+  selectedPhoneDocId: null,
+  setSelectedPhoneDocId: () => {},
   refreshPhoneSettings: async () => {},
+  refreshTeamConnectNumbers: async () => {},
 });
 
 export function usePhone() {
@@ -23,63 +29,53 @@ export function usePhone() {
 }
 
 export function PhoneProvider({ children }: { children: ReactNode }) {
-  const router = useRouter();
-  const [phoneEnabled, setPhoneEnabled] = useState(false);
-  const [dialpadReady, setDialpadReady] = useState(false);
+  const [teamConnectEnabled, setTeamConnectEnabled] = useState(false);
+  const [teamConnectNumbers, setTeamConnectNumbers] = useState<TeamConnectNumber[]>([]);
+  const [userPhone, setUserPhone] = useState<string | null>(null);
+  const [selectedPhoneDocId, setSelectedPhoneDocId] = useState<string | null>(null);
+
+  async function refreshTeamConnectNumbers() {
+    try {
+      const result = await api.listTeamConnectNumbers();
+      setTeamConnectEnabled(result.enabled);
+      setTeamConnectNumbers(result.numbers);
+      setSelectedPhoneDocId((current) => {
+        if (current && result.numbers.some((n) => n.phoneDocId === current)) return current;
+        return result.defaultPhoneDocId;
+      });
+    } catch {
+      setTeamConnectEnabled(false);
+      setTeamConnectNumbers([]);
+      setSelectedPhoneDocId(null);
+    }
+  }
 
   async function refreshPhoneSettings() {
     try {
       const u = await api.getMe();
-      setPhoneEnabled(Boolean(u.phoneEnabled));
+      setUserPhone(u.phone ?? null);
     } catch {
-      setPhoneEnabled(false);
+      setUserPhone(null);
     }
+    await refreshTeamConnectNumbers();
   }
 
   useEffect(() => {
     refreshPhoneSettings();
   }, []);
 
-  useEffect(() => {
-    if (!phoneEnabled) {
-      setDialpadReady(false);
-      return;
-    }
-
-    return initDialpadListener({
-      onReady: () => setDialpadReady(true),
-      onIncomingCall: async (call) => {
-        try {
-          const { customers } = await api.lookupCustomerByPhone(call.fromNumber);
-          if (customers.length === 1) {
-            const c = customers[0];
-            const leadId = c.leads?.[0]?.id;
-            if (leadId) {
-              router.push(`/crm/leads/${leadId}`);
-            } else {
-              router.push(`/crm/customers/${c.id}`);
-            }
-            toast.info(`Incoming call: ${c.firstName} ${c.lastName}`);
-          } else if (customers.length > 1) {
-            toast.info(`Incoming call from ${call.fromNumber} — multiple matches`);
-          } else {
-            toast.info(`Unknown caller: ${call.fromNumber}`, {
-              action: {
-                label: "New lead",
-                onClick: () =>
-                  router.push(`/crm/leads/new?phone=${encodeURIComponent(call.fromNumber)}`),
-              },
-            });
-          }
-        } catch {
-          toast.info(`Incoming call: ${call.fromNumber}`);
-        }
-      },
-    });
-  }, [phoneEnabled, router]);
-
   return (
-    <PhoneContext.Provider value={{ phoneEnabled, dialpadReady, refreshPhoneSettings }}>
+    <PhoneContext.Provider
+      value={{
+        teamConnectEnabled,
+        teamConnectNumbers,
+        userPhone,
+        selectedPhoneDocId,
+        setSelectedPhoneDocId,
+        refreshPhoneSettings,
+        refreshTeamConnectNumbers,
+      }}
+    >
       {children}
     </PhoneContext.Provider>
   );
