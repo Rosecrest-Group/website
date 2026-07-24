@@ -53,6 +53,7 @@ export default function WorkflowNodeConfig({
   const nodeType = String(node.type ?? node.data.nodeType ?? "trigger");
   const meta = WORKFLOW_NODE_META_BY_TYPE[nodeType];
   const data = node.data as Record<string, unknown>;
+  const triggerType = String(data.triggerType ?? "");
   const update = (patch: Record<string, unknown>) => onChange(node.id, { ...data, ...patch });
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [positionExpanded, setPositionExpanded] = useState(false);
@@ -105,7 +106,7 @@ export default function WorkflowNodeConfig({
               <div className="wf-field-label">Trigger event</div>
               <select
                 className="wf-select"
-                value={String(data.triggerType ?? "")}
+                value={triggerType}
                 onChange={(e) => update({ triggerType: e.target.value })}
               >
                 {WORKFLOW_TRIGGERS.map((t) => (
@@ -113,14 +114,13 @@ export default function WorkflowNodeConfig({
                     {t.label} ({t.value})
                   </option>
                 ))}
-                {!WORKFLOW_TRIGGERS.some((t) => t.value === String(data.triggerType ?? "")) &&
-                  data.triggerType && (
-                    <option value={String(data.triggerType)}>{String(data.triggerType)}</option>
-                  )}
+                {!WORKFLOW_TRIGGERS.some((t) => t.value === triggerType) && triggerType ? (
+                  <option value={triggerType}>{triggerType}</option>
+                ) : null}
               </select>
               <div className="wf-field-help">Which platform event starts this workflow.</div>
             </div>
-            {String(data.triggerType ?? "") === "lead.created" ? (
+            {triggerType === "lead.created" ? (
               <div className="wf-field">
                 <div className="wf-field-label">
                   Lead source{" "}
