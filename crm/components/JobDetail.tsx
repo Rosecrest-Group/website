@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { api } from "@/crm/lib/api";
 import type { Job, JobDocument, SnaggingItem } from "@/crm/types";
@@ -28,7 +28,10 @@ export default function JobDetail({ id }: { id: string }) {
   >(null);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [docForm, setDocForm] = useState({ type: "RAMS", filename: "", storageUrl: "" });
+  const [docType, setDocType] = useState("REPORT");
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
   const [snagDesc, setSnagDesc] = useState("");
   const [workStart, setWorkStart] = useState("");
   const [workEnd, setWorkEnd] = useState("");
@@ -45,10 +48,14 @@ export default function JobDetail({ id }: { id: string }) {
   const [inspectionDate, setInspectionDate] = useState("");
   const [inspectionWindow, setInspectionWindow] = useState("");
   const [stageError, setStageError] = useState<string | null>(null);
+  const [accessError, setAccessError] = useState<string | null>(null);
+  const [accessSaved, setAccessSaved] = useState(false);
+  const [savingAccess, setSavingAccess] = useState(false);
+  const [confirmingAccess, setConfirmingAccess] = useState(false);
 
-  function reload() {
-    setLoading(true);
-    api
+  function reload(silent = true) {
+    if (!silent) setLoading(true);
+    return api
       .getJob(id)
       .then((j) => {
         setJob(j);
@@ -67,11 +74,13 @@ export default function JobDetail({ id }: { id: string }) {
         });
         prefetchInternalThread({ jobId: j.id });
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!silent) setLoading(false);
+      });
   }
 
   useEffect(() => {
-    reload();
+    reload(false);
     api.listSurveyors().then((r) => setSurveyors(r.items)).catch(() => {});
   }, [id]);
 
@@ -86,11 +95,20 @@ export default function JobDetail({ id }: { id: string }) {
     reload();
   }
 
-  async function addDocument() {
-    if (!docForm.filename || !docForm.storageUrl) return;
-    await api.addJobDocument(id, docForm);
-    setDocForm({ type: "RAMS", filename: "", storageUrl: "" });
-    reload();
+  async function uploadDocument() {
+    if (!docFile) return;
+    setUploadingDoc(true);
+    setDocError(null);
+    try {
+      const type = job?.jobType === "TRADE_WORK" ? "RAMS" : docType;
+      await api.uploadJobDocument(id, docFile, type);
+      setDocFile(null);
+      reload();
+    } catch (e) {
+      setDocError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploadingDoc(false);
+    }
   }
 
   async function addSnaggingItem() {
@@ -137,6 +155,11 @@ export default function JobDetail({ id }: { id: string }) {
 
   const isTrade = job.jobType === "TRADE_WORK";
   const documents = (job.documents ?? []) as JobDocument[];
+  const activeStageStyle: CSSProperties = {
+    backgroundColor: "var(--color-primary)",
+    borderColor: "var(--color-primary)",
+    color: "#ffffff",
+  };
   const TRADE_STAGES = [
     "WORK_SCHEDULED",
     "WORK_IN_PROGRESS",
@@ -158,8 +181,14 @@ export default function JobDetail({ id }: { id: string }) {
   ] as const;
 
   async function updateTradeStage(stage: string) {
-    await api.updateJobStage(id, stage);
-    reload();
+    const previous = job;
+    setJob((j) => (j ? { ...j, stage } : j));
+    try {
+      await api.updateJobStage(id, stage);
+      await reload();
+    } catch {
+      setJob(previous);
+    }
   }
 
   async function saveWorkDates() {
@@ -171,13 +200,33 @@ export default function JobDetail({ id }: { id: string }) {
   }
 
   async function saveAccessDetails() {
-    await api.updateJob(id, accessForm);
-    reload();
+    setAccessError(null);
+    setAccessSaved(false);
+    setSavingAccess(true);
+    try {
+      await api.updateJob(id, accessForm);
+      await reload();
+      setAccessSaved(true);
+    } catch (e) {
+      setAccessError(e instanceof Error ? e.message : "Could not save access details");
+    } finally {
+      setSavingAccess(false);
+    }
   }
 
   async function confirmAccessDetails() {
-    await api.confirmJobAccessDetails(id);
-    reload();
+    setAccessError(null);
+    setAccessSaved(false);
+    setConfirmingAccess(true);
+    try {
+      await api.updateJob(id, accessForm);
+      await api.confirmJobAccessDetails(id);
+      await reload();
+    } catch (e) {
+      setAccessError(e instanceof Error ? e.message : "Could not confirm access details");
+    } finally {
+      setConfirmingAccess(false);
+    }
   }
 
   async function assignSurveyor(surveyorId: string) {
@@ -187,10 +236,13 @@ export default function JobDetail({ id }: { id: string }) {
 
   async function updateSurveyStage(stage: string) {
     setStageError(null);
+    const previous = job;
+    setJob((j) => (j ? { ...j, stage } : j));
     try {
       await api.updateJobStage(id, stage);
-      reload();
+      await reload();
     } catch (e) {
+      setJob(previous);
       const msg = e instanceof Error ? e.message : "Could not update stage";
       setStageError(msg);
     }
@@ -255,11 +307,8 @@ export default function JobDetail({ id }: { id: string }) {
                     key={s}
                     type="button"
                     size="small"
-                    className={
-                      job.stage === s
-                        ? "w-auto border-(--color-primary) bg-(--color-primary) text-white hover:bg-(--color-primary) hover:text-white"
-                        : "w-auto"
-                    }
+                    style={job.stage === s ? activeStageStyle : undefined}
+                    className="w-auto"
                     onClick={() => updateTradeStage(s)}
                   >
                     {s.replace(/_/g, " ")}
@@ -326,9 +375,15 @@ export default function JobDetail({ id }: { id: string }) {
                 <p className="mb-3 text-sm text-amber-900">
                   Client reply was parsed into the fields below. Verify and confirm to request access from the estate agent.
                 </p>
-                <PrimaryButton type="button" className="w-auto px-6" onClick={confirmAccessDetails}>
-                  Confirm access details
+                <PrimaryButton
+                  type="button"
+                  className="w-auto px-6"
+                  onClick={confirmAccessDetails}
+                  disabled={savingAccess || confirmingAccess}
+                >
+                  {confirmingAccess ? "Confirming…" : "Confirm access details"}
                 </PrimaryButton>
+                {accessError && <p className="mt-2 text-sm text-red-600">{accessError}</p>}
               </CrmPanel>
             )}
 
@@ -365,14 +420,33 @@ export default function JobDetail({ id }: { id: string }) {
                 value={accessForm.accessNotes}
                 onChange={(e) => setAccessForm({ ...accessForm, accessNotes: e.target.value })}
               />
-              <div className="mt-3 flex flex-wrap gap-2">
-                <SecondaryButton type="button" size="small" className="w-auto" onClick={saveAccessDetails}>
-                  Save access details
+              <p className="mt-3 text-xs text-(--color-tc-30)">
+                <strong>Save</strong> keeps a draft. <strong>Confirm &amp; request access</strong> saves,
+                marks the details verified, and requests access from the agent/vendor.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <SecondaryButton
+                  type="button"
+                  size="small"
+                  className="w-auto"
+                  onClick={saveAccessDetails}
+                  disabled={savingAccess || confirmingAccess}
+                >
+                  {savingAccess ? "Saving…" : "Save access details"}
                 </SecondaryButton>
-                <PrimaryButton type="button" className="w-auto px-6" onClick={confirmAccessDetails}>
-                  Confirm & request access
+                <PrimaryButton
+                  type="button"
+                  className="w-auto px-6"
+                  onClick={confirmAccessDetails}
+                  disabled={savingAccess || confirmingAccess}
+                >
+                  {confirmingAccess ? "Confirming…" : "Confirm & request access"}
                 </PrimaryButton>
               </div>
+              {accessError && <p className="mt-2 text-sm text-red-600">{accessError}</p>}
+              {accessSaved && !accessError && (
+                <p className="mt-2 text-xs text-emerald-700">Saved.</p>
+              )}
               {job.accessDetailsVerifiedAt && (
                 <p className="mt-2 text-xs text-emerald-700">
                   Verified {new Date(job.accessDetailsVerifiedAt).toLocaleString()}
@@ -390,11 +464,8 @@ export default function JobDetail({ id }: { id: string }) {
                       key={s}
                       type="button"
                       size="small"
-                      className={
-                        job.stage === s
-                          ? "w-auto border-(--color-primary) bg-(--color-primary) text-white hover:bg-(--color-primary) hover:text-white"
-                          : "w-auto"
-                      }
+                      style={job.stage === s ? activeStageStyle : undefined}
+                      className="w-auto"
                       onClick={() => updateSurveyStage(s)}
                     >
                       {s.replace(/_/g, " ")}
@@ -413,7 +484,8 @@ export default function JobDetail({ id }: { id: string }) {
                   <SecondaryButton
                     type="button"
                     size="small"
-                    className={`w-auto ${job.hasConditionRating3 === false ? "border-(--color-primary) bg-(--color-primary) text-white" : ""}`}
+                    style={job.hasConditionRating3 === false ? activeStageStyle : undefined}
+                    className="w-auto"
                     onClick={() => setRating3(false)}
                   >
                     No
@@ -421,7 +493,8 @@ export default function JobDetail({ id }: { id: string }) {
                   <SecondaryButton
                     type="button"
                     size="small"
-                    className={`w-auto ${job.hasConditionRating3 === true ? "border-(--color-primary) bg-(--color-primary) text-white" : ""}`}
+                    style={job.hasConditionRating3 === true ? activeStageStyle : undefined}
+                    className="w-auto"
                     onClick={() => setRating3(true)}
                   >
                     Yes
@@ -505,8 +578,8 @@ export default function JobDetail({ id }: { id: string }) {
                 {!isTrade && (
                   <SelectField
                     label="Document type"
-                    value={docForm.type}
-                    onChange={(e) => setDocForm({ ...docForm, type: e.target.value })}
+                    value={docType}
+                    onChange={(e) => setDocType(e.target.value)}
                   >
                     <option value="REPORT">REPORT</option>
                     <option value="ACTION_PLAN">ACTION_PLAN</option>
@@ -514,18 +587,24 @@ export default function JobDetail({ id }: { id: string }) {
                     <option value="OTHER">OTHER</option>
                   </SelectField>
                 )}
-                <TextField
-                  placeholder="Filename"
-                  value={docForm.filename}
-                  onChange={(e) => setDocForm({ ...docForm, filename: e.target.value })}
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.gif"
+                  onChange={(e) => {
+                    setDocError(null);
+                    setDocFile(e.target.files?.[0] ?? null);
+                  }}
+                  className="block w-full text-sm text-(--color-tc-40) file:mr-3 file:rounded-xl file:border file:border-(--color-tc-20) file:bg-(--color-primary) file:px-4 file:py-2 file:text-white hover:file:opacity-90"
                 />
-                <TextField
-                  placeholder="Storage URL"
-                  value={docForm.storageUrl}
-                  onChange={(e) => setDocForm({ ...docForm, storageUrl: e.target.value })}
-                />
-                <SecondaryButton type="button" size="small" className="w-auto" onClick={addDocument}>
-                  Register document
+                {docError && <p className="text-sm text-red-600">{docError}</p>}
+                <SecondaryButton
+                  type="button"
+                  size="small"
+                  className="w-auto"
+                  onClick={uploadDocument}
+                  disabled={!docFile || uploadingDoc}
+                >
+                  {uploadingDoc ? "Uploading…" : "Upload document"}
                 </SecondaryButton>
               </div>
             </div>

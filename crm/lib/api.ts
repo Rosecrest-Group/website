@@ -111,9 +111,12 @@ async function request<T>(
 
 ): Promise<T> {
 
+  const isFormData =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
+
   const headers: Record<string, string> = {
 
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
 
     ...(options.headers as Record<string, string>),
 
@@ -763,6 +766,13 @@ export const api = {
 
   addJobDocument: (id: string, doc: { type: string; filename: string; storageUrl: string; mimeType?: string; sizeBytes?: number }) =>
     request<JobDocument>(`/jobs/${id}/documents`, { method: "POST", body: JSON.stringify(doc) }),
+
+  uploadJobDocument: (id: string, file: File, type: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("type", type);
+    return request<JobDocument>(`/jobs/${id}/documents/upload`, { method: "POST", body: form });
+  },
 
   updateSnagging: (id: string, items: SnaggingItem[]) =>
     request<Job>(`/jobs/${id}/snagging`, { method: "PATCH", body: JSON.stringify({ items }) }),
