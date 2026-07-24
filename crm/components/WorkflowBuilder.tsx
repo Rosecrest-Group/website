@@ -38,7 +38,7 @@ import WorkflowCustomNode from "@/crm/components/workflow/WorkflowCustomNode";
 import WorkflowPalette, { DRAG_TYPE } from "@/crm/components/workflow/WorkflowPalette";
 import { WORKFLOW_NODE_META } from "@/crm/lib/workflowNodeMeta";
 import { formatValidationIssues, validateWorkflowDraft } from "@/crm/lib/workflowValidate";
-import { autoLayoutWorkflow } from "@/crm/lib/workflowAutoLayout";
+import { autoLayoutReactFlow } from "@/crm/lib/workflowAutoLayout";
 import { useWorkflowHistory } from "@/crm/lib/useWorkflowHistory";
 
 const nodeTypes = Object.fromEntries(WORKFLOW_NODE_META.map((m) => [m.type, WorkflowCustomNode]));
@@ -430,7 +430,7 @@ function WorkflowBuilderInner({ id }: { id: string }) {
 
   const applyAutoLayout = useCallback(() => {
     mutateGraph(() => {
-      const result = autoLayoutWorkflow(nodes, edges);
+      const result = autoLayoutReactFlow(nodes, edges);
       setNodes(result.nodes);
       setEdges(result.edges);
     });

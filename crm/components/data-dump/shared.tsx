@@ -9,7 +9,7 @@ export function useDataDumpStatus() {
     configured: boolean;
     tokenConfigured: boolean;
     locationConfigured: boolean;
-    requiredScopes?: Array<{ scope: string; usedFor: string; endpoints: string[] }>;
+    requiredScopes?: Array<{ scope: string; usedFor: string; endpoints: readonly string[] }>;
   } | null>(null);
 
   useEffect(() => {
