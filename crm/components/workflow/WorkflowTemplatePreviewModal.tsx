@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { MessageChannel } from "@/crm/components/ui/ChannelSelector";
 import { api } from "@/crm/lib/api";
-import { isHtmlContent, sanitizeEmailHtml } from "@/crm/lib/messageFormatting";
+import { isHtmlContent, plainTextToHtml, sanitizeEmailHtml } from "@/crm/lib/messageFormatting";
 import { parseTrailingMediaUrls } from "@/crm/lib/messageMediaAttachments";
 
 type Props = {
@@ -98,11 +98,15 @@ export default function WorkflowTemplatePreviewModal({
                   {preview.subject}
                 </p>
               )}
-              {channel === "EMAIL" && isHtmlContent(preview.body) ? (
+              {channel === "EMAIL" ? (
                 <div
-                  className="crm-email-body mt-3 rounded-xl p-3 text-sm [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+                  className="crm-email-body mt-3 rounded-xl p-3 text-sm [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl"
                   style={{ background: "var(--wf-bg-subtle)", color: "var(--wf-text-1)" }}
-                  dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(preview.body) }}
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeEmailHtml(
+                      isHtmlContent(preview.body) ? preview.body : plainTextToHtml(preview.body)
+                    ),
+                  }}
                 />
               ) : (
                 (() => {

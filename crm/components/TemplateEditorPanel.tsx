@@ -374,10 +374,14 @@ export default function TemplateEditorPanel({
           <div className="border-t border-(--color-tc-20) pt-4">
             <p className="text-xs font-medium text-(--color-tc-30)">Rendered preview</p>
             {preview.subject && <p className="mt-1 font-medium text-(--color-tc-40)">{preview.subject}</p>}
-            {channel === "EMAIL" && isHtmlContent(preview.body) ? (
+            {channel === "EMAIL" ? (
               <div
-                className="crm-email-body mt-2 rounded-xl bg-(--color-nc-10) p-3 text-xs text-(--color-tc-40) [&_a]:text-(--color-primary) [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-                dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(preview.body) }}
+                className="crm-email-body mt-2 rounded-xl bg-(--color-nc-10) p-3 text-sm text-(--color-tc-40) [&_a]:text-(--color-primary) [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl"
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeEmailHtml(
+                    isHtmlContent(preview.body) ? preview.body : plainTextToHtml(preview.body)
+                  ),
+                }}
               />
             ) : (
               (() => {

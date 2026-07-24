@@ -300,7 +300,7 @@ export const EmailRichEditor = forwardRef<EmailRichEditorHandle, EmailRichEditor
           onInput={syncHtml}
           data-placeholder={placeholder}
           className={cn(
-            "overflow-y-auto px-2 py-1.5 text-sm leading-relaxed text-(--color-tc-40) outline-none empty:before:text-(--color-tc-30) empty:before:content-[attr(data-placeholder)] [&_a]:text-(--color-primary) [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5",
+            "crm-email-body overflow-y-auto px-2 py-1.5 text-sm leading-relaxed text-(--color-tc-40) outline-none empty:before:text-(--color-tc-30) empty:before:content-[attr(data-placeholder)] [&_a]:text-(--color-primary) [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl",
             fillHeight ? "min-h-0 flex-1" : "min-h-[96px] max-h-36",
             editorClassName
           )}

@@ -52,3 +52,35 @@
 .crm-theme .wf-builder {
   --wf-font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
 }
+
+/* Match default email-client spacing for template preview/editor HTML bodies. */
+.crm-email-body p {
+  margin: 0 0 1em;
+}
+
+.crm-email-body p:last-child {
+  margin-bottom: 0;
+}
+
+.crm-email-body ul,
+.crm-email-body ol {
+  margin: 0 0 1em;
+  padding-left: 1.25rem;
+}
+
+.crm-email-body li {
+  margin: 0.25em 0;
+}
+
+.crm-email-body h1,
+.crm-email-body h2,
+.crm-email-body h3 {
+  margin: 0 0 0.75em;
+  font-weight: 600;
+}
+
+.crm-email-body blockquote {
+  margin: 0 0 1em;
+  padding-left: 1em;
+  border-left: 3px solid var(--color-tc-20);
+}
