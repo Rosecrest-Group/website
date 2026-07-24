@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
-import type { LeadDetail as LeadDetailType } from "@/crm/types";
-import { LEAD_STAGE_LABELS, SURVEY_LEVEL_LABELS } from "@/crm/lib/constants";
+import type { CadenceStep, LeadDetail as LeadDetailType } from "@/crm/types";
+import { LEAD_STAGE_LABELS, LOST_REASON_OPTIONS, SURVEY_LEVEL_LABELS } from "@/crm/lib/constants";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, ChevronRight, Mail, MapPin, Phone, Radar, Zap } from "lucide-react";
@@ -17,6 +17,7 @@ import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import StatusPill, { leadStageToPillVariant } from "@/crm/components/ui/StatusPill";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import TextField from "@/crm/components/ui/TextField";
+import SelectField from "@/crm/components/ui/SelectField";
 import InternalConversationPanel, { prefetchInternalThread } from "@/crm/components/InternalConversationPanel";
 import LeadMessageThread from "@/crm/components/LeadMessageThread";
 import ActivityFeed from "@/crm/components/ActivityFeed";
@@ -30,6 +31,30 @@ function formatRelative(dateStr: string) {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
+}
+
+function automationStatusText(lead: LeadDetailType): string {
+  if (lead.stage === "CONVERTED") return "Converted — nurture workflow complete";
+  if (lead.stage === "LOST") return "Lead lost — automation stopped";
+  if (lead.cadenceStopped) return "Automation stopped";
+  if (lead.cadenceRun?.status === "RUNNING") {
+    const step = (lead.cadenceRun.currentStep ?? 0) + 1;
+    const next = lead.cadenceRun.nextRunAt
+      ? ` · next ${new Date(lead.cadenceRun.nextRunAt).toLocaleString()}`
+      : "";
+    return `Legacy cadence running — step ${step}${next}`;
+  }
+  if (lead.cadenceRun?.status === "PAUSED") return "Legacy cadence paused";
+  return "Nurture workflow active";
+}
+
+function nextWorkflowStepText(lead: LeadDetailType, currentStep?: CadenceStep): string {
+  if (lead.cadenceStopped || lead.stage === "LOST" || lead.stage === "CONVERTED") {
+    return "No further messages scheduled";
+  }
+  if (currentStep?.name) return currentStep.name;
+  if (lead.cadenceRun?.nextRunAt) return "Scheduled follow-up";
+  return "Workflow will send the next message on schedule";
 }
 
 export default function LeadDetail({
@@ -50,6 +75,11 @@ export default function LeadDetail({
   const [showDelete, setShowDelete] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [showMarkLost, setShowMarkLost] = useState(false);
+  const [lostReason, setLostReason] = useState(LOST_REASON_OPTIONS[0]?.value ?? "OTHER");
+  const [lostReasonNote, setLostReasonNote] = useState("");
+  const [markingLost, setMarkingLost] = useState(false);
+  const [stoppingAutomation, setStoppingAutomation] = useState(false);
 
   function reload(options?: { silent?: boolean }) {
     if (!options?.silent) setLoading(true);
@@ -77,31 +107,36 @@ export default function LeadDetail({
     return () => setTopBar(null);
   }, [embedded, lead, setTopBar]);
 
-  async function moveStage(stage: string) {
+  async function stopAutomation() {
+    setStoppingAutomation(true);
     try {
-      await api.updateLeadStage(id, stage);
-      reload();
+      await api.stopCadence(id);
+      reload({ silent: true });
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setStoppingAutomation(false);
     }
   }
 
+  async function markLost() {
+    setMarkingLost(true);
+    try {
+      await api.markLeadLost(id, lostReason, lostReasonNote.trim() || undefined);
+      setShowMarkLost(false);
+      setLostReasonNote("");
+      reload({ silent: true });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setMarkingLost(false);
+    }
+  }
   async function convert() {
     const amount = lead?.quotedAmount ?? 395;
     try {
       const result = await api.convertLead(id, amount);
       router.push(`/crm/jobs/${result.job.id}`);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed");
-    }
-  }
-
-  async function cadenceAction(action: "stop" | "pause" | "resume") {
-    try {
-      if (action === "stop") await api.stopCadence(id);
-      if (action === "pause") await api.pauseCadence(id);
-      if (action === "resume") await api.resumeCadence(id);
-      reload();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed");
     }
@@ -124,6 +159,12 @@ export default function LeadDetail({
 
   const currentStep = lead?.journey.find((s) => s.status === "current");
   const nextRun = lead?.cadenceRun?.nextRunAt;
+  const canStopAutomation =
+    lead &&
+    lead.stage !== "CONVERTED" &&
+    lead.stage !== "LOST" &&
+    !lead.cadenceStopped;
+  const canMarkLost = lead && lead.stage !== "CONVERTED" && lead.stage !== "LOST";
 
   const contentWrapperClass = embedded ? "space-y-6" : "";
 
@@ -302,13 +343,7 @@ export default function LeadDetail({
                 </div>
               ))}
             </div>
-            <p className="mt-4 text-xs text-(--color-tc-30)">
-              {lead.cadenceRun?.status === "RUNNING"
-                ? `Cadence running — step ${(lead.cadenceRun.currentStep ?? 0) + 1}${nextRun ? ` · next ${new Date(nextRun).toLocaleString()}` : ""}`
-                : lead.cadenceStopped
-                  ? "Cadence stopped"
-                  : "No active cadence"}
-            </p>
+            <p className="mt-4 text-xs text-(--color-tc-30)">{automationStatusText(lead)}</p>
           </CrmPanel>
 
           <div className="grid gap-px overflow-hidden rounded-xl border border-(--color-tc-20) bg-(--color-tc-20) grid-cols-2">
@@ -352,10 +387,8 @@ export default function LeadDetail({
             ))}
           </div>
 
-          <CrmPanel title="Next automated action">
-            <p className="font-medium text-(--color-tc-40)">
-              {currentStep?.name ?? "No scheduled step"}
-            </p>
+          <CrmPanel title="Next workflow step">
+            <p className="font-medium text-(--color-tc-40)">{nextWorkflowStepText(lead, currentStep)}</p>
             {nextRun && (
               <p className="mt-2 text-xs text-(--color-tc-30)">
                 Next: {new Date(nextRun).toLocaleString()}
@@ -387,46 +420,31 @@ export default function LeadDetail({
 
           <CrmPanel title="Quick actions">
             <div className="flex flex-col gap-2">
-              <SecondaryButton
-                type="button"
-                size="small"
-                className="w-full justify-start"
-                onClick={() => cadenceAction("pause")}
-              >
-                Pause cadence
-              </SecondaryButton>
-              <SecondaryButton
-                type="button"
-                size="small"
-                className="w-full justify-start"
-                onClick={() => cadenceAction("resume")}
-              >
-                Resume cadence
-              </SecondaryButton>
-              <SecondaryButton
-                type="button"
-                size="small"
-                className="w-full justify-start"
-                onClick={() => cadenceAction("stop")}
-              >
-                Stop cadence
-              </SecondaryButton>
-              <SecondaryButton
-                type="button"
-                size="small"
-                className="w-full justify-start"
-                onClick={() => moveStage("FOLLOWING_UP")}
-              >
-                Move to Following up
-              </SecondaryButton>
-              <SecondaryButton
-                type="button"
-                size="small"
-                className="w-full justify-start"
-                onClick={() => moveStage("QUOTE_SENT")}
-              >
-                Move to Quote sent
-              </SecondaryButton>
+              {canStopAutomation && (
+                <SecondaryButton
+                  type="button"
+                  size="small"
+                  className="w-full justify-start"
+                  onClick={stopAutomation}
+                  disabled={stoppingAutomation}
+                >
+                  {stoppingAutomation ? "Stopping…" : "Stop automation"}
+                </SecondaryButton>
+              )}
+              {canMarkLost && (
+                <SecondaryButton
+                  type="button"
+                  size="small"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setLostReason(LOST_REASON_OPTIONS[0]?.value ?? "OTHER");
+                    setLostReasonNote("");
+                    setShowMarkLost(true);
+                  }}
+                >
+                  Mark as lost
+                </SecondaryButton>
+              )}
               {lead.stage !== "CONVERTED" && (
                 <SecondaryButton
                   type="button"
@@ -501,6 +519,58 @@ export default function LeadDetail({
           </Tabs>
         </div>
       </div>
+
+      {showMarkLost && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
+            <h2 className="text-lg font-semibold text-(--color-tc-40)">Mark as lost</h2>
+            <p className="mt-2 text-sm text-(--color-tc-30)">
+              This stops nurture workflows and moves the lead to Lost.
+            </p>
+            <div className="mt-4 space-y-3">
+              <SelectField
+                label="Reason"
+                value={lostReason}
+                onChange={(e) => setLostReason(e.target.value)}
+              >
+                {LOST_REASON_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </SelectField>
+              <TextField
+                id="lost-reason-note"
+                label="Note (optional)"
+                value={lostReasonNote}
+                onChange={(e) => setLostReasonNote(e.target.value)}
+                placeholder="Any extra context for the team"
+              />
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <SecondaryButton
+                type="button"
+                className="w-auto"
+                disabled={markingLost}
+                onClick={() => {
+                  setShowMarkLost(false);
+                  setLostReasonNote("");
+                }}
+              >
+                Cancel
+              </SecondaryButton>
+              <PrimaryButton
+                type="button"
+                className="w-auto px-6"
+                disabled={markingLost}
+                onClick={markLost}
+              >
+                {markingLost ? "Saving…" : "Mark as lost"}
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">

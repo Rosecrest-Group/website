@@ -137,6 +137,19 @@ export const LEAD_STAGE_LABELS: Record<string, string> = {
   LOST: "Lost",
 };
 
+export const LOST_REASON_OPTIONS: { value: string; label: string }[] = [
+  { value: "CHOSE_COMPETITOR", label: "Chose competitor" },
+  { value: "TIMING_WRONG", label: "Timing wrong" },
+  { value: "PROPERTY_FELL_THROUGH", label: "Property fell through" },
+  { value: "NO_LONGER_NEEDED", label: "No longer needed" },
+  { value: "UNRESPONSIVE", label: "Unresponsive" },
+  { value: "DND_REQUESTED", label: "Do not contact requested" },
+  { value: "DUPLICATE", label: "Duplicate" },
+  { value: "WRONG_NUMBER", label: "Wrong number" },
+  { value: "OUT_OF_AREA", label: "Out of area" },
+  { value: "OTHER", label: "Other" },
+];
+
 /** Workflow trigger values (must match API dispatcher / seed). */
 export const WORKFLOW_TRIGGERS: { value: string; label: string }[] = [
   { value: "lead.created", label: "Lead created" },
