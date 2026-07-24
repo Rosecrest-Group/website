@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Node } from "@xyflow/react";
 import type { MessageTemplate } from "@/crm/types";
-import { LEAD_SOURCES } from "@/crm/lib/constants";
+import { LEAD_SOURCES, WORKFLOW_TRIGGERS } from "@/crm/lib/constants";
 import { WORKFLOW_NODE_META_BY_TYPE } from "@/crm/lib/workflowNodeMeta";
 import WorkflowTemplateEditor from "@/crm/components/workflow/WorkflowTemplateEditor";
 
@@ -108,35 +108,60 @@ export default function WorkflowNodeConfig({
                 value={String(data.triggerType ?? "")}
                 onChange={(e) => update({ triggerType: e.target.value })}
               >
-                <option value="lead.created">lead.created</option>
-                <option value="lead.stage_changed">lead.stage_changed</option>
-                <option value="payment.received">payment.received</option>
-                <option value="job.created">job.created</option>
-                <option value="report.delivered">report.delivered</option>
+                {WORKFLOW_TRIGGERS.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label} ({t.value})
+                  </option>
+                ))}
+                {!WORKFLOW_TRIGGERS.some((t) => t.value === String(data.triggerType ?? "")) &&
+                  data.triggerType && (
+                    <option value={String(data.triggerType)}>{String(data.triggerType)}</option>
+                  )}
               </select>
               <div className="wf-field-help">Which platform event starts this workflow.</div>
             </div>
-            <div className="wf-field">
-              <div className="wf-field-label">
-                Lead source{" "}
-                <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--wf-text-3)" }}>
-                  optional
-                </span>
+            {String(data.triggerType ?? "") === "lead.created" ? (
+              <div className="wf-field">
+                <div className="wf-field-label">
+                  Lead source{" "}
+                  <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--wf-text-3)" }}>
+                    optional
+                  </span>
+                </div>
+                <select
+                  className="wf-select"
+                  value={parseLeadSourceFilter(String(data.filter ?? ""))}
+                  onChange={(e) => update({ filter: buildLeadSourceFilter(e.target.value) })}
+                >
+                  <option value="">Any source</option>
+                  {LEAD_SOURCES.map((source) => (
+                    <option key={source.value} value={source.value}>
+                      {source.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="wf-field-help">Run only when the lead comes from this source.</div>
               </div>
-              <select
-                className="wf-select"
-                value={parseLeadSourceFilter(String(data.filter ?? ""))}
-                onChange={(e) => update({ filter: buildLeadSourceFilter(e.target.value) })}
-              >
-                <option value="">Any source</option>
-                {LEAD_SOURCES.map((source) => (
-                  <option key={source.value} value={source.value}>
-                    {source.label}
-                  </option>
-                ))}
-              </select>
-              <div className="wf-field-help">Run only when the lead comes from this source.</div>
-            </div>
+            ) : (
+              <div className="wf-field">
+                <div className="wf-field-label">
+                  Condition filter{" "}
+                  <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--wf-text-3)" }}>
+                    optional
+                  </span>
+                </div>
+                <input
+                  className="wf-input"
+                  type="text"
+                  value={String(data.filter ?? "")}
+                  onChange={(e) => update({ filter: e.target.value })}
+                  placeholder="e.g. job.stage == 'INSPECTION_COMPLETE'"
+                />
+                <div className="wf-field-help">
+                  Expression evaluated against job/lead context. Leave empty to run on every trigger.
+                </div>
+              </div>
+            )}
           </>
         )}
 
