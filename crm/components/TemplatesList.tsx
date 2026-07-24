@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { api } from "@/crm/lib/api";
 import type { MessageTemplate } from "@/crm/types";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
@@ -11,14 +11,64 @@ import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import ChannelPill from "@/crm/components/ui/ChannelPill";
 import StatusPill from "@/crm/components/ui/StatusPill";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
+import ConfirmModal from "@/crm/components/ui/ConfirmModal";
 
 type EditorMode = "create" | "edit" | null;
+
+function TemplateRow({
+  template,
+  selected,
+  editorMode,
+  onSelect,
+  onDelete,
+}: {
+  template: MessageTemplate;
+  selected: MessageTemplate | null;
+  editorMode: EditorMode;
+  onSelect: (template: MessageTemplate) => void;
+  onDelete: (template: MessageTemplate) => void;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-2 rounded-xl border px-4 py-3 transition ${
+        selected?.id === template.id && editorMode === "edit"
+          ? "border-(--color-primary) bg-(--color-nc-10)"
+          : "border-(--color-tc-20) bg-white hover:bg-(--color-nc-20)"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => onSelect(template)}
+        className="min-w-0 flex-1 text-left"
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium text-(--color-tc-40)">{template.name}</span>
+          <ChannelPill channel={template.channel} />
+          {!template.isActive && <StatusPill variant="failed" label="Inactive" />}
+        </div>
+        <p className="mt-1 text-xs text-(--color-tc-30)">Trigger: {template.trigger}</p>
+      </button>
+      <button
+        type="button"
+        title="Delete template"
+        aria-label={`Delete ${template.name}`}
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-red-200 text-red-600 transition hover:border-red-400 hover:bg-red-50 hover:text-red-700"
+        onClick={() => onDelete(template)}
+      >
+        <Trash2 className="h-4 w-4" strokeWidth={2} />
+      </button>
+    </div>
+  );
+}
 
 export default function TemplatesList() {
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [selected, setSelected] = useState<MessageTemplate | null>(null);
   const [editorMode, setEditorMode] = useState<EditorMode>(null);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<MessageTemplate | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     api.listTemplates().then((r) => {
@@ -53,6 +103,25 @@ export default function TemplatesList() {
     setEditorMode("edit");
   }
 
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteError("");
+    setDeleting(true);
+    try {
+      await api.deleteTemplate(deleteTarget.id);
+      setTemplates((list) => list.filter((item) => item.id !== deleteTarget.id));
+      if (selected?.id === deleteTarget.id) {
+        setSelected(null);
+        setEditorMode(null);
+      }
+      setDeleteTarget(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete template");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   if (loading) {
     return (
       <CrmPageContent>
@@ -81,23 +150,17 @@ export default function TemplatesList() {
           </p>
         ) : (
           templates.map((t) => (
-            <button
+            <TemplateRow
               key={t.id}
-              type="button"
-              onClick={() => selectTemplate(t)}
-              className={`w-full rounded-xl border px-4 py-3 text-left transition ${
-                selected?.id === t.id && editorMode === "edit"
-                  ? "border-(--color-primary) bg-(--color-nc-10)"
-                  : "border-(--color-tc-20) bg-white hover:bg-(--color-nc-20)"
-              }`}
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium text-(--color-tc-40)">{t.name}</span>
-                <ChannelPill channel={t.channel} />
-                {!t.isActive && <StatusPill variant="failed" label="Inactive" />}
-              </div>
-              <p className="mt-1 text-xs text-(--color-tc-30)">Trigger: {t.trigger}</p>
-            </button>
+              template={t}
+              selected={selected}
+              editorMode={editorMode}
+              onSelect={selectTemplate}
+              onDelete={(target) => {
+                setDeleteError("");
+                setDeleteTarget(target);
+              }}
+            />
           ))
         )}
       </div>
@@ -111,6 +174,20 @@ export default function TemplatesList() {
           onSaved={handleSaved}
         />
       )}
+
+      <ConfirmModal
+        isOpen={deleteTarget != null}
+        title={`Delete ${deleteTarget?.name ?? "template"}?`}
+        description="This permanently removes the template. Templates that have been used in sent messages cannot be deleted."
+        confirmLabel="Delete template"
+        loading={deleting}
+        danger
+        onCancel={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+        error={deleteError || undefined}
+        onConfirm={handleDelete}
+      />
     </CrmPageContent>
   );
 }

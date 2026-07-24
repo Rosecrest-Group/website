@@ -15,7 +15,7 @@ import {
   Phone,
 } from "lucide-react";
 import { api } from "@/crm/lib/api";
-import type { Message } from "@/crm/types";
+import type { Activity, Message } from "@/crm/types";
 import CurvedContainer from "@/crm/components/ui/CurvedContainer";
 import CrmModal from "@/crm/components/ui/CrmModal";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
@@ -205,6 +205,84 @@ function MessageBody({
   );
 }
 
+function CallThreadBubble({ activity, customerName }: { activity: Activity; customerName: string }) {
+  const meta = activity.metadata ?? {};
+  const direction = String(meta.direction ?? "outbound");
+  const isOutbound = direction === "outbound";
+  const authorName = isOutbound
+    ? activity.author?.fullName ?? "Rosecrest"
+    : customerName;
+  const duration =
+    typeof meta.durationSeconds === "number" && meta.durationSeconds > 0
+      ? `${Math.floor(meta.durationSeconds / 60)}:${String(meta.durationSeconds % 60).padStart(2, "0")}`
+      : null;
+  const recordingUrl = typeof meta.recordingUrl === "string" ? meta.recordingUrl : null;
+  const transcript = typeof meta.transcript === "string" ? meta.transcript : null;
+  const statusLabel = activity.type.includes("completed") ? "Completed" : "In progress";
+
+  return (
+    <div className={cn("flex gap-2", isOutbound ? "flex-row-reverse" : "flex-row")}>
+      <div
+        className={cn(
+          "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+          isOutbound ? "bg-orange-100 text-orange-700" : "bg-(--color-nc-10) text-(--color-tc-40)"
+        )}
+        aria-hidden
+      >
+        <Phone className="size-4" />
+      </div>
+
+      <div className={cn("flex min-w-0 max-w-[min(100%,36rem)] flex-col", isOutbound ? "items-end" : "items-start")}>
+        <div
+          className={cn(
+            "mb-1 flex flex-wrap items-center gap-2 text-xs text-(--color-tc-30)",
+            isOutbound && "justify-end"
+          )}
+        >
+          <span className="font-medium text-(--color-tc-40)">{authorName}</span>
+          <span className="inline-flex items-center gap-1">
+            <Phone className="size-3" aria-hidden />
+            {isOutbound ? "Outbound call" : "Inbound call"}
+            {duration && <span>· {duration}</span>}
+          </span>
+          <span>{formatChatTime(activity.createdAt)}</span>
+          <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium text-orange-700">
+            {statusLabel}
+          </span>
+        </div>
+
+        <CurvedContainer
+          variant={isOutbound ? "white" : "white"}
+          className="border border-orange-100 bg-orange-50/40 px-4 py-3 text-(--color-tc-40)"
+          showBorderAndShadow
+        >
+          <p className="text-sm">{activity.description}</p>
+          {recordingUrl && (
+            <a
+              href={recordingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex text-xs font-medium text-(--color-primary) hover:underline"
+            >
+              Listen to recording
+            </a>
+          )}
+          {transcript && (
+            <details className="mt-2">
+              <summary className="cursor-pointer text-xs font-medium text-(--color-tc-30)">
+                View transcript
+              </summary>
+              <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-(--color-tc-40)">
+                {transcript}
+              </p>
+            </details>
+          )}
+        </CurvedContainer>
+      </div>
+    </div>
+  );
+}
+
 function ThreadBubble({
   message,
   customerName,
@@ -277,6 +355,7 @@ export default function LeadMessageThread({
   leadId,
   customerName,
   messages: initialMessages,
+  callActivities: initialCallActivities = [],
   onSent,
   className,
   headerActions,
@@ -284,11 +363,13 @@ export default function LeadMessageThread({
   leadId: string;
   customerName: string;
   messages: Message[];
+  callActivities?: Activity[];
   onSent?: () => void;
   className?: string;
   headerActions?: ReactNode;
 }) {
   const [messages, setMessages] = useState(initialMessages);
+  const [callActivities, setCallActivities] = useState(initialCallActivities);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [channel, setChannel] = useState<Channel>("EMAIL");
@@ -298,7 +379,7 @@ export default function LeadMessageThread({
   const [error, setError] = useState("");
   const [composeCollapsed, setComposeCollapsed] = useState(false);
   const [composeExpanded, setComposeExpanded] = useState(false);
-  const { teamConnectEnabled, teamConnectNumbers, selectedPhoneDocId, setSelectedPhoneDocId } =
+  const { teamConnectEnabled, teamConnectNumbers, selectedPhoneDocId, setSelectedPhoneDocId, dialpadEnabled } =
     usePhone();
   const scrollRef = useRef<HTMLDivElement>(null);
   const composeRef = useRef<MessageRichComposeHandle>(null);
@@ -318,6 +399,12 @@ export default function LeadMessageThread({
   }, [initialMessages]);
 
   useEffect(() => {
+    if (initialCallActivities.length > 0) {
+      setCallActivities(initialCallActivities);
+    }
+  }, [initialCallActivities]);
+
+  useEffect(() => {
     let cancelled = false;
     setLoading(true);
     (async () => {
@@ -325,8 +412,16 @@ export default function LeadMessageThread({
         if (teamConnectEnabled) {
           await api.syncLeadSmsFromTeamConnect(leadId).catch(() => undefined);
         }
-        const result = await api.listMessages({ leadId, limit: "100" });
-        if (!cancelled) setMessages(result.items);
+        const [result, lead] = await Promise.all([
+          api.listMessages({ leadId, limit: "100" }),
+          dialpadEnabled ? api.getLead(leadId).catch(() => null) : Promise.resolve(null),
+        ]);
+        if (!cancelled) {
+          setMessages(result.items);
+          if (lead) {
+            setCallActivities(lead.activities.filter((a) => a.type.includes("call")));
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -334,7 +429,7 @@ export default function LeadMessageThread({
     return () => {
       cancelled = true;
     };
-  }, [leadId, teamConnectEnabled]);
+  }, [leadId, teamConnectEnabled, dialpadEnabled]);
 
   useLayoutEffect(() => {
     scrollChatContainerToBottom(scrollRef.current, sortedMessages.length > 0 ? "smooth" : "instant");
@@ -370,20 +465,26 @@ export default function LeadMessageThread({
       if (teamConnectEnabled) {
         await api.syncLeadSmsFromTeamConnect(leadId).catch(() => undefined);
       }
-      const result = await api.listMessages({ leadId, limit: "100" });
+      const [result, lead] = await Promise.all([
+        api.listMessages({ leadId, limit: "100" }),
+        dialpadEnabled ? api.getLead(leadId).catch(() => null) : Promise.resolve(null),
+      ]);
       setMessages(result.items);
+      if (lead) {
+        setCallActivities(lead.activities.filter((a) => a.type.includes("call")));
+      }
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (!teamConnectEnabled) return;
+    if (!teamConnectEnabled && !dialpadEnabled) return;
     const timer = window.setInterval(() => {
       void refreshMessages();
     }, 30_000);
     return () => window.clearInterval(timer);
-  }, [leadId, teamConnectEnabled]);
+  }, [leadId, teamConnectEnabled, dialpadEnabled]);
 
   const composePlaceholder =
     channel === "EMAIL"
@@ -471,17 +572,47 @@ export default function LeadMessageThread({
     }
   }
 
-  const threadItems: Array<{ kind: "date"; key: string; label: string } | { kind: "message"; key: string; message: Message }> =
-    [];
+  const sortedThreadEntries = useMemo(() => {
+    const entries: Array<
+      | { kind: "message"; id: string; createdAt: string; message: Message }
+      | { kind: "call"; id: string; createdAt: string; activity: Activity }
+    > = [
+      ...sortedMessages.map((message) => ({
+        kind: "message" as const,
+        id: message.id,
+        createdAt: message.createdAt,
+        message,
+      })),
+      ...callActivities.map((activity) => ({
+        kind: "call" as const,
+        id: activity.id,
+        createdAt: activity.createdAt,
+        activity,
+      })),
+    ];
+    return entries.sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+  }, [sortedMessages, callActivities]);
+
+  const threadItems: Array<
+    | { kind: "date"; key: string; label: string }
+    | { kind: "message"; key: string; message: Message }
+    | { kind: "call"; key: string; activity: Activity }
+  > = [];
   let lastDate = "";
 
-  for (const message of sortedMessages) {
-    const dateLabel = formatChatDateSeparator(message.createdAt);
+  for (const entry of sortedThreadEntries) {
+    const dateLabel = formatChatDateSeparator(entry.createdAt);
     if (dateLabel !== lastDate) {
-      threadItems.push({ kind: "date", key: `date-${dateLabel}-${message.id}`, label: dateLabel });
+      threadItems.push({ kind: "date", key: `date-${dateLabel}-${entry.id}`, label: dateLabel });
       lastDate = dateLabel;
     }
-    threadItems.push({ kind: "message", key: message.id, message });
+    if (entry.kind === "message") {
+      threadItems.push({ kind: "message", key: entry.id, message: entry.message });
+    } else {
+      threadItems.push({ kind: "call", key: entry.id, activity: entry.activity });
+    }
   }
 
   return (
@@ -492,7 +623,7 @@ export default function LeadMessageThread({
       <div className="flex items-center justify-between border-b border-(--color-tc-20) px-4 py-3">
         <div>
           <p className="text-sm font-semibold text-(--color-tc-40)">Conversation with {customerName}</p>
-          <p className="text-xs text-(--color-tc-30)">Email, SMS and WhatsApp in one thread</p>
+          <p className="text-xs text-(--color-tc-30)">Email, SMS, WhatsApp, and calls in one thread</p>
         </div>
         <div className="flex items-center gap-2">
           {headerActions}
@@ -509,15 +640,15 @@ export default function LeadMessageThread({
       </div>
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-(--color-nc-10) px-4 py-4">
-        {loading && sortedMessages.length === 0 ? (
+        {loading && sortedThreadEntries.length === 0 ? (
           <div className="flex h-full items-center justify-center py-12">
             <LoadingSpinner />
           </div>
-        ) : sortedMessages.length === 0 ? (
+        ) : sortedThreadEntries.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center py-12 text-center">
             <p className="text-sm font-medium text-(--color-tc-40)">No messages yet</p>
             <p className="mt-1 max-w-sm text-xs text-(--color-tc-30)">
-              Send the first message below. Replies from the customer will appear here in full.
+              Send the first message below. Replies and calls will appear here in full.
             </p>
           </div>
         ) : (
@@ -528,6 +659,8 @@ export default function LeadMessageThread({
                   {item.label}
                 </span>
               </div>
+            ) : item.kind === "call" ? (
+              <CallThreadBubble key={item.key} activity={item.activity} customerName={customerName} />
             ) : (
               <ThreadBubble key={item.key} message={item.message} customerName={customerName} />
             )

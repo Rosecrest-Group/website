@@ -188,6 +188,246 @@ export interface DialpadIntegrationStatus {
   phoneEnabledUserCount: number;
 }
 
+export interface DialpadConfig {
+  enabled: boolean;
+  configured: boolean;
+  phoneEnabled: boolean;
+  clientId: string | null;
+  ctiIframeUrl: string | null;
+  ctiOrigin: string;
+}
+
+export interface DialpadCallInitiateResult {
+  activityId: string;
+  to: string;
+  customData: string;
+}
+
+export interface SalesIgniterNote {
+  id: string;
+  body: string;
+  userId: string;
+  dateAdded: string;
+  contactId: string;
+  title?: string;
+  color?: string;
+  pinned?: boolean;
+}
+
+export interface SalesIgniterContactSummary {
+  id: string;
+  locationId?: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  companyName?: string;
+  source?: string;
+  type?: string;
+  dateAdded?: string;
+  dateUpdated?: string;
+  tags?: string[];
+}
+
+export interface SalesIgniterContact extends SalesIgniterContactSummary {
+  emailLowerCase?: string;
+  timezone?: string;
+  dnd?: boolean;
+  assignedTo?: string;
+  address1?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+  website?: string;
+  dateUpdated?: string;
+  dateOfBirth?: string;
+  lastActivity?: string;
+  customFields?: Array<{ id: string; value: string }>;
+}
+
+export interface SalesIgniterConversation {
+  id: string;
+  contactId?: string;
+  locationId?: string;
+  type?: string;
+  lastMessageBody?: string;
+  lastMessageType?: string;
+  lastMessageDate?: string;
+  fullName?: string;
+  contactName?: string;
+  email?: string;
+  phone?: string;
+  unreadCount?: number;
+  dateAdded?: string;
+  dateUpdated?: string;
+}
+
+export interface SalesIgniterOpportunity {
+  id: string;
+  name: string;
+  status?: string;
+  monetaryValue?: number;
+  pipelineId?: string;
+  pipelineStageId?: string;
+  pipelineStageName?: string;
+  effectiveProbability?: number;
+  contactId?: string;
+  assignedTo?: string;
+  source?: string;
+  tags?: string[];
+  dateAdded?: string;
+  dateUpdated?: string;
+  contact?: {
+    id?: string;
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    tags?: string[];
+  };
+}
+
+export interface SalesIgniterPipelineStage {
+  id: string;
+  name: string;
+  position?: number;
+}
+
+export interface SalesIgniterPipeline {
+  id: string;
+  name: string;
+  stages: SalesIgniterPipelineStage[];
+  locationId?: string;
+}
+
+export interface DumpOpportunitySyncChunkResult {
+  done: boolean;
+  upToDate?: boolean;
+  startAfterId: string | null;
+  startAfter: number | null;
+  remoteTotal: number;
+  checked: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  dbTotal: number;
+  lastSyncedAt?: string;
+}
+
+export interface DumpOpportunitySyncResult {
+  remoteTotal: number;
+  dbTotal: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  pagesFetched: number;
+  lastSyncedAt: string;
+}
+
+export interface DumpOpportunitySyncStatus {
+  dbTotal: number;
+  lastSyncedAt: string | null;
+  lastRemoteTotal: number | null;
+  lastInserted: number | null;
+  lastSkipped: number | null;
+}
+
+export interface DumpContactSyncChunkResult {
+  done: boolean;
+  upToDate?: boolean;
+  page: number;
+  remoteTotal: number;
+  checked: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  dbTotal: number;
+  lastSyncedAt?: string;
+}
+
+export interface DumpContactSyncStatus {
+  dbTotal: number;
+  lastSyncedAt: string | null;
+  lastRemoteTotal: number | null;
+  lastInserted: number | null;
+  lastSkipped: number | null;
+}
+
+export interface DumpInboxThreadsSyncChunkResult {
+  done: boolean;
+  upToDate?: boolean;
+  startAfterDate: string | null;
+  checked: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  dbTotal: number;
+  lastSyncedAt?: string;
+}
+
+export interface DumpInboxMessagesSyncChunkResult {
+  done: boolean;
+  upToDate?: boolean;
+  conversationExternalId: string | null;
+  conversationDone: boolean;
+  pendingConversations: number;
+  checked: number;
+  inserted: number;
+  skipped: number;
+  dbTotal: number;
+  lastSyncedAt?: string;
+}
+
+export interface DumpInboxSyncStatus {
+  threadTotal: number;
+  messageTotal: number;
+  pendingConversations: number;
+  threads: {
+    lastSyncedAt: string | null;
+    lastRemoteTotal: number | null;
+    lastInserted: number | null;
+    lastSkipped: number | null;
+  };
+  messages: {
+    lastSyncedAt: string | null;
+    lastInserted: number | null;
+    lastSkipped: number | null;
+  };
+}
+
+export interface SalesIgniterMessage {
+  id: string;
+  conversationId?: string;
+  contactId?: string;
+  locationId?: string;
+  body?: string;
+  html?: string;
+  type?: string | number;
+  messageType?: string;
+  direction?: string;
+  status?: string;
+  dateAdded?: string;
+  contentType?: string;
+  subject?: string;
+  attachments?: string[];
+  from?: string;
+  to?: string | string[];
+  meta?: Record<string, unknown> & {
+    email?: {
+      email?: { messageIds?: string[] };
+      messageIds?: string[];
+    };
+    callStatus?: string;
+    callDuration?: string | number;
+    opportunityId?: string;
+    opportunity?: { id?: string; opportunityId?: string };
+  };
+  emailHydrated?: boolean;
+}
+
 export interface Customer {
   id: string;
   customerType: CustomerType;
@@ -383,7 +623,19 @@ export interface Job {
   depositAmount: number | null;
   paymentStatus: string;
   reportStatus?: string | null;
+  agentName?: string | null;
+  agentEmail?: string | null;
+  agentPhone?: string | null;
+  vendorName?: string | null;
+  vendorEmail?: string | null;
+  vendorPhone?: string | null;
+  accessNotes?: string | null;
+  accessDetailsPendingReview?: boolean;
+  accessDetailsVerifiedAt?: string | null;
+  hasConditionRating3?: boolean | null;
+  dataCaptureComplete?: boolean;
   inspectionDate?: string | null;
+  inspectionWindow?: string | null;
   reportInternalDeadline?: string | null;
   reportClientDeadline?: string | null;
   workStartDate?: string | null;
@@ -425,6 +677,20 @@ export interface DashboardSales {
   jobsAwaitingPayment: number;
   leadsByStage: { stage: string; _count: { id: number } }[];
   avgTimeToPayDays: number;
+  jobsByStage?: { stage: string; _count: { id: number } }[];
+  funnelBySource?: {
+    source: string;
+    leads: number;
+    converted: number;
+    acquisitionCost: number;
+    quotedPipeline: number;
+    conversionRate: number;
+  }[];
+  totalAcquisitionCost30d?: number;
+  revenueLast30d?: number;
+  costPerLead30d?: number;
+  costPerConversion30d?: number;
+  roi30d?: number | null;
 }
 
 export interface DashboardOps {

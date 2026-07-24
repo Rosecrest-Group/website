@@ -473,6 +473,7 @@ export default function LeadDetail({
                   customer ? `${customer.firstName} ${customer.lastName}` : "Customer"
                 }
                 messages={lead.messages}
+                callActivities={lead.activities.filter((a) => a.type.includes("call"))}
                 onSent={() => reload({ silent: true })}
               />
             </TabsContent>

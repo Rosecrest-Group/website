@@ -10,6 +10,7 @@ import CrmSidebar from "@/crm/components/layout/CrmSidebar";
 import NotificationBell from "@/crm/components/NotificationBell";
 import { CrmTopBarProvider, useCrmTopBar } from "@/crm/lib/crmTopBarContext";
 import { PhoneProvider } from "@/crm/lib/phoneContext";
+import DialpadSidebar from "@/crm/components/DialpadSidebar";
 import { Toaster } from "sonner";
 
 function CrmShellInner({ children }: { children: React.ReactNode }) {
@@ -28,8 +29,6 @@ function CrmShellInner({ children }: { children: React.ReactNode }) {
         <div className="hidden min-h-0 md:flex md:w-64 md:shrink-0">
           <CrmSidebar />
         </div>
-
-        {/* Mobile sidebar */}
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
           <SheetContent
             side="left"
@@ -50,37 +49,41 @@ function CrmShellInner({ children }: { children: React.ReactNode }) {
           </SheetContent>
         </Sheet>
 
-        {/* Main content area */}
-        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          {/* Mobile header */}
-          <header className="flex shrink-0 items-center justify-between gap-3 border-b border-(--color-tc-20) bg-white px-4 py-3 md:hidden">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <Button
-                type="button"
-                variant="crmGhost"
-                size="crmIcon"
-                onClick={() => setMobileNavOpen(true)}
-                aria-label="Open menu"
-              >
-                <Menu className="size-5" />
-              </Button>
-              {topBarLeft ? (
-                <div className="min-w-0 truncate">{topBarLeft}</div>
-              ) : (
-                <span className="text-sm font-semibold text-(--color-tc-40)">Rosecrest CRM</span>
-              )}
-            </div>
-            <NotificationBell />
-          </header>
+        {/* Main content area + Dialpad */}
+        <div className="flex h-full min-h-0 min-w-0 flex-1 overflow-hidden">
+          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            {/* Mobile header */}
+            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-(--color-tc-20) bg-white px-4 py-3 md:hidden">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <Button
+                  type="button"
+                  variant="crmGhost"
+                  size="crmIcon"
+                  onClick={() => setMobileNavOpen(true)}
+                  aria-label="Open menu"
+                >
+                  <Menu className="size-5" />
+                </Button>
+                {topBarLeft ? (
+                  <div className="min-w-0 truncate">{topBarLeft}</div>
+                ) : (
+                  <span className="text-sm font-semibold text-(--color-tc-40)">Rosecrest CRM</span>
+                )}
+              </div>
+              <NotificationBell />
+            </header>
 
-          {/* Desktop top bar */}
-          <div className="hidden shrink-0 items-center justify-between gap-4 border-b border-(--color-tc-20) bg-white px-6 py-3 md:flex">
-            <div className="min-w-0 flex-1">{topBarLeft}</div>
-            <NotificationBell />
+            {/* Desktop top bar */}
+            <div className="hidden shrink-0 items-center justify-between gap-4 border-b border-(--color-tc-20) bg-white px-6 py-3 md:flex">
+              <div className="min-w-0 flex-1">{topBarLeft}</div>
+              <NotificationBell />
+            </div>
+
+            {/* Page content */}
+            <main className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</main>
           </div>
 
-          {/* Page content */}
-          <main className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</main>
+          <DialpadSidebar />
         </div>
       </div>
     </>

@@ -117,7 +117,7 @@ export function formatStepSummary(step: WorkflowExecutionStep): { label: string;
     detail = [detail, step.branchResult ? "→ true path" : "→ false path"].filter(Boolean).join(" · ");
   }
   if (step.skipped) {
-    detail = [detail, "skipped (test run)"].filter(Boolean).join(" · ");
+    detail = [detail, "skipped (dry run)"].filter(Boolean).join(" · ");
   }
 
   return { label, detail: detail || undefined };

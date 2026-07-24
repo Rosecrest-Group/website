@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Trash2 } from "lucide-react";
+import { ChevronDown, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
 import type { WorkflowSummary } from "@/crm/types";
@@ -29,9 +29,15 @@ function defaultTriggerNode(trigger: string) {
 function WorkflowRow({
   wf,
   onDelete,
+  onRestore,
+  onPurge,
+  restoring,
 }: {
   wf: WorkflowSummary;
   onDelete?: (wf: WorkflowSummary) => void;
+  onRestore?: (wf: WorkflowSummary) => void;
+  onPurge?: (wf: WorkflowSummary) => void;
+  restoring?: boolean;
 }) {
   return (
     <div
@@ -53,6 +59,29 @@ function WorkflowRow({
           {wf.deletedAt && <StatusPill variant="failed" label="Deleted" />}
         </div>
       </Link>
+      {onRestore && (
+        <button
+          type="button"
+          title="Restore workflow"
+          aria-label={`Restore ${wf.name}`}
+          disabled={restoring}
+          className="shrink-0 rounded-[12px] border border-(--color-tc-20) px-3 py-1.5 text-xs font-medium text-(--color-tc-40) transition hover:border-(--color-primary) hover:bg-(--color-nc-10) disabled:opacity-50"
+          onClick={() => onRestore(wf)}
+        >
+          {restoring ? "Restoring…" : "Restore"}
+        </button>
+      )}
+      {onPurge && (
+        <button
+          type="button"
+          title="Purge permanently"
+          aria-label={`Purge ${wf.name} permanently`}
+          className="shrink-0 rounded-[12px] border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:border-red-400 hover:bg-red-50 hover:text-red-700"
+          onClick={() => onPurge(wf)}
+        >
+          Purge
+        </button>
+      )}
       {onDelete && (
         <button
           type="button"
@@ -72,6 +101,8 @@ export default function WorkflowList() {
   const router = useRouter();
   const [activeItems, setActiveItems] = useState<WorkflowSummary[]>([]);
   const [deletedItems, setDeletedItems] = useState<WorkflowSummary[]>([]);
+  const [deletedExpanded, setDeletedExpanded] = useState(false);
+  const [canPurge, setCanPurge] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createDescription, setCreateDescription] = useState("");
@@ -80,6 +111,11 @@ export default function WorkflowList() {
   const [deleteTarget, setDeleteTarget] = useState<WorkflowSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [purgeTarget, setPurgeTarget] = useState<WorkflowSummary | null>(null);
+  const [purging, setPurging] = useState(false);
+  const [purgeError, setPurgeError] = useState("");
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [restoreError, setRestoreError] = useState("");
 
   function load() {
     api.listWorkflows(true).then((r) => {
@@ -90,6 +126,7 @@ export default function WorkflowList() {
 
   useEffect(() => {
     load();
+    api.getMe().then((me) => setCanPurge(me.role === "SUPER_ADMIN")).catch(() => {});
   }, []);
 
   function closeCreate() {
@@ -143,6 +180,34 @@ export default function WorkflowList() {
       setDeleteError(err instanceof Error ? err.message : "Failed to delete workflow");
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function handlePurge() {
+    if (!purgeTarget) return;
+    setPurgeError("");
+    setPurging(true);
+    try {
+      await api.purgeWorkflow(purgeTarget.id);
+      setPurgeTarget(null);
+      load();
+    } catch (err) {
+      setPurgeError(err instanceof Error ? err.message : "Failed to purge workflow");
+    } finally {
+      setPurging(false);
+    }
+  }
+
+  async function handleRestore(workflow: WorkflowSummary) {
+    setRestoreError("");
+    setRestoringId(workflow.id);
+    try {
+      await api.restoreWorkflow(workflow.id);
+      load();
+    } catch (err) {
+      setRestoreError(err instanceof Error ? err.message : "Failed to restore workflow");
+    } finally {
+      setRestoringId(null);
     }
   }
 
@@ -226,13 +291,51 @@ export default function WorkflowList() {
 
         {deletedItems.length > 0 && (
           <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-(--color-tc-40)">Deleted workflows</h2>
-            <p className="text-sm text-(--color-tc-30)">
-              Deactivated workflows are kept for reference. Running executions continue to completion.
-            </p>
-            {deletedItems.map((wf) => (
-              <WorkflowRow key={wf.id} wf={wf} />
-            ))}
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-lg py-1 text-left transition hover:bg-(--color-nc-10)"
+              onClick={() => setDeletedExpanded((open) => !open)}
+              aria-expanded={deletedExpanded}
+            >
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 text-(--color-tc-30) transition-transform ${
+                  deletedExpanded ? "" : "-rotate-90"
+                }`}
+                strokeWidth={2}
+                aria-hidden
+              />
+              <span className="text-lg font-semibold text-(--color-tc-40)">
+                Deleted workflows ({deletedItems.length})
+              </span>
+            </button>
+            {deletedExpanded && (
+              <>
+                <p className="pl-6 text-sm text-(--color-tc-30)">
+                  Deactivated workflows are kept for reference. Running executions continue to completion.
+                  Admins can restore workflows back to the active list.
+                  {canPurge && " Super admins can purge workflows with no execution history."}
+                </p>
+                {restoreError && <p className="pl-6 text-sm text-red-600">{restoreError}</p>}
+                <div className="space-y-2">
+                  {deletedItems.map((wf) => (
+                    <WorkflowRow
+                      key={wf.id}
+                      wf={wf}
+                      onRestore={handleRestore}
+                      restoring={restoringId === wf.id}
+                      onPurge={
+                        canPurge
+                          ? (target) => {
+                              setPurgeError("");
+                              setPurgeTarget(target);
+                            }
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -240,7 +343,7 @@ export default function WorkflowList() {
       <ConfirmModal
         isOpen={deleteTarget != null}
         title={`Delete ${deleteTarget?.name ?? "workflow"}?`}
-        description="This deactivates the workflow and hides it from the list. Any running executions will continue to completion."
+        description="This deactivates the workflow and moves it to the deleted section below. Any running executions will continue to completion."
         confirmLabel="Delete workflow"
         loading={deleting}
         danger
@@ -249,6 +352,20 @@ export default function WorkflowList() {
         }}
         error={deleteError || undefined}
         onConfirm={handleDelete}
+      />
+
+      <ConfirmModal
+        isOpen={purgeTarget != null}
+        title={`Purge ${purgeTarget?.name ?? "workflow"} permanently?`}
+        description="This permanently removes the workflow and all its versions. It cannot be undone. Workflows with execution history cannot be purged."
+        confirmLabel="Purge permanently"
+        loading={purging}
+        danger
+        onCancel={() => {
+          if (!purging) setPurgeTarget(null);
+        }}
+        error={purgeError || undefined}
+        onConfirm={handlePurge}
       />
     </CrmPageContent>
   );

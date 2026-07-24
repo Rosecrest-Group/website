@@ -332,7 +332,96 @@ export default function CrmDashboard() {
           iconTint="info"
           subtitle="From paid jobs"
         />
+        {data?.totalAcquisitionCost30d !== undefined && (
+          <StatsCard
+            title="Lead cost · 30d"
+            value={`£${data.totalAcquisitionCost30d.toFixed(0)}`}
+            icon={<Tag />}
+            iconTint="warning"
+            subtitle={
+              data.costPerConversion30d
+                ? `£${data.costPerConversion30d} per conversion`
+                : undefined
+            }
+          />
+        )}
+        {data?.revenueLast30d !== undefined && (
+          <StatsCard
+            title="Revenue · 30d"
+            value={`£${data.revenueLast30d.toFixed(0)}`}
+            icon={<TrendingUp />}
+            iconTint="success"
+            subtitle={data.roi30d ? `${data.roi30d}× on lead spend` : undefined}
+          />
+        )}
       </div>
+
+      {(data?.funnelBySource?.length ?? 0) > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold text-(--color-tc-40)">Funnel by source · 30d</h2>
+          <CurvedContainer>
+            <Table
+              columns={[
+                {
+                  key: "source",
+                  header: "Source",
+                  render: (v) => (
+                    <span className="inline-flex items-center gap-1.5">
+                      <SourceIcon source={v as string} />
+                      {prettifySource(v as string)}
+                    </span>
+                  ),
+                },
+                { key: "leads", header: "Leads", render: (v) => <span className="tabular-nums">{v as number}</span> },
+                {
+                  key: "converted",
+                  header: "Won",
+                  render: (v) => <span className="tabular-nums">{v as number}</span>,
+                },
+                {
+                  key: "conversionRate",
+                  header: "Conv %",
+                  render: (v) => <span className="tabular-nums">{v as number}%</span>,
+                },
+                {
+                  key: "acquisitionCost",
+                  header: "Lead cost",
+                  render: (v) => <span className="tabular-nums">£{(v as number).toFixed(0)}</span>,
+                },
+              ]}
+              data={data!.funnelBySource! as unknown as Record<string, unknown>[]}
+            />
+          </CurvedContainer>
+        </section>
+      )}
+
+      {(data?.jobsByStage?.length ?? 0) > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold text-(--color-tc-40)">Job touchpoints (RICS)</h2>
+          <CurvedContainer>
+            <Table
+              columns={[
+                {
+                  key: "stage",
+                  header: "Stage",
+                  render: (v) => (
+                    <span className="text-sm">{(v as string).replace(/_/g, " ")}</span>
+                  ),
+                },
+                {
+                  key: "count",
+                  header: "Jobs",
+                  render: (v) => <span className="font-semibold tabular-nums">{v as number}</span>,
+                },
+              ]}
+              data={(data!.jobsByStage ?? []).map((row) => ({
+                stage: row.stage,
+                count: row._count.id,
+              }))}
+            />
+          </CurvedContainer>
+        </section>
+      )}
 
       {stageRows.length > 0 && (
         <section className="space-y-4">

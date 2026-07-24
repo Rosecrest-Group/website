@@ -29,12 +29,14 @@ checkapi.bat
 
 # API lives in a separate repo (Rosecrest-Group/crm-api)
 /api/
+/api-temp/
 
 # misc
 .DS_Store
 *.pem
 .cursor/
 docs.zip
+workflowdocs/
 
 # debug
 npm-debug.log*

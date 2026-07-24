@@ -37,6 +37,8 @@ import WorkflowRunsPanel from "@/crm/components/WorkflowRunsPanel";
 import WorkflowCustomNode from "@/crm/components/workflow/WorkflowCustomNode";
 import WorkflowPalette, { DRAG_TYPE } from "@/crm/components/workflow/WorkflowPalette";
 import { WORKFLOW_NODE_META } from "@/crm/lib/workflowNodeMeta";
+import { formatValidationIssues, validateWorkflowDraft } from "@/crm/lib/workflowValidate";
+import { autoLayoutWorkflow } from "@/crm/lib/workflowAutoLayout";
 import { useWorkflowHistory } from "@/crm/lib/useWorkflowHistory";
 
 const nodeTypes = Object.fromEntries(WORKFLOW_NODE_META.map((m) => [m.type, WorkflowCustomNode]));
@@ -70,20 +72,23 @@ function sanitizeEdgesForSave(edges: Edge[]): Edge[] {
   }));
 }
 
-function branchWarnings(nodes: Node[], edges: Edge[]): string[] {
-  const warnings: string[] = [];
-  for (const node of nodes) {
-    if (String(node.type ?? node.data.nodeType) !== "branch") continue;
-    const branchEdges = edges.filter((e) => e.source === node.id);
-    const handles = new Set(branchEdges.map((e) => e.sourceHandle));
-    if (!handles.has("false")) {
-      warnings.push(`Branch "${node.id}" has no false-path connection.`);
-    }
-    if (!handles.has("true")) {
-      warnings.push(`Branch "${node.id}" has no true-path connection.`);
-    }
+function validationDetailsMessage(err: unknown): string | null {
+  const details = (err as Error & { details?: Array<{ message?: string }> }).details;
+  if (!Array.isArray(details) || !details.length) return null;
+  return details.map((d) => d.message).filter(Boolean).join("; ");
+}
+
+function isKeyboardEditingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement
+  ) {
+    return true;
   }
-  return warnings;
+  if (target.isContentEditable) return true;
+  return Boolean(target.closest('[role="dialog"]'));
 }
 
 function WorkflowBuilderInner({ id }: { id: string }) {
@@ -112,6 +117,13 @@ function WorkflowBuilderInner({ id }: { id: string }) {
   const [migrateMapping, setMigrateMapping] = useState("");
   const [migrateReason, setMigrateReason] = useState("");
   const [migrateMsg, setMigrateMsg] = useState("");
+  const [testRunning, setTestRunning] = useState(false);
+  const [testRunError, setTestRunError] = useState("");
+  const [showTestRun, setShowTestRun] = useState(false);
+  const [testRunLeadId, setTestRunLeadId] = useState("");
+  const [testRunJobId, setTestRunJobId] = useState("");
+  const [testRunSendLive, setTestRunSendLive] = useState(true);
+  const [runsRefreshToken, setRunsRefreshToken] = useState(0);
   const [draggingPalette, setDraggingPalette] = useState(false);
   const [showMinimap, setShowMinimap] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState("");
@@ -134,7 +146,15 @@ function WorkflowBuilderInner({ id }: { id: string }) {
     return serializeGraph(nodes, edges) === savedSnapshot ? 0 : 1;
   }, [nodes, edges, savedSnapshot]);
 
-  const validationWarnings = useMemo(() => branchWarnings(nodes, edges), [nodes, edges]);
+  const validationIssues = useMemo(
+    () => validateWorkflowDraft(nodes, edges, templates),
+    [nodes, edges, templates]
+  );
+  const blockingErrors = useMemo(
+    () => validationIssues.filter((issue) => issue.severity === "error"),
+    [validationIssues]
+  );
+  const canPublishOrTest = blockingErrors.length === 0 && nodes.length > 0;
 
   const attachNodeCallbacks = useCallback(
     (rawNodes: Node[]): Node[] =>
@@ -310,13 +330,7 @@ function WorkflowBuilderInner({ id }: { id: string }) {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        e.target instanceof HTMLSelectElement
-      ) {
-        return;
-      }
+      if (isKeyboardEditingTarget(e.target)) return;
       if ((e.key === "Delete" || e.key === "Backspace") && (selectedNodeId || selectedEdgeId)) {
         if (selectedNodeId) deleteNode(selectedNodeId);
         if (selectedEdgeId) deleteEdge(selectedEdgeId);
@@ -414,7 +428,19 @@ function WorkflowBuilderInner({ id }: { id: string }) {
     }
   }
 
+  const applyAutoLayout = useCallback(() => {
+    mutateGraph(() => {
+      const result = autoLayoutWorkflow(nodes, edges);
+      setNodes(result.nodes);
+      setEdges(result.edges);
+    });
+  }, [mutateGraph, nodes, edges, setNodes, setEdges]);
+
   async function publish() {
+    if (!canPublishOrTest) {
+      setPublishError(formatValidationIssues(blockingErrors));
+      return;
+    }
     setPublishing(true);
     setPublishError("");
     try {
@@ -426,10 +452,8 @@ function WorkflowBuilderInner({ id }: { id: string }) {
       load();
     } catch (err) {
       let message = err instanceof Error ? err.message : "Failed to publish workflow";
-      const details = (err as Error & { details?: Array<{ message?: string }> }).details;
-      if (Array.isArray(details) && details.length) {
-        message = `${message}: ${details.map((d) => d.message).filter(Boolean).join("; ")}`;
-      }
+      const details = validationDetailsMessage(err);
+      if (details) message = `${message}: ${details}`;
       setPublishError(message);
     } finally {
       setPublishing(false);
@@ -456,6 +480,37 @@ function WorkflowBuilderInner({ id }: { id: string }) {
   async function activateVersion(versionId: string) {
     await api.activateWorkflowVersion(id, versionId);
     load();
+  }
+
+  async function runTestRun() {
+    if (!canPublishOrTest) {
+      setTestRunError(formatValidationIssues(blockingErrors));
+      return;
+    }
+    setTestRunError("");
+    setTestRunning(true);
+    try {
+      const leadId = testRunLeadId.trim() || undefined;
+      const jobId = testRunJobId.trim() || undefined;
+      const hasTarget = Boolean(leadId || jobId);
+      await api.saveWorkflowDraft(id, { nodes: sanitizeNodesForSave(nodes), edges });
+      setSavedSnapshot(serializeGraph(nodes, edges));
+      await api.testRunWorkflow(id, {
+        leadId,
+        jobId,
+        sendLiveMessages: hasTarget ? testRunSendLive : false,
+      });
+      setShowTestRun(false);
+      setRunsRefreshToken((t) => t + 1);
+      setTab("migrate");
+    } catch (err) {
+      let message = err instanceof Error ? err.message : "Test run failed";
+      const details = validationDetailsMessage(err);
+      if (details) message = `${message}: ${details}`;
+      setTestRunError(message);
+    } finally {
+      setTestRunning(false);
+    }
   }
 
   async function runMigration(executionId: string) {
@@ -560,7 +615,28 @@ function WorkflowBuilderInner({ id }: { id: string }) {
             <i className="ti ti-arrow-forward-up" />
           </button>
           <div className="wf-divider-v" />
-          <button type="button" className="wf-btn" onClick={() => api.testRunWorkflow(id, {})}>
+          <button
+            type="button"
+            className="wf-btn"
+            title="Auto-layout: fork-tree for branches, serpentine for linear flows"
+            onClick={() => {
+              flushConfigCommit();
+              applyAutoLayout();
+            }}
+          >
+            <i className="ti ti-layout-distribute-horizontal" />
+            Auto-layout
+          </button>
+          <button
+            type="button"
+            className="wf-btn"
+            disabled={testRunning}
+            title="Run a test execution"
+            onClick={() => {
+              setTestRunError("");
+              setShowTestRun(true);
+            }}
+          >
             <i className="ti ti-player-play" />
             Test run
           </button>
@@ -598,6 +674,12 @@ function WorkflowBuilderInner({ id }: { id: string }) {
           )}
         </div>
       </header>
+
+      {testRunError && (
+        <p className="wf-run-error wf-test-run-error" role="alert">
+          {testRunError}
+        </p>
+      )}
 
       {tab === "versions" && (
         <div className="wf-panel-scroll">
@@ -666,6 +748,7 @@ function WorkflowBuilderInner({ id }: { id: string }) {
         <WorkflowRunsPanel
           workflowId={id}
           versions={versions}
+          refreshToken={runsRefreshToken}
           migrateTargetVersionId={migrateTargetVersionId}
           migrateMapping={migrateMapping}
           migrateReason={migrateReason}
@@ -738,18 +821,6 @@ function WorkflowBuilderInner({ id }: { id: string }) {
                 </div>
                 <div className="wf-empty-state-title">Empty canvas</div>
                 <div className="wf-empty-state-text">Drag a Trigger from the palette to start</div>
-              </div>
-            )}
-
-            {validationWarnings.length > 0 && (
-              <div className="wf-canvas-overlay wf-canvas-validation">
-                <i className="ti ti-alert-triangle" />
-                <span>
-                  <strong>
-                    {validationWarnings.length} warning{validationWarnings.length === 1 ? "" : "s"}:
-                  </strong>{" "}
-                  {validationWarnings[0]}
-                </span>
               </div>
             )}
 
@@ -840,6 +911,107 @@ function WorkflowBuilderInner({ id }: { id: string }) {
         </div>
       )}
 
+      {showTestRun && (
+        <div className="wf-modal-backdrop">
+          <div className="wf-modal">
+            <h2 className="wf-modal-title">Test run</h2>
+            <p className="mt-2 text-sm" style={{ color: "var(--wf-text-2)" }}>
+              Walk through this workflow on a real lead or job. With a lead/job ID, messages and tasks run
+              for real so you can verify templates and delivery. Leave both blank for a dry run on sample data.
+            </p>
+            {blockingErrors.length > 0 && (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                <p className="font-medium">Cannot run test until these are fixed:</p>
+                <ul className="mt-2 list-disc space-y-1 pl-4">
+                  {blockingErrors.map((issue) => (
+                    <li key={`${issue.nodeId ?? "global"}-${issue.message}`}>
+                      {issue.message}
+                      {issue.nodeId && (
+                        <button
+                          type="button"
+                          className="wf-link-btn ml-1"
+                          onClick={() => {
+                            setSelectedNodeId(issue.nodeId!);
+                            setShowTestRun(false);
+                          }}
+                        >
+                          Select node
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <label className="wf-field-label mt-4">Lead ID (optional)</label>
+            <input
+              className="wf-input wf-input-mono"
+              placeholder="e.g. clx… from /crm/leads/…"
+              value={testRunLeadId}
+              onChange={(e) => {
+                setTestRunLeadId(e.target.value);
+                if (e.target.value.trim()) setTestRunSendLive(true);
+              }}
+              disabled={testRunning}
+            />
+            <label className="wf-field-label mt-3">Job ID (optional)</label>
+            <input
+              className="wf-input wf-input-mono"
+              placeholder="e.g. clx… from /crm/jobs/…"
+              value={testRunJobId}
+              onChange={(e) => {
+                setTestRunJobId(e.target.value);
+                if (e.target.value.trim()) setTestRunSendLive(true);
+              }}
+              disabled={testRunning}
+            />
+            <label className="wf-test-run-live mt-4 flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={testRunSendLive}
+                onChange={(e) => setTestRunSendLive(e.target.checked)}
+                disabled={testRunning || (!testRunLeadId.trim() && !testRunJobId.trim())}
+              />
+              <span>
+                <span className="font-medium">Send real messages and run actions</span>
+                <span className="block text-xs" style={{ color: "var(--wf-text-3)" }}>
+                  {testRunLeadId.trim() || testRunJobId.trim()
+                    ? "SMS, email, tasks, and webhooks will execute against this record."
+                    : "Add a lead or job ID to enable live sends."}
+                </span>
+              </span>
+            </label>
+            {testRunError && (
+              <p className="mt-3 text-sm" style={{ color: "var(--wf-danger, #dc2626)" }}>
+                {testRunError}
+              </p>
+            )}
+            <div className="wf-modal-actions">
+              <button
+                type="button"
+                className="wf-btn"
+                onClick={() => {
+                  setShowTestRun(false);
+                  setTestRunError("");
+                }}
+                disabled={testRunning}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="wf-btn wf-btn-primary"
+                onClick={() => void runTestRun()}
+                disabled={testRunning || !canPublishOrTest}
+              >
+                {testRunning ? "Running…" : "Run test"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showPublish && (
         <div className="wf-modal-backdrop">
           <div className="wf-modal">
@@ -848,6 +1020,16 @@ function WorkflowBuilderInner({ id }: { id: string }) {
               <p className="mt-2 text-sm" style={{ color: "var(--wf-text-2)" }}>
                 {inFlight} executions are currently running. They will continue on their pinned version.
               </p>
+            )}
+            {blockingErrors.length > 0 && (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                <p className="font-medium">Cannot publish until these are fixed:</p>
+                <ul className="mt-2 list-disc space-y-1 pl-4">
+                  {blockingErrors.map((issue) => (
+                    <li key={`${issue.nodeId ?? "global"}-${issue.message}`}>{issue.message}</li>
+                  ))}
+                </ul>
+              </div>
             )}
             <input
               className="wf-input mt-4"
@@ -865,7 +1047,7 @@ function WorkflowBuilderInner({ id }: { id: string }) {
               <button type="button" className="wf-btn" onClick={() => setShowPublish(false)} disabled={publishing}>
                 Cancel
               </button>
-              <button type="button" className="wf-btn wf-btn-primary" onClick={publish} disabled={publishing}>
+              <button type="button" className="wf-btn wf-btn-primary" onClick={publish} disabled={publishing || !canPublishOrTest}>
                 {publishing ? "Publishing…" : `Publish v${nextVersionNumber}`}
               </button>
             </div>

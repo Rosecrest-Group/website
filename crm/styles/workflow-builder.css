@@ -688,21 +688,24 @@
 
 .wf-port-label {
   position: absolute;
-  right: -36px;
+  right: -8px;
+  max-width: 120px;
   font-family: var(--wf-font-mono);
-  font-size: 9.5px;
+  font-size: 9px;
   color: var(--wf-text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  transform: translateY(-50%);
+  letter-spacing: 0.02em;
+  transform: translate(100%, -50%);
   pointer-events: none;
+  text-align: left;
+  line-height: 1.2;
+  white-space: normal;
 }
 
 .wf-port-label.true {
-  top: 35%;
+  top: 32%;
 }
 .wf-port-label.false {
-  top: 75%;
+  top: 68%;
 }
 
 /* Canvas overlays */
@@ -801,6 +804,59 @@
 
 .wf-canvas-validation strong {
   font-weight: 600;
+}
+
+.wf-canvas-validation--error {
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  transform: none;
+  max-width: 520px;
+  margin: 0 auto;
+  border-radius: var(--wf-radius-md);
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  align-items: flex-start;
+}
+
+.wf-canvas-validation--error .ti {
+  color: #dc2626;
+  margin-top: 2px;
+}
+
+.wf-canvas-validation-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wf-canvas-validation-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.wf-canvas-validation-list li {
+  margin-bottom: 4px;
+}
+
+.wf-canvas-validation-more {
+  font-size: 11px;
+  color: #b91c1c;
+}
+
+.wf-field-required {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #dc2626;
+}
+
+.wf-field-help--error {
+  color: #b91c1c;
 }
 
 .wf-empty-state {
@@ -1419,6 +1475,13 @@
   margin-top: 12px;
   font-size: 12px;
   color: #b91c1c;
+}
+
+.wf-test-run-error {
+  margin: 0;
+  padding: 8px 16px;
+  background: #fef2f2;
+  border-bottom: 1px solid #fecaca;
 }
 
 .wf-run-empty {

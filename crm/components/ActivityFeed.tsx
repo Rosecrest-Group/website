@@ -109,6 +109,8 @@ type TimelineEvent = {
   timestamp: Date;
   preview?: string;
   children?: TimelineChild[];
+  callRecordingUrl?: string;
+  callTranscript?: string;
   /** Optional override for the timeline node icon (e.g. grouped notes use FileStack). */
   icon?: LucideIcon;
   taskId?: string;
@@ -297,10 +299,17 @@ function parseActorAction(
   }
 
   if (activity.type.includes("call")) {
+    const meta = activity.metadata ?? {};
+    const extras: string[] = [];
+    if (typeof meta.durationSeconds === "number" && meta.durationSeconds > 0) {
+      extras.push(`${meta.durationSeconds}s`);
+    }
+    if (typeof meta.recordingUrl === "string") extras.push("Recording available");
+    if (typeof meta.transcript === "string") extras.push("Transcript available");
     return {
       actor: authorName ? displayActor(activity.author, currentUserId) : "Call",
       action: authorName ? "logged a call" : desc,
-      preview: authorName ? desc : undefined,
+      preview: extras.length ? extras.join(" · ") : authorName ? desc : undefined,
     };
   }
 
@@ -432,6 +441,11 @@ function activitiesToEvents(
     const taskClickable =
       isTaskActivityType(primary.type) &&
       Boolean(taskId && task && canUserEditTask(task, currentUserId));
+    const callMeta = primary.type.includes("call") ? (primary.metadata ?? {}) : null;
+    const callRecordingUrl =
+      callMeta && typeof callMeta.recordingUrl === "string" ? callMeta.recordingUrl : undefined;
+    const callTranscript =
+      callMeta && typeof callMeta.transcript === "string" ? callMeta.transcript : undefined;
 
     return {
       id: primary.id,
@@ -442,6 +456,8 @@ function activitiesToEvents(
       sourceIcon: useGlobe ? Globe : undefined,
       timestamp,
       preview,
+      callRecordingUrl,
+      callTranscript,
       taskId: taskId ?? undefined,
       taskClickable,
     };
@@ -627,6 +643,27 @@ function Event({
                 ))}
               </ul>
             </NoteCollapse>
+          )}
+
+          {event.type === "call" && (event.callRecordingUrl || event.callTranscript) && (
+            <div className="mt-2 space-y-2 text-xs text-neutral-600 dark:text-neutral-300">
+              {event.callRecordingUrl && (
+                <a
+                  href={event.callRecordingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex font-medium text-(--color-primary) hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Listen to recording
+                </a>
+              )}
+              {event.callTranscript && (
+                <p className="whitespace-pre-wrap rounded-md bg-neutral-50 px-3 py-2 text-[13px] leading-relaxed dark:bg-neutral-900">
+                  {event.callTranscript}
+                </p>
+              )}
+            </div>
           )}
         </div>
       </div>

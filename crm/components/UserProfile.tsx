@@ -216,7 +216,7 @@ export default function UserProfile() {
               placeholder="e.g. 07400 000000"
             />
             <p className="text-xs text-(--color-tc-30)">
-              Required for Team Connect calls — your phone rings first, then the customer is connected.
+              Optional contact number for your profile. Outbound calls use Dialpad in the CRM sidebar.
             </p>
             <TextField
               label="Role"

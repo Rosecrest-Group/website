@@ -23,6 +23,12 @@ const MERGE_FIELDS = [
   "{{lead.propertyPostcode}}",
   "{{links.paymentLink}}",
   "{{links.reportLink}}",
+  "{{links.sampleReportLink}}",
+  "{{links.termsLink}}",
+  "{{job.surveyorName}}",
+  "{{job.agentName}}",
+  "{{job.inspectionDate}}",
+  "{{job.inspectionWindow}}",
 ];
 
 type EditorMode = "create" | "edit";

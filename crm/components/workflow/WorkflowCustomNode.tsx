@@ -76,10 +76,14 @@ function WorkflowCustomNode({ id, data, selected, type: nodeType }: NodeProps<No
 
       {nodeType === "branch" ? (
         <>
-          <Handle type="source" position={Position.Right} id="true" style={{ top: "35%" }} />
-          <span className="wf-port-label true">true</span>
-          <Handle type="source" position={Position.Right} id="false" style={{ top: "75%" }} />
-          <span className="wf-port-label false">false</span>
+          <Handle type="source" position={Position.Right} id="true" style={{ top: "32%" }} />
+          <span className="wf-port-label true" title={String(data.trueLabel ?? "True")}>
+            {String(data.trueLabel ?? "True")}
+          </span>
+          <Handle type="source" position={Position.Right} id="false" style={{ top: "68%" }} />
+          <span className="wf-port-label false" title={String(data.falseLabel ?? "False")}>
+            {String(data.falseLabel ?? "False")}
+          </span>
         </>
       ) : nodeType !== "end" ? (
         <Handle type="source" position={Position.Right} id="out" />

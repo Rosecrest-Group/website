@@ -23,6 +23,7 @@ type Props = {
   migrateMapping: string;
   migrateReason: string;
   migrateMsg: string;
+  refreshToken?: number;
   onMigrateTargetVersionIdChange: (value: string) => void;
   onMigrateMappingChange: (value: string) => void;
   onMigrateReasonChange: (value: string) => void;
@@ -168,6 +169,7 @@ export default function WorkflowRunsPanel({
   onMigrateMappingChange,
   onMigrateReasonChange,
   onMigrate,
+  refreshToken,
 }: Props) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [executions, setExecutions] = useState<WorkflowExecutionRecord[]>([]);
@@ -183,7 +185,7 @@ export default function WorkflowRunsPanel({
   useEffect(() => {
     setLoading(true);
     loadExecutions().catch(() => setLoading(false));
-  }, [loadExecutions]);
+  }, [loadExecutions, refreshToken]);
 
   useEffect(() => {
     const timer = setInterval(() => {

@@ -144,7 +144,9 @@ export default function WorkflowNodeConfig({
           <>
             <div className="wf-field">
               <div className="wf-field-label-row">
-                <div className="wf-field-label">Template</div>
+                <div className="wf-field-label">
+                  Template <span className="wf-field-required">Required</span>
+                </div>
                 <button
                   type="button"
                   className="wf-link-btn"
@@ -175,6 +177,11 @@ export default function WorkflowNodeConfig({
                     </option>
                   ))}
               </select>
+              {!String(data.templateId ?? "").trim() && (
+                <div className="wf-field-help wf-field-help--error">
+                  Choose a template before publishing or running a test.
+                </div>
+              )}
             </div>
             {channel && (
               <WorkflowTemplateEditor

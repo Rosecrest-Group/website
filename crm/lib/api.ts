@@ -49,6 +49,8 @@ import type {
   AdminUserSummary,
 
   DialpadIntegrationStatus,
+  DialpadConfig,
+  DialpadCallInitiateResult,
 
   InternalConversationSummary,
 
@@ -68,6 +70,21 @@ import type {
   TeamConnectNumber,
   TeamConnectCallResult,
   TeamConnectSmsSendResult,
+  SalesIgniterNote,
+  SalesIgniterContact,
+  SalesIgniterContactSummary,
+  SalesIgniterConversation,
+  SalesIgniterMessage,
+  SalesIgniterOpportunity,
+  SalesIgniterPipeline,
+  DumpOpportunitySyncChunkResult,
+  DumpOpportunitySyncResult,
+  DumpOpportunitySyncStatus,
+  DumpContactSyncChunkResult,
+  DumpContactSyncStatus,
+  DumpInboxThreadsSyncChunkResult,
+  DumpInboxMessagesSyncChunkResult,
+  DumpInboxSyncStatus,
 
 } from "@/crm/types";
 
@@ -106,7 +123,18 @@ async function request<T>(
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers, credentials: "include" });
 
-  const json = (await res.json()) as ApiResult<T>;
+  const text = await res.text();
+  let json: ApiResult<T>;
+  try {
+    json = JSON.parse(text) as ApiResult<T>;
+  } catch {
+    const preview = text.trim().slice(0, 160);
+    throw new Error(
+      res.ok
+        ? "Invalid API response"
+        : `Request failed (${res.status})${preview ? `: ${preview}` : ""}`
+    );
+  }
 
 
 
@@ -348,6 +376,207 @@ export const api = {
 
   getDialpadIntegrationStatus: () => request<DialpadIntegrationStatus>("/admin/integrations/dialpad"),
 
+  getDialpadConfig: () => request<DialpadConfig>("/dialpad/config"),
+
+  initiateDialpadCall: (payload: { to: string; leadId?: string; jobId?: string }) =>
+    request<DialpadCallInitiateResult>("/dialpad/calls/initiate", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  linkDialpadUser: (dialpadUserId: string) =>
+    request<ApiUser>("/dialpad/me/link", {
+      method: "PATCH",
+      body: JSON.stringify({ dialpadUserId }),
+    }),
+
+  getDataDumpStatus: () =>
+    request<{
+      configured: boolean;
+      tokenConfigured: boolean;
+      locationConfigured: boolean;
+      requiredScopes: Array<{ scope: string; usedFor: string; endpoints: readonly string[] }>;
+    }>("/data-dump/status"),
+
+  listSalesIgniterContacts: (params?: { query?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.query) qs.set("query", params.query);
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const q = qs.toString();
+    return request<{
+      contacts: SalesIgniterContactSummary[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(`/data-dump/contacts${q ? `?${q}` : ""}`);
+  },
+
+  getSalesIgniterContact: (contactId: string) =>
+    request<{ contact: SalesIgniterContact }>(
+      `/data-dump/contacts/${encodeURIComponent(contactId)}`
+    ),
+
+  getSalesIgniterContactNotes: (contactId: string) =>
+    request<{ contactId: string; notes: SalesIgniterNote[] }>(
+      `/data-dump/contacts/${encodeURIComponent(contactId)}/notes`
+    ),
+
+  getSalesIgniterContactMessages: (contactId: string) =>
+    request<{
+      contactId: string;
+      conversations: SalesIgniterConversation[];
+      messages: SalesIgniterMessage[];
+    }>(`/data-dump/contacts/${encodeURIComponent(contactId)}/messages`),
+
+  listDumpContacts: () =>
+    request<{
+      contacts: SalesIgniterContactSummary[];
+      total: number;
+      sync: DumpContactSyncStatus;
+    }>("/data-dump/contacts/db"),
+
+  getDumpContactSyncStatus: () =>
+    request<DumpContactSyncStatus>("/data-dump/contacts/sync/status"),
+
+  syncDumpContacts: (params?: { page?: number; reset?: boolean }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.reset) qs.set("reset", "true");
+    const q = qs.toString();
+    return request<DumpContactSyncChunkResult>(
+      `/data-dump/contacts/sync${q ? `?${q}` : ""}`,
+      { method: "POST" }
+    );
+  },
+
+  listSalesIgniterOpportunities: (params?: {
+    query?: string;
+    limit?: number;
+    startAfterId?: string;
+    startAfter?: number;
+    contactId?: string;
+    status?: string;
+    all?: boolean;
+    mapStages?: boolean;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.query) qs.set("query", params.query);
+    if (params?.limit) qs.set("limit", String(params.limit));
+    if (params?.startAfterId) qs.set("startAfterId", params.startAfterId);
+    if (params?.startAfter != null) qs.set("startAfter", String(params.startAfter));
+    if (params?.contactId) qs.set("contactId", params.contactId);
+    if (params?.status) qs.set("status", params.status);
+    if (params?.all) qs.set("all", "true");
+    if (params?.mapStages === false) qs.set("mapStages", "false");
+    const q = qs.toString();
+    return request<{
+      opportunities: SalesIgniterOpportunity[];
+      total: number;
+      startAfterId?: string | null;
+      startAfter?: number | null;
+      limit?: number;
+      fetchedAll?: boolean;
+      pagesFetched?: number;
+      pipelines?: SalesIgniterPipeline[];
+      stageLookup?: Record<string, { stageName: string; pipelineName: string }>;
+    }>(`/data-dump/opportunities${q ? `?${q}` : ""}`);
+  },
+
+  getSalesIgniterOpportunity: (opportunityId: string) =>
+    request<{ opportunity: SalesIgniterOpportunity }>(
+      `/data-dump/opportunities/${encodeURIComponent(opportunityId)}`
+    ),
+
+  listDumpOpportunities: () =>
+    request<{
+      opportunities: SalesIgniterOpportunity[];
+      total: number;
+      sync: DumpOpportunitySyncStatus;
+    }>("/data-dump/opportunities/db"),
+
+  getDumpOpportunitySyncStatus: () =>
+    request<DumpOpportunitySyncStatus>("/data-dump/opportunities/sync/status"),
+
+  syncDumpOpportunities: (params?: {
+    startAfterId?: string;
+    startAfter?: number;
+    reset?: boolean;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.startAfterId) qs.set("startAfterId", params.startAfterId);
+    if (params?.startAfter != null) qs.set("startAfter", String(params.startAfter));
+    if (params?.reset) qs.set("reset", "true");
+    const q = qs.toString();
+    return request<DumpOpportunitySyncChunkResult>(
+      `/data-dump/opportunities/sync${q ? `?${q}` : ""}`,
+      { method: "POST" }
+    );
+  },
+
+  listSalesIgniterPipelines: () =>
+    request<{
+      pipelines: SalesIgniterPipeline[];
+      stageLookup: Record<string, { stageName: string; pipelineName: string }>;
+    }>("/data-dump/pipelines"),
+
+  listSalesIgniterInboxThreads: (params?: {
+    query?: string;
+    limit?: number;
+    startAfterDate?: string;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.query) qs.set("query", params.query);
+    if (params?.limit) qs.set("limit", String(params.limit));
+    if (params?.startAfterDate) qs.set("startAfterDate", params.startAfterDate);
+    const q = qs.toString();
+    return request<{
+      threads: SalesIgniterConversation[];
+      limit: number;
+    }>(`/data-dump/inbox${q ? `?${q}` : ""}`);
+  },
+
+  listDumpInboxThreads: () =>
+    request<{
+      threads: SalesIgniterConversation[];
+      total: number;
+      sync: DumpInboxSyncStatus;
+    }>("/data-dump/inbox/db"),
+
+  getDumpInboxSyncStatus: () =>
+    request<DumpInboxSyncStatus>("/data-dump/inbox/sync/status"),
+
+  syncDumpInboxThreads: (params?: { startAfterDate?: string; reset?: boolean }) => {
+    const qs = new URLSearchParams();
+    if (params?.startAfterDate) qs.set("startAfterDate", params.startAfterDate);
+    if (params?.reset) qs.set("reset", "true");
+    const q = qs.toString();
+    return request<DumpInboxThreadsSyncChunkResult>(
+      `/data-dump/inbox/sync/threads${q ? `?${q}` : ""}`,
+      { method: "POST" }
+    );
+  },
+
+  syncDumpInboxMessages: (params?: { reset?: boolean }) => {
+    const qs = new URLSearchParams();
+    if (params?.reset) qs.set("reset", "true");
+    const q = qs.toString();
+    return request<DumpInboxMessagesSyncChunkResult>(
+      `/data-dump/inbox/sync/messages${q ? `?${q}` : ""}`,
+      { method: "POST" }
+    );
+  },
+
+  listDumpConversationMessages: (conversationId: string) =>
+    request<{ conversationId: string; messages: SalesIgniterMessage[] }>(
+      `/data-dump/inbox/db/${encodeURIComponent(conversationId)}/messages`
+    ),
+
+  getSalesIgniterConversationMessages: (conversationId: string) =>
+    request<{ conversationId: string; messages: SalesIgniterMessage[] }>(
+      `/data-dump/conversations/${encodeURIComponent(conversationId)}/messages`
+    ),
+
   listAdminUsers: (includeInactive = false) =>
     request<{ items: AdminUserSummary[] }>(
       `/admin/users${includeInactive ? "?includeInactive=true" : ""}`
@@ -427,6 +656,7 @@ export const api = {
         firstName: string;
         lastName: string;
         leads?: { id: string }[];
+        jobs?: { id: string }[];
       }>;
     }>(`/customers/lookup/phone?phone=${encodeURIComponent(phone)}`),
 
@@ -523,6 +753,12 @@ export const api = {
   updateJobStage: (id: string, stage: string) =>
     request<Job>(`/jobs/${id}/stage`, { method: "POST", body: JSON.stringify({ stage }) }),
 
+  confirmJobAccessDetails: (id: string) =>
+    request<Job>(`/jobs/${id}/confirm-access-details`, { method: "POST" }),
+
+  listSurveyors: () =>
+    request<{ items: { id: string; fullName: string; email: string }[] }>("/jobs/assignees/surveyors"),
+
   getTradeSchedule: () => request<{ items: Job[] }>("/jobs/schedule"),
 
   addJobDocument: (id: string, doc: { type: string; filename: string; storageUrl: string; mimeType?: string; sizeBytes?: number }) =>
@@ -553,6 +789,9 @@ export const api = {
     subject?: string;
     body: string;
   }) => request<MessageTemplate>("/templates", { method: "POST", body: JSON.stringify(payload) }),
+
+  deleteTemplate: (id: string) =>
+    request<{ deleted: true }>(`/templates/${id}`, { method: "DELETE" }),
 
 
 
@@ -666,11 +905,19 @@ export const api = {
 
     request<WorkflowDetail>(`/workflows/${id}/versions/${versionId}/activate`, { method: "POST" }),
 
-  testRunWorkflow: (id: string, ctx: { leadId?: string; jobId?: string }) =>
-
+  testRunWorkflow: (
+    id: string,
+    ctx: { leadId?: string; jobId?: string; sendLiveMessages?: boolean }
+  ) =>
     request<unknown>(`/workflows/${id}/test-run`, { method: "POST", body: JSON.stringify(ctx) }),
 
   deleteWorkflow: (id: string) => request<WorkflowSummary>(`/workflows/${id}`, { method: "DELETE" }),
+
+  restoreWorkflow: (id: string) =>
+    request<WorkflowSummary>(`/workflows/${id}/restore`, { method: "POST" }),
+
+  purgeWorkflow: (id: string) =>
+    request<{ purged: true }>(`/workflows/${id}/purge`, { method: "POST" }),
 
   listConversations: (params?: { leadId?: string; jobId?: string; kind?: string }) => {
     const qs = params ? `?${new URLSearchParams(params)}` : "";

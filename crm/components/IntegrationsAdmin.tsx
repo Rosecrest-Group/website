@@ -41,6 +41,11 @@ export default function IntegrationsAdmin() {
   const [teamConnectLoading, setTeamConnectLoading] = useState(true);
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
+  const [dialpadStatus, setDialpadStatus] = useState<Awaited<
+    ReturnType<typeof api.getDialpadIntegrationStatus>
+  > | null>(null);
+  const [dialpadLoading, setDialpadLoading] = useState(true);
+  const [savingDialpadUserId, setSavingDialpadUserId] = useState<string | null>(null);
 
   function load() {
     setLoading(true);
@@ -50,6 +55,17 @@ export default function IntegrationsAdmin() {
       .listWebhookEvents(params)
       .then((r) => setEvents(r.items))
       .finally(() => setLoading(false));
+  }
+
+  function loadDialpad() {
+    setDialpadLoading(true);
+    Promise.all([api.getDialpadIntegrationStatus(), api.listAdminUsers()])
+      .then(([status, userList]) => {
+        setDialpadStatus(status);
+        setUsers(userList.items);
+      })
+      .catch(() => toast.error("Failed to load Dialpad settings"))
+      .finally(() => setDialpadLoading(false));
   }
 
   function loadTeamConnect() {
@@ -74,7 +90,36 @@ export default function IntegrationsAdmin() {
 
   useEffect(() => {
     loadTeamConnect();
+    loadDialpad();
   }, []);
+
+  async function toggleUserDialpad(user: AdminUserSummary) {
+    setSavingDialpadUserId(user.id);
+    try {
+      await api.updateUserPhone(user.id, { phoneEnabled: !user.phoneEnabled });
+      loadDialpad();
+      toast.success(user.phoneEnabled ? "Dialpad disabled for user" : "Dialpad enabled for user");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update user");
+    } finally {
+      setSavingDialpadUserId(null);
+    }
+  }
+
+  async function saveDialpadUserId(user: AdminUserSummary, dialpadUserId: string) {
+    setSavingDialpadUserId(user.id);
+    try {
+      await api.updateUserPhone(user.id, {
+        dialpadUserId: dialpadUserId.trim() || null,
+      });
+      loadDialpad();
+      toast.success("Dialpad user ID saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save Dialpad user ID");
+    } finally {
+      setSavingDialpadUserId(null);
+    }
+  }
 
   async function replay(id: string, mode: "dry-run" | "safe" | "full") {
     const r = await api.replayWebhookEvent(id, mode);
@@ -84,7 +129,7 @@ export default function IntegrationsAdmin() {
 
   const usersWithAgentPhone = users.filter((u) => u.phone?.trim()).length;
 
-  const userColumns: Column<AdminUserSummary & Record<string, unknown>>[] = [
+  const legacyUserColumns: Column<AdminUserSummary & Record<string, unknown>>[] = [
     {
       key: "fullName",
       header: "User",
@@ -107,8 +152,53 @@ export default function IntegrationsAdmin() {
         value ? (
           <span className="font-mono text-xs text-(--color-tc-40)">{value as string}</span>
         ) : (
-          <span className="text-xs text-amber-700">Not set — cannot place calls</span>
+          <span className="text-xs text-(--color-tc-30)">Not set</span>
         ),
+    },
+  ];
+
+  const dialpadUserColumns: Column<AdminUserSummary & Record<string, unknown>>[] = [
+    {
+      key: "fullName",
+      header: "User",
+      render: (_, row) => (
+        <div>
+          <p className="font-medium text-(--color-tc-40)">{row.fullName}</p>
+          <p className="text-xs text-(--color-tc-30)">{row.email}</p>
+        </div>
+      ),
+    },
+    {
+      key: "phoneEnabled",
+      header: "CRM calling",
+      render: (value, row) => (
+        <SecondaryButton
+          type="button"
+          size="small"
+          className="w-auto"
+          disabled={savingDialpadUserId === row.id}
+          onClick={() => toggleUserDialpad(row as AdminUserSummary)}
+        >
+          {value ? "Enabled" : "Disabled"}
+        </SecondaryButton>
+      ),
+    },
+    {
+      key: "dialpadUserId",
+      header: "Dialpad user ID",
+      render: (value, row) => (
+        <input
+          key={`${row.id}-${value as string | null}`}
+          defaultValue={(value as string | null) ?? ""}
+          placeholder="Auto-linked on login"
+          className="w-full min-w-[8rem] rounded-lg border border-(--color-tc-20) px-2 py-1 font-mono text-xs"
+          onBlur={(e) => {
+            const next = e.target.value.trim();
+            const current = ((value as string | null) ?? "").trim();
+            if (next !== current) saveDialpadUserId(row as AdminUserSummary, next);
+          }}
+        />
+      ),
     },
   ];
 
@@ -177,7 +267,7 @@ export default function IntegrationsAdmin() {
     <CrmPageContent>
       <CrmPageHeader
         title="Integrations"
-        subtitle="Team Connect, webhooks, and replay (admin)"
+        subtitle="Dialpad calling, Team Connect SMS, webhooks, and replay (admin)"
         actions={
           <>
             <SecondaryButton
@@ -210,7 +300,63 @@ export default function IntegrationsAdmin() {
         }
       />
 
-      <CrmPanel title="Team Connect (phone & SMS)">
+      <CrmPanel title="Dialpad (in-CRM calling)">
+        <div className="space-y-4">
+          {dialpadLoading ? (
+            <LoadingSpinner />
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-2">
+                <StatusBadge
+                  ok={Boolean(dialpadStatus?.clientIdConfigured)}
+                  label="Client ID configured"
+                />
+                <StatusBadge
+                  ok={Boolean(dialpadStatus?.webhookSecretConfigured)}
+                  label="Webhook secret configured"
+                />
+                <StatusPill
+                  variant="pending"
+                  label={`${dialpadStatus?.phoneEnabledUserCount ?? 0} users with calling enabled`}
+                />
+              </div>
+
+              <div className="rounded-lg bg-(--color-nc-10) p-3 text-sm text-(--color-tc-30)">
+                <p className="font-medium text-(--color-tc-40)">How calling works</p>
+                <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs leading-relaxed">
+                  <li>
+                    Set <code className="rounded bg-white px-1">DIALPAD_CLIENT_ID</code> and{" "}
+                    <code className="rounded bg-white px-1">DIALPAD_WEBHOOK_SECRET</code> in API env.
+                  </li>
+                  <li>
+                    Configure Dialpad webhook to{" "}
+                    <code className="rounded bg-white px-1 break-all">
+                      {dialpadStatus?.voiceWebhookUrl ?? "/api/v1/intake/voice/DIALPAD"}
+                    </code>
+                  </li>
+                  <li>Enable calling per user below — they sign in once in the Dialpad sidebar.</li>
+                  <li>
+                    Click Call on any lead — audio and controls stay in the CRM via the embedded
+                    softphone.
+                  </li>
+                </ol>
+              </div>
+
+              {usersLoading ? (
+                <LoadingSpinner />
+              ) : (
+                <Table
+                  columns={dialpadUserColumns}
+                  data={users as (AdminUserSummary & Record<string, unknown>)[]}
+                  getRowKey={(r) => r.id}
+                />
+              )}
+            </>
+          )}
+        </div>
+      </CrmPanel>
+
+      <CrmPanel title="Team Connect (SMS)">
         <div className="space-y-4">
           {teamConnectLoading ? (
             <LoadingSpinner />
@@ -229,22 +375,11 @@ export default function IntegrationsAdmin() {
               </div>
 
               <div className="rounded-lg bg-(--color-nc-10) p-3 text-sm text-(--color-tc-30)">
-                <p className="font-medium text-(--color-tc-40)">How calling works</p>
-                <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs leading-relaxed">
-                  <li>
-                    Set <code className="rounded bg-white px-1">TEAM_CONNECT_API_KEY</code> in API env
-                    (prefix <code className="rounded bg-white px-1">tca_</code>).
-                  </li>
-                  <li>
-                    Each user adds their mobile in <strong>Settings → Profile</strong> — that phone rings
-                    first on outbound calls.
-                  </li>
-                  <li>
-                    Optional fallback: <code className="rounded bg-white px-1">TEAM_CONNECT_AGENT_PHONE</code>{" "}
-                    in API env for users without a profile phone.
-                  </li>
-                  <li>Click Call on a lead — answer your phone, then the customer is connected.</li>
-                </ol>
+                <p className="font-medium text-(--color-tc-40)">SMS via Team Connect</p>
+                <p className="mt-2 text-xs leading-relaxed">
+                  Outbound SMS and inbound sync use Team Connect business numbers. Voice calls use
+                  Dialpad above.
+                </p>
               </div>
 
               {teamConnectNumbers.length > 0 ? (
@@ -266,7 +401,7 @@ export default function IntegrationsAdmin() {
                   <LoadingSpinner />
                 ) : (
                   <Table
-                    columns={userColumns}
+                    columns={legacyUserColumns}
                     data={users as (AdminUserSummary & Record<string, unknown>)[]}
                     getRowKey={(r) => r.id}
                   />

@@ -11,6 +11,7 @@ import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import StatusPill from "@/crm/components/ui/StatusPill";
 import TextField from "@/crm/components/ui/TextField";
+import SelectField from "@/crm/components/ui/SelectField";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import InternalConversationPanel, { prefetchInternalThread } from "@/crm/components/InternalConversationPanel";
 import { ArrowLeft } from "lucide-react";
@@ -31,6 +32,19 @@ export default function JobDetail({ id }: { id: string }) {
   const [snagDesc, setSnagDesc] = useState("");
   const [workStart, setWorkStart] = useState("");
   const [workEnd, setWorkEnd] = useState("");
+  const [surveyors, setSurveyors] = useState<{ id: string; fullName: string }[]>([]);
+  const [accessForm, setAccessForm] = useState({
+    agentName: "",
+    agentEmail: "",
+    agentPhone: "",
+    vendorName: "",
+    vendorEmail: "",
+    vendorPhone: "",
+    accessNotes: "",
+  });
+  const [inspectionDate, setInspectionDate] = useState("");
+  const [inspectionWindow, setInspectionWindow] = useState("");
+  const [stageError, setStageError] = useState<string | null>(null);
 
   function reload() {
     setLoading(true);
@@ -40,6 +54,17 @@ export default function JobDetail({ id }: { id: string }) {
         setJob(j);
         setWorkStart(j.workStartDate?.slice(0, 10) ?? "");
         setWorkEnd(j.workEndDate?.slice(0, 10) ?? "");
+        setInspectionDate(j.inspectionDate?.slice(0, 10) ?? "");
+        setInspectionWindow(j.inspectionWindow ?? "");
+        setAccessForm({
+          agentName: j.agentName ?? "",
+          agentEmail: j.agentEmail ?? "",
+          agentPhone: j.agentPhone ?? "",
+          vendorName: j.vendorName ?? "",
+          vendorEmail: j.vendorEmail ?? "",
+          vendorPhone: j.vendorPhone ?? "",
+          accessNotes: j.accessNotes ?? "",
+        });
         prefetchInternalThread({ jobId: j.id });
       })
       .finally(() => setLoading(false));
@@ -47,6 +72,7 @@ export default function JobDetail({ id }: { id: string }) {
 
   useEffect(() => {
     reload();
+    api.listSurveyors().then((r) => setSurveyors(r.items)).catch(() => {});
   }, [id]);
 
   async function createLink() {
@@ -119,6 +145,18 @@ export default function JobDetail({ id }: { id: string }) {
     "COMPLETED",
   ] as const;
 
+  const SURVEY_STAGES = [
+    "PAID",
+    "ACCESS_REQUESTED",
+    "ACCESS_CONFIRMED",
+    "INSPECTION_BOOKED",
+    "INSPECTION_COMPLETE",
+    "REPORT_DRAFTING",
+    "REPORT_QC",
+    "REPORT_DELIVERED",
+    "COMPLETED",
+  ] as const;
+
   async function updateTradeStage(stage: string) {
     await api.updateJobStage(id, stage);
     reload();
@@ -129,6 +167,50 @@ export default function JobDetail({ id }: { id: string }) {
       ...(workStart ? { workStartDate: new Date(workStart).toISOString() } : {}),
       ...(workEnd ? { workEndDate: new Date(workEnd).toISOString() } : {}),
     });
+    reload();
+  }
+
+  async function saveAccessDetails() {
+    await api.updateJob(id, accessForm);
+    reload();
+  }
+
+  async function confirmAccessDetails() {
+    await api.confirmJobAccessDetails(id);
+    reload();
+  }
+
+  async function assignSurveyor(surveyorId: string) {
+    await api.updateJob(id, { assignedToId: surveyorId || null });
+    reload();
+  }
+
+  async function updateSurveyStage(stage: string) {
+    setStageError(null);
+    try {
+      await api.updateJobStage(id, stage);
+      reload();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not update stage";
+      setStageError(msg);
+    }
+  }
+
+  async function saveInspectionDetails() {
+    await api.updateJob(id, {
+      ...(inspectionDate ? { inspectionDate: new Date(inspectionDate).toISOString() } : {}),
+      inspectionWindow,
+    });
+    reload();
+  }
+
+  async function setRating3(value: boolean) {
+    await api.updateJob(id, { hasConditionRating3: value });
+    reload();
+  }
+
+  async function toggleDataCapture() {
+    await api.updateJob(id, { dataCaptureComplete: !job?.dataCaptureComplete });
     reload();
   }
 
@@ -226,7 +308,7 @@ export default function JobDetail({ id }: { id: string }) {
               {job.paymentStatus !== "PAID" && (
                 <>
                   <PrimaryButton type="button" className="w-auto px-6" onClick={createLink}>
-                    Create payment link
+                    Get payment link
                   </PrimaryButton>
                   <SecondaryButton type="button" size="small" className="w-auto" onClick={markPaid}>
                     Mark paid (bank transfer)
@@ -236,6 +318,131 @@ export default function JobDetail({ id }: { id: string }) {
             </div>
           </div>
         </CrmPanel>
+
+        {!isTrade && (
+          <>
+            {job.accessDetailsPendingReview && (
+              <CrmPanel title="Access details — review required" className="lg:col-span-2 border-amber-300 bg-amber-50/50">
+                <p className="mb-3 text-sm text-amber-900">
+                  Client reply was parsed into the fields below. Verify and confirm to request access from the estate agent.
+                </p>
+                <PrimaryButton type="button" className="w-auto px-6" onClick={confirmAccessDetails}>
+                  Confirm access details
+                </PrimaryButton>
+              </CrmPanel>
+            )}
+
+            <CrmPanel title="Surveyor assignment">
+              <SelectField
+                label="Assigned surveyor"
+                value={job.assignedTo?.id ?? ""}
+                onChange={(e) => assignSurveyor(e.target.value)}
+              >
+                <option value="">Unassigned</option>
+                {surveyors.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.fullName}
+                  </option>
+                ))}
+              </SelectField>
+              {!job.assignedTo && (
+                <p className="mt-2 text-xs text-amber-700">Assign a surveyor before requesting access.</p>
+              )}
+            </CrmPanel>
+
+            <CrmPanel title="Access details (agent / vendor)">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <TextField label="Agent name" value={accessForm.agentName} onChange={(e) => setAccessForm({ ...accessForm, agentName: e.target.value })} />
+                <TextField label="Agent email" value={accessForm.agentEmail} onChange={(e) => setAccessForm({ ...accessForm, agentEmail: e.target.value })} />
+                <TextField label="Agent phone" value={accessForm.agentPhone} onChange={(e) => setAccessForm({ ...accessForm, agentPhone: e.target.value })} />
+                <TextField label="Vendor name" value={accessForm.vendorName} onChange={(e) => setAccessForm({ ...accessForm, vendorName: e.target.value })} />
+                <TextField label="Vendor email" value={accessForm.vendorEmail} onChange={(e) => setAccessForm({ ...accessForm, vendorEmail: e.target.value })} />
+                <TextField label="Vendor phone" value={accessForm.vendorPhone} onChange={(e) => setAccessForm({ ...accessForm, vendorPhone: e.target.value })} />
+              </div>
+              <TextField
+                className="mt-3"
+                label="Access notes"
+                value={accessForm.accessNotes}
+                onChange={(e) => setAccessForm({ ...accessForm, accessNotes: e.target.value })}
+              />
+              <div className="mt-3 flex flex-wrap gap-2">
+                <SecondaryButton type="button" size="small" className="w-auto" onClick={saveAccessDetails}>
+                  Save access details
+                </SecondaryButton>
+                <PrimaryButton type="button" className="w-auto px-6" onClick={confirmAccessDetails}>
+                  Confirm & request access
+                </PrimaryButton>
+              </div>
+              {job.accessDetailsVerifiedAt && (
+                <p className="mt-2 text-xs text-emerald-700">
+                  Verified {new Date(job.accessDetailsVerifiedAt).toLocaleString()}
+                </p>
+              )}
+            </CrmPanel>
+
+            <CrmPanel title="Survey workflow" className="lg:col-span-2">
+              <div className="space-y-4">
+                {stageError && <p className="text-sm text-red-600">{stageError}</p>}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-(--color-tc-30)">Stage:</span>
+                  {SURVEY_STAGES.map((s) => (
+                    <SecondaryButton
+                      key={s}
+                      type="button"
+                      size="small"
+                      className={
+                        job.stage === s
+                          ? "w-auto border-(--color-primary) bg-(--color-primary) text-white hover:bg-(--color-primary) hover:text-white"
+                          : "w-auto"
+                      }
+                      onClick={() => updateSurveyStage(s)}
+                    >
+                      {s.replace(/_/g, " ")}
+                    </SecondaryButton>
+                  ))}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <TextField label="Inspection date" type="date" value={inspectionDate} onChange={(e) => setInspectionDate(e.target.value)} />
+                  <TextField label="Inspection window" placeholder="e.g. 9am–12pm" value={inspectionWindow} onChange={(e) => setInspectionWindow(e.target.value)} />
+                </div>
+                <SecondaryButton type="button" size="small" className="w-auto" onClick={saveInspectionDetails}>
+                  Save inspection schedule
+                </SecondaryButton>
+                <div className="flex flex-wrap items-center gap-3 border-t border-(--color-tc-20) pt-3">
+                  <span className="text-sm font-medium text-(--color-tc-40)">Condition rating 3?</span>
+                  <SecondaryButton
+                    type="button"
+                    size="small"
+                    className={`w-auto ${job.hasConditionRating3 === false ? "border-(--color-primary) bg-(--color-primary) text-white" : ""}`}
+                    onClick={() => setRating3(false)}
+                  >
+                    No
+                  </SecondaryButton>
+                  <SecondaryButton
+                    type="button"
+                    size="small"
+                    className={`w-auto ${job.hasConditionRating3 === true ? "border-(--color-primary) bg-(--color-primary) text-white" : ""}`}
+                    onClick={() => setRating3(true)}
+                  >
+                    Yes
+                  </SecondaryButton>
+                  {job.hasConditionRating3 === null && (
+                    <span className="text-xs text-amber-700">Required before Inspection Complete</span>
+                  )}
+                </div>
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-(--color-tc-40)">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(job.dataCaptureComplete)}
+                    onChange={toggleDataCapture}
+                    className="size-4 rounded border-(--color-tc-20)"
+                  />
+                  Data capture complete (photos, notes, checklist)
+                </label>
+              </div>
+            </CrmPanel>
+          </>
+        )}
 
         {!isTrade && (
           <CrmPanel title="SLA deadlines">
@@ -281,8 +488,7 @@ export default function JobDetail({ id }: { id: string }) {
           )}
         </CrmPanel>
 
-        {(isTrade || documents.length > 0) && (
-          <CrmPanel title="Documents (RAMS)">
+        <CrmPanel title={isTrade ? "Documents (RAMS)" : "Documents (report & attachments)"}>
             <div className="space-y-3">
               {documents.map((d) => (
                 <a
@@ -296,6 +502,18 @@ export default function JobDetail({ id }: { id: string }) {
                 </a>
               ))}
               <div className="space-y-2 border-t border-(--color-tc-20) pt-3">
+                {!isTrade && (
+                  <SelectField
+                    label="Document type"
+                    value={docForm.type}
+                    onChange={(e) => setDocForm({ ...docForm, type: e.target.value })}
+                  >
+                    <option value="REPORT">REPORT</option>
+                    <option value="ACTION_PLAN">ACTION_PLAN</option>
+                    <option value="COSTING">COSTING</option>
+                    <option value="OTHER">OTHER</option>
+                  </SelectField>
+                )}
                 <TextField
                   placeholder="Filename"
                   value={docForm.filename}
@@ -312,7 +530,6 @@ export default function JobDetail({ id }: { id: string }) {
               </div>
             </div>
           </CrmPanel>
-        )}
 
         {isTrade && (
           <CrmPanel title="Snagging & sign-off" className="lg:col-span-2">

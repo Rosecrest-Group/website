@@ -22,6 +22,23 @@ export function isCrmAuthRoute(pathname: string) {
   return isCrmPublicRoute(pathname);
 }
 
+export const CRM_DATA_DUMP_PATH = `${CRM_BASE_PATH}/data-dump`;
+
+export function isCrmDataDumpRoute(pathname: string) {
+  return pathname === CRM_DATA_DUMP_PATH || pathname.startsWith(`${CRM_DATA_DUMP_PATH}/`);
+}
+
+export type DataDumpNavItem = {
+  label: string;
+  href: string;
+};
+
+export const DATA_DUMP_NAV_ITEMS: DataDumpNavItem[] = [
+  { label: "Contacts", href: `${CRM_DATA_DUMP_PATH}/contacts` },
+  { label: "Opportunities", href: `${CRM_DATA_DUMP_PATH}/opportunities` },
+  { label: "Inbox", href: `${CRM_DATA_DUMP_PATH}/inbox` },
+];
+
 export type CrmNavItem = {
   label: string;
   href: string;

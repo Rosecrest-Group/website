@@ -1,8 +1,9 @@
 import { headers } from "next/headers";
 
 import CrmShell from "@/crm/components/CrmShell";
+import DataDumpShell from "@/crm/components/data-dump/DataDumpShell";
 
-import { isCrmPublicRoute } from "@/crm/lib/constants";
+import { isCrmDataDumpRoute, isCrmPublicRoute } from "@/crm/lib/constants";
 
 import "./crm.css";
 
@@ -43,6 +44,12 @@ export default async function CrmLayout({
       </div>
 
     );
+
+  }
+
+  if (isCrmDataDumpRoute(pathname)) {
+
+    return <DataDumpShell>{children}</DataDumpShell>;
 
   }
 
