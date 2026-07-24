@@ -1597,6 +1597,21 @@
   font-size: 13px;
 }
 
+.wf-template-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wf-template-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.wf-template-view-btn {
+  flex-shrink: 0;
+}
+
 .wf-merge-field-row {
   display: flex;
   flex-wrap: wrap;

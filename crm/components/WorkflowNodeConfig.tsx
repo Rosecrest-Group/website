@@ -6,6 +6,7 @@ import type { MessageTemplate } from "@/crm/types";
 import { LEAD_SOURCES, WORKFLOW_TRIGGERS } from "@/crm/lib/constants";
 import { WORKFLOW_NODE_META_BY_TYPE } from "@/crm/lib/workflowNodeMeta";
 import WorkflowTemplateEditor from "@/crm/components/workflow/WorkflowTemplateEditor";
+import WorkflowTemplatePreviewModal from "@/crm/components/workflow/WorkflowTemplatePreviewModal";
 
 const LEAD_SOURCE_FILTER_RE = /^lead\.source\s*==\s*'([^']+)'$/;
 
@@ -56,11 +57,17 @@ export default function WorkflowNodeConfig({
   const triggerType = String(data.triggerType ?? "");
   const update = (patch: Record<string, unknown>) => onChange(node.id, { ...data, ...patch });
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
+  const [showTemplatePreview, setShowTemplatePreview] = useState(false);
   const [positionExpanded, setPositionExpanded] = useState(false);
   const channel = messageChannel(nodeType);
+  const selectedTemplateId = String(data.templateId ?? "").trim();
+  const selectedTemplate = selectedTemplateId
+    ? templates.find((t) => t.id === selectedTemplateId) ?? null
+    : null;
 
   useEffect(() => {
     setPositionExpanded(false);
+    setShowTemplatePreview(false);
   }, [node.id]);
 
   useEffect(() => {
@@ -181,33 +188,53 @@ export default function WorkflowNodeConfig({
                   Add new
                 </button>
               </div>
-              <select
-                className="wf-select"
-                value={String(data.templateId ?? "")}
-                onChange={(e) => {
-                  const templateId = e.target.value;
-                  const template = templates.find((t) => t.id === templateId);
-                  update({
-                    templateId,
-                    templateName: template?.name ?? "",
-                  });
-                }}
-              >
-                <option value="">Select template…</option>
-                {templates
-                  .filter((t) => t.channel === channel)
-                  .map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-              </select>
-              {!String(data.templateId ?? "").trim() && (
+              <div className="wf-template-picker-row">
+                <select
+                  className="wf-select wf-template-select"
+                  value={selectedTemplateId}
+                  onChange={(e) => {
+                    const templateId = e.target.value;
+                    const template = templates.find((t) => t.id === templateId);
+                    update({
+                      templateId,
+                      templateName: template?.name ?? "",
+                    });
+                  }}
+                >
+                  <option value="">Select template…</option>
+                  {templates
+                    .filter((t) => t.channel === channel)
+                    .map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                </select>
+                {selectedTemplate && (
+                  <button
+                    type="button"
+                    className="wf-link-btn wf-template-view-btn"
+                    onClick={() => setShowTemplatePreview(true)}
+                  >
+                    View
+                  </button>
+                )}
+              </div>
+              {!selectedTemplateId && (
                 <div className="wf-field-help wf-field-help--error">
                   Choose a template before publishing or running a test.
                 </div>
               )}
             </div>
+            {channel && (
+              <WorkflowTemplatePreviewModal
+                open={showTemplatePreview}
+                templateId={selectedTemplateId || null}
+                templateName={selectedTemplate?.name ?? String(data.templateName ?? "Template")}
+                channel={channel}
+                onClose={() => setShowTemplatePreview(false)}
+              />
+            )}
             {channel && (
               <WorkflowTemplateEditor
                 open={showTemplateEditor}
