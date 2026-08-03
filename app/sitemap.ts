@@ -42,6 +42,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/services/housing-disrepair`, lastModified: new Date() },
     { url: `${baseUrl}/services/cpr-35-reports`, lastModified: new Date() },
     { url: `${baseUrl}/services/stock-condition`, lastModified: new Date() },
+    {
+      url: `${baseUrl}/services/assocrics-mentoring`,
+      lastModified: new Date(),
+    },
+    {
+      url: `${baseUrl}/services/thermographic-surveys`,
+      lastModified: new Date(),
+    },
 
     // Trade services
     { url: `${baseUrl}/services/carpentry`, lastModified: new Date() },

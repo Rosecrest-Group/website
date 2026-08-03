@@ -17,6 +17,8 @@ import {
   Trash2,
   Grid3X3,
   Droplet,
+  GraduationCap,
+  Thermometer,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
@@ -87,6 +89,22 @@ const surveyServices = [
     description:
       "Professional environmental risk assessments covering flood risk, contaminated land, radon, ground stability and more.",
     href: "/services/environmental-reports",
+    iconBgColor: "bg-[#262A6F]",
+  },
+  {
+    icon: GraduationCap,
+    title: "AssocRICS Mentoring & Counsellor Support",
+    description:
+      "Structured mentoring for surveying professionals working towards Associate membership of RICS.",
+    href: "/services/assocrics-mentoring",
+    iconBgColor: "bg-[#262A6F]",
+  },
+  {
+    icon: Thermometer,
+    title: "Thermographic Building Surveys",
+    description:
+      "Surveyor-led thermal-imaging building surveys with professional interpretation and a written report.",
+    href: "/services/thermographic-surveys",
     iconBgColor: "bg-[#262A6F]",
   },
 ];

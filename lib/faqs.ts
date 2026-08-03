@@ -28,7 +28,9 @@ export type FAQCategoryId =
   | "partyWall"
   | "epc"
   | "trades"
-  | "pricing";
+  | "pricing"
+  | "assocrics"
+  | "thermographic";
 
 // ─────────────────────────────────────────────────────────────
 // Categories
@@ -219,6 +221,70 @@ export const faqs: Record<FAQCategoryId, FAQCategory> = {
       },
     ],
   },
+
+  assocrics: {
+    id: "assocrics",
+    title: "AssocRICS Mentoring & Counsellor Support",
+    questions: [
+      {
+        question: "Who is this service for?",
+        answer:
+          "This service is for surveying professionals working towards Associate membership of RICS (AssocRICS). Support is tailored to each candidate’s pathway, experience and development needs.",
+      },
+      {
+        question: "Do you provide official MRICS or APC counselling?",
+        answer:
+          "This service currently relates to AssocRICS candidates. Rosecrest does not advertise official MRICS/APC counselling or sign-off unless the appointed counsellor is MRICS or FRICS.",
+      },
+      {
+        question: "Will Rosecrest write my assessment submissions?",
+        answer:
+          "No. All assessment documents must remain the candidate’s own original work. Rosecrest may provide developmental feedback, identify gaps, test competence and assist with spelling, grammar and compliance. We do not write, rewrite or generate competency statements, case studies or assessment submissions for candidates.",
+      },
+      {
+        question: "What is the Official Counsellor Appointment and Governance Fee?",
+        answer:
+          "Where Rosecrest has formally accepted an official RICS counsellor appointment, a fee of £450 including VAT applies. Counsellor approval is an independent professional judgment and cannot be guaranteed or purchased. Rosecrest will only confirm readiness when the counsellor is professionally satisfied that the candidate has demonstrated the required competence.",
+      },
+      {
+        question: "How do I get started?",
+        answer:
+          "Start with a free 30-minute suitability call. We can then discuss pathway mapping, pay-as-you-go mentoring, monthly packages or the AssocRICS Guided Candidate Programme.",
+      },
+    ],
+  },
+
+  thermographic: {
+    id: "thermographic",
+    title: "Thermographic Building Surveys",
+    questions: [
+      {
+        question: "What is a thermographic survey?",
+        answer:
+          "A thermographic survey (also called a thermal-imaging building survey) is a non-invasive inspection using infrared imaging to identify surface-temperature patterns that may be associated with heat loss, defective or missing insulation, thermal bridging, air leakage, condensation, moisture and water ingress.",
+      },
+      {
+        question: "What does the price include?",
+        answer:
+          "Each survey price includes the inspection and a written report containing relevant thermal images, corresponding photographs, an explanation of identified anomalies and recommendations for any necessary further investigation.",
+      },
+      {
+        question: "Can I add this to a Level 2 or Level 3 survey?",
+        answer:
+          "Yes. Thermographic surveying is available as an add-on to an RICS Level 2 or Level 3 survey for £175 including VAT.",
+      },
+      {
+        question: "Does thermal imaging see through walls?",
+        answer:
+          "No. Thermal imaging records surface-temperature patterns and does not see through walls, ceilings, floors or other building elements. A thermal anomaly does not, by itself, conclusively establish the presence, cause or extent of a concealed defect.",
+      },
+      {
+        question: "When might further investigation be needed?",
+        answer:
+          "Findings are interpreted in the context of the building’s construction, environmental conditions, visual observations and any supporting test results. Further intrusive or specialist investigation may be recommended where the cause remains uncertain.",
+      },
+    ],
+  },
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -234,6 +300,8 @@ export function getAllFAQCategories(): FAQCategory[] {
     faqs.cpr35,
     faqs.partyWall,
     faqs.epc,
+    faqs.assocrics,
+    faqs.thermographic,
     faqs.trades,
     faqs.pricing,
   ];
@@ -250,6 +318,8 @@ const routeToCategory: Record<string, FAQCategoryId> = {
   "/services/cpr-35-reports": "cpr35",
   "/services/party-wall": "partyWall",
   "/services/epc": "epc",
+  "/services/assocrics-mentoring": "assocrics",
+  "/services/thermographic-surveys": "thermographic",
 };
 
 /** Returns FAQs visible on the given route, or null if none. */

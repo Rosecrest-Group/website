@@ -80,7 +80,7 @@ export const pageMetadata: Record<string, PageMeta> = {
   "/services": {
     title: "Property Services London | Surveys, Reports & Inspections",
     description:
-      "Explore our property services in London, including surveys, party wall advice, damp and mould inspections, EPCs, environmental reports and more.",
+      "Explore our property services in London, including surveys, party wall advice, damp and mould inspections, EPCs, thermographic surveys, AssocRICS mentoring and more.",
   },
   "/services/stock-condition": {
     title: "Stock Condition Surveys London | Housing & Asset Assessments",
@@ -121,6 +121,17 @@ export const pageMetadata: Record<string, PageMeta> = {
     title: "Environmental Reports London | Property Risk & Land Assessments",
     description:
       "Need an environmental report in London? We assess flood risk, contaminated land, ground stability and hazards to help buyers, landlords and developers make informed decisions.",
+  },
+  "/services/assocrics-mentoring": {
+    title:
+      "AssocRICS Mentoring & Counsellor Support | Rosecrest Group Ltd",
+    description:
+      "Structured mentoring and counsellor support for surveying professionals working towards Associate membership of RICS. Free 30-minute suitability call available.",
+  },
+  "/services/thermographic-surveys": {
+    title: "Thermographic Building Surveys London | Thermal-Imaging Surveys",
+    description:
+      "Surveyor-led thermographic surveys using infrared imaging to identify surface-temperature patterns linked to heat loss, insulation, moisture and water ingress. Written report included.",
   },
   "/services/carpentry": {
     title: "Carpentry Services London | Bespoke Woodwork & Flooring",
