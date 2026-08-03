@@ -4,11 +4,10 @@ interface PageTitleProps {
 
 export default function PageTitle({ children }: PageTitleProps) {
   return (
-    <div className="mx-auto max-w-[1440px] px-6 p-4 md:px-14">
-      <span className="text-[24px] font-semibold tracking-tight text-(--color-primary)">
+    <div className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 lg:px-12">
+      <span className="text-base font-medium tracking-tight text-(--color-ink) sm:text-lg">
         {children}
       </span>
     </div>
   );
 }
-

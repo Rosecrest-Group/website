@@ -88,7 +88,7 @@ export default function DialpadSidebar() {
         <button
           type="button"
           onClick={() => setDialpadSidebarOpen(true)}
-          className="fixed bottom-6 right-4 z-40 flex size-12 items-center justify-center rounded-full bg-(--color-primary) text-white shadow-lg hover:opacity-90 md:right-6"
+          className="fixed bottom-6 right-4 z-40 flex size-10 items-center justify-center rounded-full bg-(--color-brand) text-white shadow-[var(--shadow-elevated)] transition-colors hover:bg-(--color-brand-deep) md:right-6"
           title="Open Dialpad"
           aria-label="Open Dialpad softphone"
         >
@@ -98,7 +98,7 @@ export default function DialpadSidebar() {
 
       <aside
         className={cn(
-          "fixed inset-y-0 right-0 z-30 flex w-[min(100vw,22rem)] flex-col border-l border-(--color-tc-20) bg-white shadow-xl transition-transform duration-200 md:static md:z-auto md:shrink-0 md:shadow-none",
+          "fixed inset-y-0 right-0 z-30 flex w-[min(100vw,22rem)] flex-col border-l border-(--color-line) bg-(--color-surface) shadow-[var(--shadow-elevated)] transition-transform duration-200 md:static md:z-auto md:shrink-0 md:shadow-none",
           dialpadSidebarOpen ? "translate-x-0" : "translate-x-full md:hidden"
         )}
         aria-label="Dialpad softphone"

@@ -20,24 +20,25 @@ const buttonVariants = cva(
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
         crm:
-          "min-w-0 w-[160px] h-[50px] rounded-xl bg-(--color-primary) text-white text-[14px] font-semibold shadow-none hover:opacity-90",
+          "min-w-0 h-auto rounded-lg bg-brand px-4 py-1.5 text-sm font-medium text-white shadow-none transition-colors duration-200 hover:bg-brand-deep",
         crmOutline:
-          "min-w-0 h-10 rounded-[12px] border-[0.5px] border-(--color-nc-40) bg-white font-medium text-(--color-primary) shadow-none hover:border-(--color-primary) hover:bg-slate-50",
+          "min-w-0 h-auto rounded-lg border border-line-strong bg-surface px-4 py-1.5 text-sm font-medium text-ink shadow-none transition-colors duration-200 hover:bg-sidebar",
         crmGhost:
-          "min-w-0 rounded-lg text-(--color-tc-40) shadow-none hover:bg-(--color-nc-20)",
+          "min-w-0 rounded-lg text-ink-subtle shadow-none transition-colors duration-200 hover:bg-sidebar hover:text-ink",
         crmNav:
-          "min-w-0 w-full justify-start gap-3 rounded-xl px-4 py-3 h-auto text-[15px] font-medium text-(--color-tc-40) shadow-none hover:bg-(--color-nc-20)",
+          "group min-w-0 h-auto w-full justify-start gap-2 rounded-lg px-2 py-1.5 text-sm font-normal text-ink-muted shadow-none transition-all duration-200 hover:bg-black/4 hover:text-ink",
         crmNavActive:
-          "min-w-0 w-full justify-start gap-3 rounded-xl px-4 py-3 h-auto text-[15px] font-medium bg-(--color-primary) text-white shadow-none hover:bg-(--color-primary) hover:opacity-90",
+          "group min-w-0 h-auto w-full justify-start gap-2 rounded-lg bg-white px-2 py-1.5 text-sm font-medium text-ink shadow-[0_0_0_1px_var(--color-line)] hover:bg-white",
         crmLink:
-          "min-w-0 h-auto p-0 text-[14px] font-medium text-(--color-primary) underline-offset-4 shadow-none hover:text-(--color-pc-60) hover:underline",
+          "min-w-0 h-auto p-0 text-sm font-medium text-brand underline-offset-4 shadow-none hover:text-brand-deep hover:underline",
       },
       size: {
         default: "h-12 px-4 py-2",
         sm: "h-8 rounded-md px-3 text-xs",
         lg: "h-12 rounded-md px-8 text-base",
         icon: "h-9 w-9",
-        crmIcon: "h-9 w-9 min-w-0 rounded-lg p-2",
+        crmIcon:
+          "h-9 w-9 min-w-0 rounded-lg border border-line bg-surface p-2 text-ink-muted hover:bg-sidebar hover:text-ink",
       },
     },
     defaultVariants: {

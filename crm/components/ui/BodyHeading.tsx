@@ -21,7 +21,7 @@ export default function BodyHeading({
 }: BodyHeadingProps) {
   return (
     <span
-      className={`${sizeClasses[size]} font-semibold text-(--color-tc-40) ${className}`}
+      className={`${sizeClasses[size]} font-medium text-(--color-ink) ${className}`}
     >
       {children}
     </span>

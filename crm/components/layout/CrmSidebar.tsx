@@ -20,14 +20,12 @@ import {
   UserCog,
   UserPlus,
   Users,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,18 +62,6 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   documentation: BookOpen,
 };
 
-function NavIcon({ name, active }: { name: string; active: boolean }) {
-  const Icon = NAV_ICONS[name] ?? LayoutDashboard;
-
-  return (
-    <Icon
-      className="size-5 shrink-0"
-      strokeWidth={active ? 2.25 : 2}
-      aria-hidden
-    />
-  );
-}
-
 const HREF_ICON: Record<string, string> = {
   [CRM_BASE_PATH]: "dashboard",
   [`${CRM_BASE_PATH}/inbox`]: "inbox",
@@ -102,58 +88,104 @@ function isActive(pathname: string, href: string) {
 
 export default function CrmSidebar({
   onNavigate,
+  onClose,
   footer,
+  className,
+  "aria-hidden": ariaHidden,
 }: {
   onNavigate?: () => void;
+  onClose?: () => void;
   footer?: ReactNode;
+  className?: string;
+  "aria-hidden"?: boolean;
 }) {
   const pathname = usePathname();
   const teamChatUnread = useTeamChatUnreadCount();
   const teamChatHref = `${CRM_BASE_PATH}/conversations`;
 
   return (
-    <aside className="flex h-full min-h-0 w-64 flex-col overflow-hidden border-r border-(--color-tc-20) bg-white">
-      <div className="shrink-0 border-b border-(--color-tc-20) p-6">
-        <Link href={CRM_BASE_PATH} onClick={onNavigate} className="block">
-          <span className="text-lg font-bold text-(--color-tc-40)">Rosecrest CRM</span>
-          <span className="mt-0.5 block text-xs text-(--color-tc-30)">Operations Platform</span>
+    <aside
+      aria-hidden={ariaHidden}
+      className={cn(
+        "flex h-full w-60 shrink-0 flex-col border-r border-line bg-sidebar px-4 pt-8 pb-4",
+        className,
+      )}
+    >
+      <div className="mb-8 flex items-center justify-between gap-2.5 px-1">
+        <Link
+          href={CRM_BASE_PATH}
+          onClick={onNavigate}
+          className="flex min-w-0 items-center gap-2.5"
+        >
+          <div className="flex size-8 items-center justify-center rounded-lg bg-linear-to-br from-brand to-brand-deep shadow-[0_4px_12px_rgb(109_40_217/0.35)]">
+            <span className="text-sm font-semibold tracking-tight text-white">R</span>
+          </div>
+          <span className="text-sm font-semibold tracking-tight text-ink">Rosecrest</span>
         </Link>
+
+        {onClose ? (
+          <button
+            type="button"
+            aria-label="Close menu"
+            onClick={onClose}
+            className="flex size-8 items-center justify-center rounded-lg text-ink-subtle outline-none transition-colors hover:bg-sidebar hover:text-ink"
+          >
+            <X className="size-4" strokeWidth={1.75} />
+          </button>
+        ) : null}
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <nav className="space-y-6 p-4">
+        <nav className="flex flex-col gap-5 pb-2">
           {CRM_NAV_SECTIONS.map((section) => (
             <div key={section.title}>
-              <p className="mb-2 px-4 text-[10px] font-semibold uppercase tracking-wider text-(--color-tc-30)">
+              <p className="mb-1.5 px-2.5 text-[11px] font-medium uppercase tracking-wide text-ink-faint">
                 {section.title}
               </p>
-              <div className="space-y-1">
+              <div className="flex flex-col">
                 {section.items.map((item) => {
                   const active = isActive(pathname, item.href);
-                  const icon = HREF_ICON[item.href] ?? "default";
+                  const iconName = HREF_ICON[item.href] ?? "dashboard";
+                  const Icon = NAV_ICONS[iconName] ?? LayoutDashboard;
                   const badge =
                     item.href === teamChatHref && teamChatUnread > 0
                       ? teamChatUnread
                       : item.badge;
 
                   return (
-                    <Button
+                    <Link
                       key={item.href}
-                      variant={active ? "crmNavActive" : "crmNav"}
-                      asChild
+                      href={item.href}
+                      onClick={onNavigate}
+                      className={cn(
+                        "group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-all duration-200",
+                        active
+                          ? "bg-white font-medium text-ink shadow-[0_0_0_1px_var(--color-line)]"
+                          : "font-normal text-ink-muted hover:bg-black/4 hover:text-ink",
+                      )}
                     >
-                      <Link href={item.href} onClick={onNavigate}>
-                        <span className={cn(active ? "text-white" : "text-(--color-tc-30)")}>
-                          <NavIcon name={icon} active={active} />
-                        </span>
-                        <span className="flex-1">{item.label}</span>
-                        {badge !== undefined && badge > 0 && (
-                          <Badge variant={active ? "crmNavActive" : "crmNav"}>
-                            {badge > 99 ? "99+" : badge}
-                          </Badge>
+                      <span
+                        className={cn(
+                          "flex size-6 shrink-0 items-center justify-center rounded-md transition-colors duration-200",
+                          active
+                            ? "bg-brand-muted text-brand"
+                            : "text-ink-subtle group-hover:bg-white/60 group-hover:text-ink",
                         )}
-                      </Link>
-                    </Button>
+                      >
+                        <Icon className="size-[14px]" strokeWidth={1.75} />
+                      </span>
+                      <span className="flex-1">{item.label}</span>
+                      {badge !== undefined && badge > 0 ? (
+                        <span
+                          className={cn(
+                            "rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none text-white",
+                            active ? "bg-brand" : "bg-ink",
+                          )}
+                        >
+                          {badge > 99 ? "99+" : badge}
+                        </span>
+                      ) : null}
+                    </Link>
                   );
                 })}
               </div>
@@ -190,103 +222,88 @@ function SidebarFooter() {
   }, []);
 
   const showAdminLinks = user ? canAccessAdminSettings(user.role) : false;
+  const initials = user ? userInitials(user.fullName) : "·";
 
   return (
-    <div className="shrink-0 border-t border-(--color-tc-20) p-4">
-      <div className="rounded-xl bg-(--color-nc-10) p-3">
-        <DropdownMenu>
+    <div className="relative mt-auto shrink-0 border-t border-line pt-4">
+      <DropdownMenu>
+        <div className="flex items-center gap-2 rounded-xl px-1 py-1 transition-colors duration-200 hover:bg-black/3">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-brand to-brand-deep text-xs font-medium tracking-wide text-white shadow-[0_4px_12px_rgb(109_40_217/0.25)]">
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium leading-tight text-ink">
+                {user?.fullName ?? "Loading…"}
+              </p>
+              {user?.email ? (
+                <p className="mt-0.5 truncate text-xs font-normal text-ink-subtle" title={user.email}>
+                  {user.email}
+                </p>
+              ) : null}
+            </div>
+          </div>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="group flex w-full items-center gap-3 rounded-lg px-1 py-0.5 text-left transition-colors hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-primary)/30 data-[state=open]:bg-white/70"
+              className="group flex size-8 shrink-0 items-center justify-center rounded-lg border border-transparent text-ink-subtle outline-none transition-all duration-200 hover:border-line hover:bg-sidebar hover:text-ink"
+              aria-label="Account menu"
             >
-              <Avatar className="size-10">
-                {user?.avatarUrl ? (
-                  <AvatarImage src={user.avatarUrl} alt={user.fullName} />
-                ) : null}
-                <AvatarFallback className="bg-(--color-primary) text-sm font-semibold text-white">
-                  {user ? userInitials(user.fullName) : "·"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold leading-tight text-(--color-tc-40)">
-                  {user?.fullName ?? "Loading…"}
-                </p>
-                {user?.email ? (
-                  <p className="mt-0.5 truncate text-xs text-(--color-tc-30)" title={user.email}>
-                    {user.email}
-                  </p>
-                ) : null}
-              </div>
-              <ChevronUp
-                className="size-4 shrink-0 text-(--color-tc-30) transition-transform group-hover:text-(--color-tc-40) group-data-[state=open]:rotate-180"
-                aria-hidden
-              />
+              <ChevronUp className="size-4 transition-transform duration-200 group-data-[state=open]:rotate-180" strokeWidth={1.75} />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            side="top"
-            align="start"
-            sideOffset={10}
-            className="w-56 rounded-xl border border-(--color-tc-20) bg-white p-1.5 text-(--color-tc-40) shadow-lg"
-          >
-            <DropdownMenuLabel className="px-2 py-2 font-normal">
-              <div className="flex flex-col gap-0.5">
-                <span className="truncate text-sm font-semibold text-(--color-tc-40)">
-                  {user?.fullName ?? "Loading…"}
+        </div>
+        <DropdownMenuContent
+          side="top"
+          align="end"
+          sideOffset={10}
+          className="crm-theme w-52 rounded-xl border border-line bg-surface p-1.5 text-ink shadow-elevated"
+        >
+          <DropdownMenuLabel className="px-3 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+            Account
+          </DropdownMenuLabel>
+          <DropdownMenuGroup>
+            <DropdownMenuItem asChild className="cursor-pointer gap-3 rounded-lg px-3 py-2.5 text-sm">
+              <Link href={`${CRM_BASE_PATH}/settings/profile`}>
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-brand-muted text-brand">
+                  <User className="size-3.5" strokeWidth={1.75} />
                 </span>
-                {user?.email ? (
-                  <span className="truncate text-xs text-(--color-tc-30)" title={user.email}>
-                    {user.email}
-                  </span>
-                ) : null}
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-(--color-tc-20)" />
-            <DropdownMenuGroup>
-              <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg px-2 py-2 text-sm">
-                <Link href={`${CRM_BASE_PATH}/settings/profile`}>
-                  <User className="size-4 shrink-0" aria-hidden />
-                  My profile
-                </Link>
-              </DropdownMenuItem>
-              {showAdminLinks ? (
-                <>
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg px-2 py-2 text-sm">
-                    <Link href={`${CRM_BASE_PATH}/settings/team`}>
-                      <Users className="size-4 shrink-0" aria-hidden />
-                      Team
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg px-2 py-2 text-sm">
-                    <Link href={`${CRM_BASE_PATH}/settings/partners`}>
-                      <Settings className="size-4 shrink-0" aria-hidden />
-                      API Partners
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg px-2 py-2 text-sm">
-                    <Link href={`${CRM_BASE_PATH}/settings/integrations`}>
-                      <Settings className="size-4 shrink-0" aria-hidden />
-                      Integrations
-                    </Link>
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator className="bg-(--color-tc-20)" />
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                variant="destructive"
-                className="cursor-pointer gap-2 rounded-lg px-2 py-2 text-sm focus:bg-red-50 focus:text-red-600"
-                onClick={() => logout()}
-              >
-                <LogOut className="size-4 shrink-0" aria-hidden />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+                My profile
+              </Link>
+            </DropdownMenuItem>
+            {showAdminLinks ? (
+              <>
+                <DropdownMenuItem asChild className="cursor-pointer gap-3 rounded-lg px-3 py-2.5 text-sm">
+                  <Link href={`${CRM_BASE_PATH}/settings/team`}>
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-brand-muted text-brand">
+                      <Users className="size-3.5" strokeWidth={1.75} />
+                    </span>
+                    Team
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="cursor-pointer gap-3 rounded-lg px-3 py-2.5 text-sm">
+                  <Link href={`${CRM_BASE_PATH}/settings/integrations`}>
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-brand-muted text-brand">
+                      <Settings className="size-3.5" strokeWidth={1.75} />
+                    </span>
+                    Integrations
+                  </Link>
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator className="bg-line" />
+          <DropdownMenuItem
+            className="cursor-pointer gap-3 rounded-lg px-3 py-2.5 text-sm text-orange-700 focus:bg-orange-50 focus:text-orange-700"
+            onClick={() => logout()}
+          >
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-orange-50 text-orange-700">
+              <LogOut className="size-3.5" strokeWidth={1.75} />
+            </span>
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

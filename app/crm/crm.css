@@ -6,51 +6,92 @@
 @source "../../components/ui";
 @source ".";
 
+/* Mullr design tokens — same as MullrBank apps/web/src/theme/tokens.css */
+@theme {
+  --font-sans: var(--font-inter), "Inter", ui-sans-serif, sans-serif;
+
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.4285714;
+
+  --color-ink: #3f3f50;
+  --color-ink-muted: #6e6e7c;
+  --color-ink-subtle: #93939f;
+  --color-ink-faint: #b4b4bd;
+
+  --color-surface: #ffffff;
+  --color-canvas: #e8e8e8;
+  --color-sidebar: #f5f5f7;
+  --color-line: #ebebeb;
+  --color-line-strong: #e0e0e0;
+
+  --color-brand: #6d28d9;
+  --color-brand-light: #a78bfa;
+  --color-brand-muted: #ede9fe;
+  --color-brand-deep: #4c1d95;
+  --color-brand-glow: #c4b5fd;
+
+  --color-chart-primary: #7c3aed;
+  --color-chart-secondary: #c026d3;
+  --color-chart-accent: #818cf8;
+
+  --shadow-elevated: 0 12px 32px rgb(63 63 80 / 0.12);
+  --shadow-focus: 0 0 0 3px #ede9fe;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Bridge legacy Remotah token names → Mullr values */
+  --color-primary: #6d28d9;
+  --color-nc-10: #ffffff;
+  --color-nc-20: #f5f5f7;
+  --color-nc-40: #e0e0e0;
+  --color-nc-60: #6e6e7c;
+  --color-pc-10: #ede9fe;
+  --color-pc-60: #4c1d95;
+  --color-tc-10: #f5f5f7;
+  --color-tc-20: #ebebeb;
+  --color-tc-30: #93939f;
+  --color-tc-40: #3f3f50;
+}
+
 .crm-theme {
-  font-family: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-manrope);
+  font-family: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.4285714;
+  color: var(--color-ink);
+  background-color: var(--color-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 
-  --color-primary: #0f2740;
-  --color-nc-10: #fafaf7;
-  --color-nc-20: #f5f5f5;
-  --color-nc-40: #e4e3e3;
-  --color-nc-60: #908d85;
-  --color-pc-10: #e4e3e3;
-  --color-pc-60: #163356;
-  --color-tc-10: #f9f9f9;
-  --color-tc-20: #e8e5dd;
-  --color-tc-30: #908d85;
-  --color-tc-40: #0f2740;
-
-  --radius: 0.75rem;
-  --background: #fafaf7;
-  --foreground: #0f2740;
+  /* Shadcn bridge under CRM */
+  --radius: 0.5rem;
+  --background: #ffffff;
+  --foreground: #3f3f50;
   --card: #ffffff;
-  --card-foreground: #0f2740;
+  --card-foreground: #3f3f50;
   --popover: #ffffff;
-  --popover-foreground: #0f2740;
-  --primary: #0f2740;
+  --popover-foreground: #3f3f50;
+  --primary: #6d28d9;
   --primary-foreground: #ffffff;
-  --secondary: #f5f5f5;
-  --secondary-foreground: #0f2740;
-  --muted: #f5f5f5;
-  --muted-foreground: #908d85;
-  --accent: #f5f5f5;
-  --accent-foreground: #0f2740;
-  --border: #e8e5dd;
-  --input: #e8e5dd;
-  --ring: #0f2740;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #0f2740;
-  --sidebar-primary: #0f2740;
+  --secondary: #f5f5f7;
+  --secondary-foreground: #3f3f50;
+  --muted: #f5f5f7;
+  --muted-foreground: #6e6e7c;
+  --accent: #f5f5f7;
+  --accent-foreground: #3f3f50;
+  --border: #ebebeb;
+  --input: #ebebeb;
+  --ring: #a78bfa;
+  --sidebar: #f5f5f7;
+  --sidebar-foreground: #3f3f50;
+  --sidebar-primary: #6d28d9;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f5f5f5;
-  --sidebar-accent-foreground: #0f2740;
-  --sidebar-border: #e8e5dd;
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #3f3f50;
+  --sidebar-border: #ebebeb;
 }
 
 .crm-theme .wf-builder {
-  --wf-font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --wf-font-display: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Match default email-client spacing for template preview/editor HTML bodies. */
@@ -82,5 +123,5 @@
 .crm-email-body blockquote {
   margin: 0 0 1em;
   padding-left: 1em;
-  border-left: 3px solid var(--color-tc-20);
+  border-left: 3px solid var(--color-line);
 }

@@ -14,18 +14,15 @@ export default function CurvedContainer({
 }) {
   const bgColor =
     variant === "grey"
-      ? "bg-[#f6f6f6]"
+      ? "bg-sidebar"
       : variant === "primary"
-        ? "bg-(--color-primary)"
-        : "bg-white";
-  const borderStyle = variant === "grey" ? "border-[0.5px]" : "border";
-  const borderClasses = showBorderAndShadow ? `${borderStyle} border-(--color-tc-20)` : "";
-  const shadowClass = showBorderAndShadow ? "shadow-sm" : "";
+        ? "bg-brand text-white"
+        : "bg-surface";
+  const borderClasses = showBorderAndShadow ? "border border-line" : "";
 
   return (
-    <div className={cn("rounded-2xl", borderClasses, bgColor, shadowClass, className)}>
+    <div className={cn("overflow-hidden rounded-xl", borderClasses, bgColor, className)}>
       {children}
     </div>
   );
 }
-

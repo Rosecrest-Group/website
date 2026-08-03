@@ -16,7 +16,6 @@ import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
-import SearchInput from "@/crm/components/admin/SearchInput";
 import SelectField from "@/crm/components/ui/SelectField";
 import Table, { type Column } from "@/crm/components/ui/Table";
 import StatusPill from "@/crm/components/ui/StatusPill";
@@ -214,14 +213,14 @@ export default function TasksList() {
         <div>
           <p
             className={cn(
-              "font-medium",
-              row.status === "DONE" ? "text-(--color-tc-30) line-through" : "text-(--color-tc-40)"
+              "text-sm font-medium",
+              row.status === "DONE" ? "text-ink-subtle line-through" : "text-ink"
             )}
           >
             {row.title}
           </p>
           {row.description && (
-            <p className="mt-0.5 max-w-md truncate text-xs text-(--color-tc-30)">{row.description}</p>
+            <p className="mt-0.5 max-w-md truncate text-xs text-ink-subtle">{row.description}</p>
           )}
         </div>
       ),
@@ -230,18 +229,18 @@ export default function TasksList() {
       key: "assignee",
       header: "Assignee",
       render: (_, row) => (
-        <span className="text-(--color-tc-30)">{row.assignee?.fullName ?? "Unassigned"}</span>
+        <span className="text-sm text-ink-muted">{row.assignee?.fullName ?? "Unassigned"}</span>
       ),
     },
     {
       key: "lead",
       header: "Lead",
       render: (_, row) => {
-        if (!row.lead) return <span className="text-(--color-tc-30)">—</span>;
+        if (!row.lead) return <span className="text-sm text-ink-subtle">—</span>;
         return (
           <Link
             href={`/crm/leads/${row.lead.id}`}
-            className="text-(--color-primary) hover:underline"
+            className="text-sm font-medium text-ink hover:text-brand"
             onClick={(e) => e.stopPropagation()}
           >
             {row.lead.customerName ?? row.lead.propertyPostcode ?? "View lead"}
@@ -253,7 +252,7 @@ export default function TasksList() {
       key: "dueAt",
       header: "Due",
       render: (value) => (
-        <span className="text-(--color-tc-30)">{formatDueDate(value as string | null)}</span>
+        <span className="text-sm text-ink-muted tabular-nums">{formatDueDate(value as string | null)}</span>
       ),
     },
     {
@@ -313,50 +312,54 @@ export default function TasksList() {
         }
       />
 
-      <div className="flex flex-wrap items-end gap-3">
-        <SearchInput
-          className="max-w-md min-w-[200px] flex-1"
-          placeholder="Search tasks…"
-          value={search}
-          onChange={setSearch}
-        />
-        <SelectField value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">All statuses</option>
-          <option value="OPEN">Open</option>
-          <option value="DONE">Done</option>
-        </SelectField>
-        <SelectField value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}>
-          <option value="">All assignees</option>
-          {teamMembers.map((member) => (
-            <option key={member.id} value={member.id}>
-              {member.fullName}
-            </option>
-          ))}
-        </SelectField>
-        <SecondaryButton type="button" onClick={load}>
-          Search
-        </SecondaryButton>
-      </div>
+      {error && <p className="text-sm text-orange-700">{error}</p>}
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      {loading ? (
+      {loading && tasks.length === 0 ? (
         <LoadingSpinner />
-      ) : tasks.length === 0 ? (
-        <p className="text-center text-(--color-tc-30)">No tasks found</p>
       ) : (
         <Table
+          title="All tasks"
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search tasks…"
+          toolbarExtra={
+            <>
+              <SelectField
+                variant="filter"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="">All statuses</option>
+                <option value="OPEN">Open</option>
+                <option value="DONE">Done</option>
+              </SelectField>
+              <SelectField
+                variant="filter"
+                value={assigneeFilter}
+                onChange={(e) => setAssigneeFilter(e.target.value)}
+              >
+                <option value="">All assignees</option>
+                {teamMembers.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.fullName}
+                  </option>
+                ))}
+              </SelectField>
+            </>
+          }
           columns={columns}
           data={tasks as (Task & Record<string, unknown>)[]}
           getRowKey={(r) => r.id}
           onRowClick={(row) => openTaskPanel(row)}
           rowClassName={(row) =>
-            selectedTask?.id === row.id ? "bg-(--color-nc-10) hover:bg-(--color-nc-10)" : ""
+            selectedTask?.id === row.id ? "bg-sidebar hover:bg-sidebar" : ""
           }
+          emptyMessage="No tasks found"
+          totalCount={total}
         />
       )}
 
-      {actionLoadingId && <p className="text-xs text-(--color-tc-30)">Updating task…</p>}
+      {actionLoadingId && <p className="text-xs text-ink-subtle">Updating task…</p>}
 
       <TaskDetailPanel
         task={selectedTask}

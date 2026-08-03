@@ -63,6 +63,7 @@ export interface AdminUserSummary {
   id: string;
   email: string;
   fullName: string;
+  credentials?: string | null;
   role: UserRole;
   phone?: string | null;
   phoneEnabled: boolean;
@@ -634,6 +635,10 @@ export interface Job {
   accessDetailsVerifiedAt?: string | null;
   hasConditionRating3?: boolean | null;
   dataCaptureComplete?: boolean;
+  surveyorJobReviewed?: boolean;
+  surveyorDiaryConfirmed?: boolean;
+  surveyorDesktopResearch?: boolean;
+  reviewRequestSentAt?: string | null;
   inspectionDate?: string | null;
   inspectionWindow?: string | null;
   reportInternalDeadline?: string | null;
@@ -647,7 +652,7 @@ export interface Job {
   documents?: JobDocument[];
   createdAt: string;
   customer?: Customer;
-  assignedTo?: { id: string; fullName: string; email: string } | null;
+  assignedTo?: { id: string; fullName: string; email: string; credentials?: string | null } | null;
 }
 
 export interface SnaggingItem {

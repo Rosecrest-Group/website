@@ -14,17 +14,17 @@ const badgeVariants = cva(
         warning: "border-transparent bg-amber-100 text-amber-800",
         destructive: "border-transparent bg-red-100 text-red-800",
         crmCompleted:
-          "rounded-full border-0 bg-emerald-50 px-3.5 py-1 text-[11px] font-semibold text-emerald-700 md:text-[12px]",
+          "rounded-full border-0 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700 sm:text-xs",
         crmPending:
-          "rounded-full border-0 bg-blue-50 px-3.5 py-1 text-[11px] font-semibold text-blue-700 md:text-[12px]",
+          "rounded-full border-0 bg-brand-muted px-2.5 py-1 text-[11px] font-medium text-brand sm:text-xs",
         crmInReview:
-          "rounded-full border-0 bg-amber-50 px-3.5 py-1 text-[11px] font-semibold text-amber-700 md:text-[12px]",
+          "rounded-full border-0 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800 sm:text-xs",
         crmFailed:
-          "rounded-full border-0 bg-rose-50 px-3.5 py-1 text-[11px] font-semibold text-rose-700 md:text-[12px]",
+          "rounded-full border-0 bg-orange-50 px-2.5 py-1 text-[11px] font-medium text-orange-700 sm:text-xs",
         crmNav:
-          "min-w-5 rounded-full border-0 bg-(--color-primary) px-2 py-0.5 text-center text-[11px] font-semibold text-white",
+          "min-w-5 rounded-full border-0 bg-brand px-1.5 py-0.5 text-center text-[10px] font-medium leading-none text-white",
         crmNavActive:
-          "min-w-5 rounded-full border-0 bg-white/20 px-2 py-0.5 text-center text-[11px] font-semibold text-white",
+          "min-w-5 rounded-full border-0 bg-brand px-1.5 py-0.5 text-center text-[10px] font-medium leading-none text-white",
       },
     },
     defaultVariants: { variant: "default" },

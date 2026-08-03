@@ -58,11 +58,11 @@ export default function NotificationBell() {
               ? `Notifications, ${unreadCount} unread`
               : "Notifications"
           }
-          className="relative inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-(--color-tc-20) bg-white text-(--color-tc-40) shadow-sm transition hover:border-(--color-primary)/30 hover:bg-(--color-nc-10) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-primary)/25"
+          className="group relative flex size-9 shrink-0 items-center justify-center rounded-lg border border-line bg-surface text-ink-muted outline-none transition-all duration-200 hover:bg-sidebar hover:text-ink"
         >
-          <Bell className="size-[18px] shrink-0 stroke-[1.75]" aria-hidden />
+          <Bell className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
           {unreadCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-(--color-primary) px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-white">
+            <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-[10px] font-medium leading-none text-white ring-2 ring-surface">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
@@ -71,16 +71,16 @@ export default function NotificationBell() {
       <DropdownMenuContent
         align="end"
         sideOffset={8}
-        className="w-[min(100vw-2rem,22rem)] overflow-hidden rounded-xl border border-(--color-tc-20) bg-white p-0 shadow-lg"
+        className="crm-theme w-[min(100vw-2rem,22rem)] overflow-hidden rounded-xl border border-line bg-surface p-0 text-ink shadow-elevated"
       >
-        <div className="flex items-center justify-between border-b border-(--color-tc-20) bg-(--color-nc-10) px-4 py-3">
-          <DropdownMenuLabel className="p-0 text-sm font-semibold text-(--color-tc-40)">
+        <div className="flex items-center justify-between border-b border-line bg-sidebar px-4 py-3">
+          <DropdownMenuLabel className="p-0 text-sm font-medium text-ink">
             Notifications
           </DropdownMenuLabel>
           {unreadCount > 0 && (
             <button
               type="button"
-              className="text-xs font-medium text-(--color-primary) hover:underline"
+              className="text-xs font-medium text-brand hover:underline"
               onClick={() => void markAllRead()}
             >
               Mark all read
@@ -90,53 +90,42 @@ export default function NotificationBell() {
 
         {items.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
-            <span className="grid size-10 place-items-center rounded-full bg-(--color-nc-10) text-(--color-tc-30)">
-              <Bell className="size-5 stroke-[1.5]" aria-hidden />
+            <span className="grid size-10 place-items-center rounded-full bg-sidebar text-ink-subtle">
+              <Bell className="size-5" strokeWidth={1.75} aria-hidden />
             </span>
-            <p className="text-sm font-medium text-(--color-tc-40)">You&apos;re all caught up</p>
-            <p className="text-xs text-(--color-tc-30)">New mentions and messages will appear here.</p>
+            <p className="text-sm font-medium text-ink">You&apos;re all caught up</p>
+            <p className="text-xs text-ink-subtle">New mentions and messages will appear here.</p>
           </div>
         ) : (
           <div className="max-h-80 overflow-y-auto py-1">
             {items.map((n) => (
-              <DropdownMenuItem key={n.id} asChild className="rounded-none px-0 py-0 focus:bg-(--color-nc-10)">
+              <DropdownMenuItem
+                key={n.id}
+                asChild
+                className="cursor-pointer rounded-none px-4 py-3 focus:bg-sidebar"
+              >
                 <Link
                   href={notificationHref(n)}
-                  className="flex w-full gap-3 border-b border-(--color-tc-20)/60 px-4 py-3 last:border-0 hover:bg-(--color-nc-10)"
                   onClick={() => void markRead(n.id)}
+                  className="flex flex-col items-start gap-0.5"
                 >
-                  <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-(--color-primary)/10 text-(--color-primary)">
-                    <Bell className="size-3.5 stroke-[2]" aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1 text-left">
-                    <span className="block truncate text-sm font-medium text-(--color-tc-40)">
-                      {n.title}
-                    </span>
-                    <span className="mt-0.5 block line-clamp-2 text-xs text-(--color-tc-30)">
-                      {n.body}
-                    </span>
-                    <span className="mt-1 block text-[11px] text-(--color-tc-30)">
-                      {formatWhen(n.createdAt)}
-                    </span>
-                  </span>
-                  {!n.isRead && (
-                    <span className="mt-2 size-2 shrink-0 rounded-full bg-(--color-primary)" />
-                  )}
+                  <span className="text-sm font-medium text-ink">{n.title}</span>
+                  {n.body ? (
+                    <span className="line-clamp-2 text-xs text-ink-muted">{n.body}</span>
+                  ) : null}
+                  <span className="text-[11px] text-ink-faint">{formatWhen(n.createdAt)}</span>
                 </Link>
               </DropdownMenuItem>
             ))}
           </div>
         )}
 
-        <DropdownMenuSeparator className="m-0 bg-(--color-tc-20)" />
-        <DropdownMenuItem asChild className="rounded-none focus:bg-(--color-nc-10)">
-          <Link
-            href={`${CRM_BASE_PATH}/notifications`}
-            className="justify-center py-3 text-center text-sm font-medium text-(--color-primary) hover:bg-(--color-nc-10)"
-          >
-            View all notifications
-          </Link>
-        </DropdownMenuItem>
+        <DropdownMenuSeparator className="bg-line" />
+        <div className="p-1.5">
+          <DropdownMenuItem asChild className="cursor-pointer justify-center rounded-lg py-2.5 text-sm font-medium text-brand focus:bg-brand-muted focus:text-brand">
+            <Link href={`${CRM_BASE_PATH}/notifications`}>View all</Link>
+          </DropdownMenuItem>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

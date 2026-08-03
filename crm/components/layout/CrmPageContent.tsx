@@ -8,8 +8,12 @@ export default function CrmPageContent({
   className?: string;
 }) {
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className={`space-y-6 p-4 lg:p-8 ${className}`}>{children}</div>
+    <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+      <div
+        className={`space-y-6 px-4 py-4 sm:px-6 sm:py-6 lg:px-12 lg:py-10 ${className}`}
+      >
+        {children}
+      </div>
     </div>
   );
 }

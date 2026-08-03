@@ -66,7 +66,7 @@ export default function CrmSlidePanel({
         type="button"
         aria-label="Close panel"
         className={cn(
-          "absolute inset-0 bg-black/40 transition-opacity duration-300",
+          "absolute inset-0 bg-(--color-ink)/20 backdrop-blur-[1px] transition-opacity duration-300",
           visible ? "opacity-100" : "opacity-0"
         )}
         onClick={closeDisabled ? undefined : onClose}
@@ -77,35 +77,40 @@ export default function CrmSlidePanel({
         aria-modal="true"
         aria-labelledby={title ? "crm-slide-panel-title" : undefined}
         className={cn(
-          "absolute inset-y-0 right-0 flex h-dvh max-h-dvh w-full flex-col border-l border-(--color-tc-20) bg-white shadow-2xl transition-transform duration-300 ease-out",
+          "absolute inset-y-0 right-0 flex h-dvh max-h-dvh w-full flex-col border-l border-(--color-line) bg-(--color-surface) shadow-(--shadow-elevated) transition-transform duration-300 ease-[var(--ease-out-expo)]",
           widthClassName,
           visible ? "translate-x-0" : "translate-x-full"
         )}
       >
-        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-(--color-tc-20) px-6 py-5">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-(--color-line) px-5 py-4">
           <div className="min-w-0">
             {title && (
-              <h2 id="crm-slide-panel-title" className="text-lg font-semibold text-(--color-tc-40)">
+              <h2
+                id="crm-slide-panel-title"
+                className="text-lg font-medium tracking-[-0.02em] text-(--color-ink)"
+              >
                 {title}
               </h2>
             )}
-            {description && <p className="mt-1 text-sm text-(--color-tc-30)">{description}</p>}
+            {description && (
+              <p className="mt-1 text-sm text-(--color-ink-muted)">{description}</p>
+            )}
           </div>
           <button
             type="button"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] text-(--color-tc-30) transition hover:bg-(--color-nc-10) hover:text-(--color-tc-40) disabled:opacity-50"
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-(--color-ink-subtle) transition-colors hover:bg-(--color-nc-20) hover:text-(--color-ink) disabled:opacity-50"
             onClick={onClose}
             disabled={closeDisabled}
             aria-label="Close"
           >
-            <X className="h-5 w-5" strokeWidth={2} />
+            <X className="size-4" strokeWidth={1.75} />
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
 
         {footer && (
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-(--color-tc-20) bg-(--color-nc-10)/40 px-6 py-4">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-(--color-line) bg-(--color-nc-20)/40 px-5 py-4">
             {footer}
           </div>
         )}

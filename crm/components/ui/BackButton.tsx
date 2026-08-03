@@ -11,22 +11,22 @@ export interface BackButtonProps
 
 const variantStyles = {
   white: {
-    bg: "bg-white",
-    border: "border border-gray-300",
-    text: "text-slate-500",
-    hover: "hover:bg-slate-50",
+    bg: "bg-(--color-surface)",
+    border: "border border-(--color-line)",
+    text: "text-(--color-ink-muted)",
+    hover: "hover:bg-(--color-nc-20)",
   },
   grey: {
-    bg: "bg-gray-100",
-    border: "border border-gray-300",
-    text: "text-gray-700",
-    hover: "hover:bg-gray-200",
+    bg: "bg-(--color-nc-20)",
+    border: "border border-(--color-line)",
+    text: "text-(--color-ink)",
+    hover: "hover:bg-(--color-line)",
   },
   primary: {
-    bg: "bg-(--color-primary)",
-    border: "border border-(--color-primary)",
+    bg: "bg-(--color-brand)",
+    border: "border border-(--color-brand)",
     text: "text-white",
-    hover: "hover:opacity-90",
+    hover: "hover:bg-(--color-brand-deep)",
   },
 };
 
@@ -37,14 +37,14 @@ const sizeStyles = {
     rounded: "rounded-lg",
   },
   md: {
-    size: "h-10 w-10",
-    icon: "w-5 h-5",
-    rounded: "rounded-xl",
+    size: "h-9 w-9",
+    icon: "w-4 h-4",
+    rounded: "rounded-lg",
   },
   lg: {
-    size: "h-12 w-12",
-    icon: "w-6 h-6",
-    rounded: "rounded-xl",
+    size: "h-10 w-10",
+    icon: "w-5 h-5",
+    rounded: "rounded-lg",
   },
 };
 

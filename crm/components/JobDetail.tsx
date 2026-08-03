@@ -266,6 +266,29 @@ export default function JobDetail({ id }: { id: string }) {
     reload();
   }
 
+  async function toggleSurveyorCheckpoint(
+    field: "surveyorJobReviewed" | "surveyorDiaryConfirmed" | "surveyorDesktopResearch",
+    value: boolean
+  ) {
+    setJob((j) => (j ? { ...j, [field]: value } : j));
+    try {
+      await api.updateJob(id, { [field]: value });
+      await reload();
+    } catch (e) {
+      await reload();
+      alert(e instanceof Error ? e.message : "Could not update checkpoint");
+    }
+  }
+
+  async function sendReviewRequest() {
+    try {
+      await api.sendJobReviewRequest(id);
+      await reload();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Could not send review request");
+    }
+  }
+
   return (
     <CrmPageContent>
       <Link
@@ -512,6 +535,46 @@ export default function JobDetail({ id }: { id: string }) {
                   />
                   Data capture complete (photos, notes, checklist)
                 </label>
+                <div className="space-y-2 border-t border-(--color-tc-20) pt-3">
+                  <p className="text-sm font-medium text-(--color-tc-40)">Surveyor pre-site checkpoints</p>
+                  <p className="text-xs text-(--color-tc-30)">
+                    Required before attending site. Ops is alerted if these remain unticked.
+                  </p>
+                  {(
+                    [
+                      ["surveyorJobReviewed", "Job reviewed"],
+                      ["surveyorDiaryConfirmed", "Diary confirmed"],
+                      ["surveyorDesktopResearch", "Desktop research completed"],
+                    ] as const
+                  ).map(([field, label]) => (
+                    <label key={field} className="flex cursor-pointer items-center gap-2 text-sm text-(--color-tc-40)">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(job[field])}
+                        onChange={(e) => toggleSurveyorCheckpoint(field, e.target.checked)}
+                        className="size-4 rounded border-(--color-tc-20)"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                {(job.stage === "COMPLETED" || job.stage === "REPORT_DELIVERED") && (
+                  <div className="space-y-2 border-t border-(--color-tc-20) pt-3">
+                    <p className="text-sm font-medium text-(--color-tc-40)">Review request</p>
+                    <p className="text-xs text-(--color-tc-30)">
+                      Manual only. Send only if report issued, no complaint/query/refund, and not already sent.
+                    </p>
+                    {job.reviewRequestSentAt ? (
+                      <p className="text-xs text-emerald-700">
+                        Sent {new Date(job.reviewRequestSentAt).toLocaleString()}
+                      </p>
+                    ) : (
+                      <PrimaryButton type="button" className="w-auto px-6" onClick={sendReviewRequest}>
+                        Send review request
+                      </PrimaryButton>
+                    )}
+                  </div>
+                )}
               </div>
             </CrmPanel>
           </>

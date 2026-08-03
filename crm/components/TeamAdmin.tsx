@@ -89,7 +89,10 @@ export default function TeamAdmin() {
     }
   }
 
-  async function updateUser(id: string, payload: { role?: string; isActive?: boolean }) {
+  async function updateUser(
+    id: string,
+    payload: { role?: string; isActive?: boolean; credentials?: string | null }
+  ) {
     if (!isManager) {
       toast.error("Only Super Admins can update team members");
       return;
@@ -110,6 +113,30 @@ export default function TeamAdmin() {
   const columns: Column<TeamRow>[] = [
     { key: "fullName", header: "Name" },
     { key: "email", header: "Email" },
+    {
+      key: "credentials",
+      header: "Credentials",
+      render: (value, row) =>
+        isManager ? (
+          <input
+            type="text"
+            defaultValue={typeof value === "string" ? value : ""}
+            placeholder="e.g. MRICS, BSc"
+            disabled={savingId === row.id}
+            className="h-10 w-full min-w-[160px] rounded-xl border border-(--color-tc-20) bg-white px-3 text-sm text-(--color-tc-40) outline-none focus:ring-2 focus:ring-(--color-primary)/20"
+            onBlur={(e) => {
+              const next = e.target.value.trim();
+              const current = (row.credentials ?? "").trim();
+              if (next === current) return;
+              void updateUser(row.id, { credentials: next || null });
+            }}
+          />
+        ) : (
+          <span className="text-sm text-(--color-tc-30)">
+            {typeof value === "string" && value ? value : "—"}
+          </span>
+        ),
+    },
     {
       key: "role",
       header: "Role",
@@ -227,10 +254,15 @@ export default function TeamAdmin() {
         </CrmPanel>
       ) : null}
 
-      <CrmPanel title="Team members">
-        {error ? <p className="mb-4 text-sm text-red-600">{error}</p> : null}
-        <Table columns={columns} data={users} getRowKey={(row) => row.id} />
-      </CrmPanel>
+      {error ? <p className="mb-4 text-sm text-orange-700">{error}</p> : null}
+      <Table
+        title="Team members"
+        columns={columns}
+        data={users}
+        getRowKey={(row) => row.id}
+        emptyMessage="No team members yet"
+        totalCount={users.length}
+      />
     </CrmPageContent>
   );
 }

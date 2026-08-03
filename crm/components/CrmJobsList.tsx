@@ -12,6 +12,7 @@ import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 
 export default function CrmJobsList() {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,6 +22,18 @@ export default function CrmJobsList() {
       .finally(() => setLoading(false));
   }, []);
 
+  const filtered = search.trim()
+    ? jobs.filter((job) => {
+        const q = search.toLowerCase();
+        return (
+          job.jobNumber?.toLowerCase().includes(q) ||
+          job.propertyPostcode?.toLowerCase().includes(q) ||
+          job.stage?.toLowerCase().includes(q) ||
+          job.paymentStatus?.toLowerCase().includes(q)
+        );
+      })
+    : jobs;
+
   const columns: Column<Job & Record<string, unknown>>[] = [
     {
       key: "jobNumber",
@@ -28,13 +41,19 @@ export default function CrmJobsList() {
       render: (value, row) => (
         <Link
           href={`/crm/jobs/${row.id}`}
-          className="font-mono text-sm text-(--color-primary) hover:underline"
+          className="text-sm font-medium text-ink tabular-nums hover:text-brand"
         >
           {value as string}
         </Link>
       ),
     },
-    { key: "propertyPostcode", header: "Property" },
+    {
+      key: "propertyPostcode",
+      header: "Property",
+      render: (value) => (
+        <span className="text-sm text-ink-muted">{(value as string) || "—"}</span>
+      ),
+    },
     {
       key: "stage",
       header: "Stage",
@@ -42,11 +61,22 @@ export default function CrmJobsList() {
         <StatusPill variant="in-review" label={(value as string).replace(/_/g, " ")} />
       ),
     },
-    { key: "paymentStatus", header: "Payment" },
+    {
+      key: "paymentStatus",
+      header: "Payment",
+      render: (value) => (
+        <span className="text-sm text-ink-muted">{(value as string) || "—"}</span>
+      ),
+    },
     {
       key: "agreedAmount",
       header: "Amount",
-      render: (value) => `£${value as number}`,
+      align: "right",
+      render: (value) => (
+        <span className="text-sm font-medium text-ink tabular-nums">
+          £{value as number}
+        </span>
+      ),
     },
   ];
 
@@ -56,10 +86,18 @@ export default function CrmJobsList() {
 
       {loading ? (
         <LoadingSpinner />
-      ) : jobs.length === 0 ? (
-        <p className="text-center text-(--color-tc-30)">No jobs yet — convert a lead to create one</p>
       ) : (
-        <Table columns={columns} data={jobs as (Job & Record<string, unknown>)[]} getRowKey={(r) => r.id} />
+        <Table
+          title="All jobs"
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search jobs…"
+          columns={columns}
+          data={filtered as (Job & Record<string, unknown>)[]}
+          getRowKey={(r) => r.id}
+          emptyMessage="No jobs yet — convert a lead to create one"
+          totalCount={filtered.length}
+        />
       )}
     </CrmPageContent>
   );

@@ -593,7 +593,7 @@ export const api = {
 
   updateTeamUser: (
     id: string,
-    payload: { role?: string; isActive?: boolean; fullName?: string }
+    payload: { role?: string; isActive?: boolean; fullName?: string; credentials?: string | null }
   ) =>
     request<AdminUserSummary>(`/admin/users/${id}`, {
       method: "PATCH",
@@ -758,6 +758,9 @@ export const api = {
 
   confirmJobAccessDetails: (id: string) =>
     request<Job>(`/jobs/${id}/confirm-access-details`, { method: "POST" }),
+
+  sendJobReviewRequest: (id: string) =>
+    request<Job>(`/jobs/${id}/send-review-request`, { method: "POST" }),
 
   listSurveyors: () =>
     request<{ items: { id: string; fullName: string; email: string }[] }>("/jobs/assignees/surveyors"),

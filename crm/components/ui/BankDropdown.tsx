@@ -194,7 +194,7 @@ export default function BankDropdown({
           e.currentTarget.blur();
         }}
         className="bank-dropdown-btn w-full sm:w-[120px] h-12 px-3 rounded-3xl border border-(--color-tc-20) text-sm text-(--color-tc-40) outline-none focus:ring-2 focus:ring-(--color-primary)/20 appearance-none cursor-pointer flex items-center justify-between gap-2"
-        style={{ ...buttonStyles, backgroundColor: '#fafafa' }}
+        style={{ ...buttonStyles, backgroundColor: 'var(--color-nc-20)' }}
       >
         <span className="flex-1 flex items-center justify-center gap-2">
           <span>{selectedBank.label}</span>

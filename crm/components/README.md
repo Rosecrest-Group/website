@@ -1,6 +1,6 @@
 # CRM component library
 
-Design-system components ported from Remotah (`RemotahMain/web/components`). Use these inside CRM (`/crm/*`) — not shadcn `@/components/ui/*` for new CRM UI.
+Design system for `/crm/*`, matched to **MullrBank** (`MullrNew` locally). Use these inside CRM — not shadcn `@/components/ui/*` for new CRM UI.
 
 ## Layout (`crm/components/layout/`)
 
@@ -14,21 +14,28 @@ Design-system components ported from Remotah (`RemotahMain/web/components`). Use
 - **Typography:** `BodyHeading`, `BodySubtext`
 - **Buttons:** `PrimaryButton`, `SecondaryButton`, `BackButton`
 - **Data:** `Table`, `Pagination`, `StatusPill`, `ActionDropdown`
-- **Inputs:** `Toggle`, `CalendarInput`, `BankDropdown`, `CurrencyDropdown`
 - **Other:** `Logo`, `ProfileDropdown`
 
 ## Admin (`crm/components/admin/`)
 
 - `StatsCard`, `SearchInput`, `AdminSidebar`
 
-## Auth (`crm/components/auth/`)
-
-- `AuthLeftPanel`, `WelcomeModal` (Remotah copy; adapt copy/assets before use)
-
 ## Theme
 
-CRM pages render inside `.crm-theme` (`CrmShell`). Tokens: `--color-primary`, `--color-tc-*`, `--color-nc-*` in `app/globals.css`.
+Tokens in `app/crm/crm.css` via Tailwind `@theme` (same as Mullr `apps/web/src/theme/tokens.css`):
 
-## Assets
+- Brand: `bg-brand` / `text-brand` (`#6d28d9`)
+- Ink: `text-ink`, `text-ink-muted`, `text-ink-subtle`
+- Surfaces: `bg-surface`, `bg-sidebar` (`#f5f5f7`), `bg-canvas`
+- Lines: `border-line`
+- Font: Inter
 
-Status/BackButton icons: `/verify.svg`, `/hour-glass.svg`, `/timer.svg`, `/arrow-left.svg` in `public/`.
+Prefer Mullr utility names (`bg-brand`) over legacy `bg-(--color-primary)`.
+
+## Sizing conventions
+
+- Primary button: `rounded-lg px-4 py-1.5 text-sm`
+- Panels / tables: `rounded-xl border border-line bg-surface`
+- Table headers: `text-xs font-normal text-ink-subtle` (not filled navy)
+- Badges / pagination: `rounded-full`
+- Nav active: white chip + hairline shadow; icon in brand-muted tile

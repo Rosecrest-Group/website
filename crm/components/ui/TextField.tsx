@@ -7,7 +7,7 @@ export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 const inputClassName =
-  "rounded-xl border border-(--color-tc-20) bg-white text-sm text-(--color-tc-40) outline-none placeholder:text-(--color-tc-30) focus:ring-2 focus:ring-(--color-primary)/20";
+  "rounded-lg border border-line bg-surface text-sm text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-brand-light focus:ring-2 focus:ring-brand-muted";
 
 export default function TextField({
   label,
@@ -21,7 +21,7 @@ export default function TextField({
   if (inline && label) {
     return (
       <div className="flex items-center gap-3">
-        <label htmlFor={inputId} className="shrink-0 text-sm font-medium text-(--color-tc-40)">
+        <label htmlFor={inputId} className="shrink-0 text-sm font-medium text-ink">
           {label}
         </label>
         <input
@@ -36,13 +36,13 @@ export default function TextField({
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={inputId} className="text-sm font-medium text-(--color-tc-40)">
+        <label htmlFor={inputId} className="text-sm font-medium text-ink">
           {label}
         </label>
       )}
       <input
         id={inputId}
-        className={cn("h-12 w-full px-4", inputClassName, className)}
+        className={cn("w-full px-3 py-2.5", inputClassName, className)}
         {...props}
       />
     </div>

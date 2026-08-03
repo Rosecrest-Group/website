@@ -34,11 +34,11 @@ const ICON_TINTS: Record<
   { text: string; bg: string; accent: string; trendPositive: string; trendNegative: string }
 > = {
   primary: {
-    text: "text-(--color-primary)",
-    bg: "bg-(--color-primary)/8",
-    accent: "bg-(--color-primary)",
+    text: "text-brand",
+    bg: "bg-brand-muted",
+    accent: "bg-brand",
     trendPositive: "bg-emerald-50 text-emerald-700",
-    trendNegative: "bg-rose-50 text-rose-700",
+    trendNegative: "bg-orange-50 text-orange-700",
   },
   success: {
     text: "text-emerald-700",
@@ -103,27 +103,25 @@ export default function StatsCard({
   const CardContent = (
     <div
       className={cn(
-        "group relative flex h-full flex-col overflow-hidden rounded-2xl border border-(--color-tc-20) transition-all duration-200",
-        "shadow-[0_1px_3px_rgba(0,0,0,0.05),0_4px_12px_rgba(0,0,0,0.04)]",
-        variant === "grey" ? "bg-(--color-nc-20)" : "bg-white",
-        isClickable &&
-          "hover:-translate-y-0.5 hover:border-(--color-tc-30) hover:shadow-[0_4px_20px_rgba(0,0,0,0.10)]",
+        "group relative flex h-full flex-col overflow-hidden rounded-xl border border-line transition-all duration-200",
+        variant === "grey" ? "bg-sidebar" : "bg-surface",
+        isClickable && "hover:border-line-strong hover:bg-sidebar/40",
         className,
       )}
     >
-      <div className="flex flex-1 flex-col p-5">
+      <div className="flex flex-1 flex-col p-5 sm:p-6">
         {/* Icon + title */}
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-[13px] font-medium text-(--color-tc-30)">{title}</h3>
+          <h3 className="text-xs font-normal text-ink-subtle">{title}</h3>
           {icon && (
             <div
               className={cn(
-                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                "[&_svg]:h-5 [&_svg]:w-5 [&_svg]:stroke-current [&_svg]:stroke-[1.5px]",
+                "flex size-9 shrink-0 items-center justify-center rounded-lg",
+                "[&_svg]:size-4 [&_svg]:stroke-current [&_svg]:stroke-[1.75px]",
                 "transition-transform duration-200",
                 tint.bg,
                 tint.text,
-                isClickable && "group-hover:scale-110",
+                isClickable && "group-hover:scale-105",
               )}
             >
               {icon}
@@ -132,17 +130,17 @@ export default function StatsCard({
         </div>
 
         {/* Value */}
-        <p className="mt-3 text-[36px] font-bold leading-none tracking-tight text-(--color-tc-40) tabular-nums">
+        <p className="mt-1.5 text-sm font-medium tracking-tight text-ink tabular-nums sm:text-2xl sm:leading-none lg:text-[32px]">
           {value}
         </p>
 
         {/* Footer */}
         {hasFooter && (
-          <div className="mt-auto flex items-center gap-2 border-t border-(--color-tc-20) pt-3 text-[12px]">
+          <div className="mt-auto flex items-center gap-2 border-t border-line pt-3 text-xs">
             {trend && (
               <span
                 className={cn(
-                  "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 font-semibold",
+                  "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 font-medium",
                   trend.isPositive ? tint.trendPositive : tint.trendNegative,
                 )}
               >
@@ -161,7 +159,7 @@ export default function StatsCard({
             )}
 
             {(subtitle || trend?.label) && (
-              <span className="text-(--color-tc-30)">{subtitle || trend?.label}</span>
+              <span className="text-ink-subtle">{subtitle || trend?.label}</span>
             )}
 
             {action && !action.href && (
@@ -171,7 +169,7 @@ export default function StatsCard({
                   e.preventDefault();
                   action.onClick?.();
                 }}
-                className="ml-auto font-semibold text-(--color-primary) hover:underline"
+                className="ml-auto font-medium text-brand hover:underline"
               >
                 {action.label}
               </button>

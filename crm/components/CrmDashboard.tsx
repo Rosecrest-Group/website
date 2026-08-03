@@ -12,7 +12,6 @@ import StatsCard from "@/crm/components/admin/StatsCard";
 import Table, { type Column } from "@/crm/components/ui/Table";
 import StatusPill, { leadStageToPillVariant } from "@/crm/components/ui/StatusPill";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
-import CurvedContainer from "@/crm/components/ui/CurvedContainer";
 
 import { useRouter } from "next/navigation";
 import { Users, CheckCircle, TrendingUp, Globe, MapPin, Tag } from "lucide-react";
@@ -357,144 +356,157 @@ export default function CrmDashboard() {
       </div>
 
       {(data?.funnelBySource?.length ?? 0) > 0 && (
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold text-(--color-tc-40)">Funnel by source · 30d</h2>
-          <CurvedContainer>
-            <Table
-              columns={[
-                {
-                  key: "source",
-                  header: "Source",
-                  render: (v) => (
-                    <span className="inline-flex items-center gap-1.5">
-                      <SourceIcon source={v as string} />
-                      {prettifySource(v as string)}
-                    </span>
-                  ),
-                },
-                { key: "leads", header: "Leads", render: (v) => <span className="tabular-nums">{v as number}</span> },
-                {
-                  key: "converted",
-                  header: "Won",
-                  render: (v) => <span className="tabular-nums">{v as number}</span>,
-                },
-                {
-                  key: "conversionRate",
-                  header: "Conv %",
-                  render: (v) => <span className="tabular-nums">{v as number}%</span>,
-                },
-                {
-                  key: "acquisitionCost",
-                  header: "Lead cost",
-                  render: (v) => <span className="tabular-nums">£{(v as number).toFixed(0)}</span>,
-                },
-              ]}
-              data={data!.funnelBySource! as unknown as Record<string, unknown>[]}
-            />
-          </CurvedContainer>
-        </section>
+        <Table
+          title="Funnel by source · 30d"
+          columns={[
+            {
+              key: "source",
+              header: "Source",
+              render: (v) => (
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
+                  <SourceIcon source={v as string} />
+                  {prettifySource(v as string)}
+                </span>
+              ),
+            },
+            {
+              key: "leads",
+              header: "Leads",
+              align: "right",
+              render: (v) => (
+                <span className="text-sm font-medium text-ink tabular-nums">{v as number}</span>
+              ),
+            },
+            {
+              key: "converted",
+              header: "Won",
+              align: "right",
+              render: (v) => (
+                <span className="text-sm font-medium text-ink tabular-nums">{v as number}</span>
+              ),
+            },
+            {
+              key: "conversionRate",
+              header: "Conv %",
+              align: "right",
+              render: (v) => (
+                <span className="text-sm font-medium text-ink tabular-nums">{v as number}%</span>
+              ),
+            },
+            {
+              key: "acquisitionCost",
+              header: "Lead cost",
+              align: "right",
+              render: (v) => (
+                <span className="text-sm font-medium text-ink tabular-nums">
+                  £{(v as number).toFixed(0)}
+                </span>
+              ),
+            },
+          ]}
+          data={data!.funnelBySource! as unknown as Record<string, unknown>[]}
+        />
       )}
 
       {(data?.jobsByStage?.length ?? 0) > 0 && (
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold text-(--color-tc-40)">Job touchpoints (RICS)</h2>
-          <CurvedContainer>
-            <Table
-              columns={[
-                {
-                  key: "stage",
-                  header: "Stage",
-                  render: (v) => (
-                    <span className="text-sm">{(v as string).replace(/_/g, " ")}</span>
-                  ),
-                },
-                {
-                  key: "count",
-                  header: "Jobs",
-                  render: (v) => <span className="font-semibold tabular-nums">{v as number}</span>,
-                },
-              ]}
-              data={(data!.jobsByStage ?? []).map((row) => ({
-                stage: row.stage,
-                count: row._count.id,
-              }))}
-            />
-          </CurvedContainer>
-        </section>
+        <Table
+          title="Job touchpoints (RICS)"
+          columns={[
+            {
+              key: "stage",
+              header: "Stage",
+              render: (v) => (
+                <span className="text-sm text-ink">{(v as string).replace(/_/g, " ")}</span>
+              ),
+            },
+            {
+              key: "count",
+              header: "Jobs",
+              align: "right",
+              render: (v) => (
+                <span className="text-sm font-medium text-ink tabular-nums">{v as number}</span>
+              ),
+            },
+          ]}
+          data={(data!.jobsByStage ?? []).map((row) => ({
+            stage: row.stage,
+            count: row._count.id,
+          }))}
+        />
       )}
 
       {stageRows.length > 0 && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-(--color-tc-40)">
-              Leads by stage
-            </h2>
-            <Link
-              href="/crm/leads"
-              className="text-sm text-(--color-primary) hover:underline"
-            >
-              View all →
-            </Link>
-          </div>
-          <Table
-            columns={stageColumns}
-            data={stageRows}
-            getRowKey={(row) => row.stage}
-          />
-        </section>
+        <Table
+          title="Leads by stage"
+          columns={stageColumns}
+          data={stageRows}
+          getRowKey={(row) => row.stage}
+        />
       )}
 
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-(--color-tc-40)">
-            Recent leads
-          </h2>
-          <Link
-            href="/crm/leads"
-            className="text-sm text-(--color-primary) hover:underline"
-          >
-            View all →
-          </Link>
-        </div>
+      <section>
         {recentLeads.length > 0 ? (
           <Table<Lead & Record<string, unknown>>
+            title="Recent leads"
             columns={leadColumns}
             data={recentLeads as (Lead & Record<string, unknown>)[]}
             getRowKey={(row) => row.id}
+            toolbarExtra={
+              <Link
+                href="/crm/leads"
+                className="text-sm font-medium text-brand hover:underline"
+              >
+                View all →
+              </Link>
+            }
           />
         ) : (
-          <p className="text-center text-(--color-tc-30)">No leads yet</p>
+          <Table
+            title="Recent leads"
+            columns={leadColumns}
+            data={[]}
+            emptyMessage="No leads yet"
+          />
         )}
       </section>
 
       <section className="w-full max-w-2xl">
-        <CurvedContainer className="overflow-hidden p-0">
-          <div className="flex items-center justify-between gap-4 bg-(--color-nc-10) px-5 py-3.5">
-            <h2 className="text-base font-semibold tracking-tight text-(--color-tc-40)">
-              My tasks
-            </h2>
-            <Link
-              href="/crm/tasks"
-              className="shrink-0 text-sm font-medium text-(--color-primary) transition hover:underline"
-            >
-              View all →
-            </Link>
-          </div>
-          {myTasks.length > 0 ? (
-            <Table
-              columns={taskColumns}
-              data={myTasks as (DashboardTaskRow & Record<string, unknown>)[]}
-              getRowKey={(row) => row.id}
-              onRowClick={(row) => router.push(`/crm/tasks?taskId=${row.id}`)}
-              hideHeader
-              compact
-            />
-          ) : (
-            <p className="border-t border-(--color-tc-20) px-5 py-8 text-center text-sm text-(--color-tc-30)">
-              No tasks assigned to or created by you
-            </p>
-          )}
-        </CurvedContainer>
+        {myTasks.length > 0 ? (
+          <Table
+            title="My tasks"
+            columns={taskColumns}
+            data={myTasks as (DashboardTaskRow & Record<string, unknown>)[]}
+            getRowKey={(row) => row.id}
+            onRowClick={(row) => router.push(`/crm/tasks?taskId=${row.id}`)}
+            hideHeader
+            compact
+            toolbarExtra={
+              <Link
+                href="/crm/tasks"
+                className="text-sm font-medium text-brand hover:underline"
+              >
+                View all →
+              </Link>
+            }
+          />
+        ) : (
+          <Table
+            title="My tasks"
+            columns={taskColumns}
+            data={[]}
+            hideHeader
+            compact
+            emptyMessage="No tasks assigned to or created by you"
+            toolbarExtra={
+              <Link
+                href="/crm/tasks"
+                className="text-sm font-medium text-brand hover:underline"
+              >
+                View all →
+              </Link>
+            }
+          />
+        )}
       </section>
     </CrmPageContent>
   );

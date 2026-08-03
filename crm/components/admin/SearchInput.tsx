@@ -1,5 +1,6 @@
 "use client";
 
+import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export interface SearchInputProps {
@@ -9,6 +10,8 @@ export interface SearchInputProps {
   onSearch?: (value: string) => void;
   debounceMs?: number;
   className?: string;
+  /** Mullr table search = pill + brand circular affordance (default). Header = rounded-lg sidebar fill. */
+  variant?: "table" | "header";
 }
 
 export default function SearchInput({
@@ -18,61 +21,61 @@ export default function SearchInput({
   onSearch,
   debounceMs = 300,
   className = "",
+  variant = "table",
 }: SearchInputProps) {
   const [internalValue, setInternalValue] = useState(controlledValue || "");
 
-  // Sync internal value with controlled value
   useEffect(() => {
     if (controlledValue !== undefined) {
       setInternalValue(controlledValue);
     }
   }, [controlledValue]);
 
-  // Debounced search
   useEffect(() => {
     if (!onSearch) return;
-
     const timer = setTimeout(() => {
       onSearch(internalValue);
     }, debounceMs);
-
     return () => clearTimeout(timer);
   }, [internalValue, debounceMs, onSearch]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setInternalValue(newValue);
-    onChange?.(newValue);
-  };
+  if (variant === "header") {
+    return (
+      <div className={`relative ${className}`}>
+        <Search
+          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-subtle"
+          strokeWidth={1.75}
+          aria-hidden
+        />
+        <input
+          type="search"
+          placeholder={placeholder}
+          value={internalValue}
+          onChange={(e) => {
+            setInternalValue(e.target.value);
+            onChange?.(e.target.value);
+          }}
+          className="w-full rounded-lg border border-line bg-sidebar py-2 pr-9 pl-9 text-sm text-ink outline-none transition-colors placeholder:text-ink-subtle focus:border-brand-light focus:bg-surface focus:ring-2 focus:ring-brand-muted"
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className={`relative ${className}`}>
-      <span
-        className="pointer-events-none absolute inset-y-0 left-4 grid place-items-center text-slate-500"
-        aria-hidden="true"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle cx="11" cy="11" r="8" />
-          <path d="m21 21-4.3-4.3" />
-        </svg>
-      </span>
+    <div className={`relative flex min-w-0 items-center ${className}`}>
       <input
         type="search"
         placeholder={placeholder}
         value={internalValue}
-        onChange={handleChange}
-        className="h-12 w-full rounded-xl bg-white pl-12 pr-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none border border-(--color-tc-20) focus:ring-2 focus:ring-(--color-primary)/20"
+        onChange={(e) => {
+          setInternalValue(e.target.value);
+          onChange?.(e.target.value);
+        }}
+        className="w-full rounded-full border border-line bg-surface py-2 pl-4 pr-11 text-sm text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-brand-light"
       />
+      <span className="pointer-events-none absolute right-1 flex size-8 items-center justify-center rounded-full bg-brand text-white">
+        <Search className="size-3.5" strokeWidth={1.75} />
+      </span>
     </div>
   );
 }

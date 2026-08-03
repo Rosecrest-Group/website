@@ -6,8 +6,6 @@ import { api } from "@/crm/lib/api";
 import type { Customer } from "@/crm/types";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
-import SecondaryButton from "@/crm/components/ui/SecondaryButton";
-import SearchInput from "@/crm/components/admin/SearchInput";
 import Table, { type Column } from "@/crm/components/ui/Table";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 
@@ -17,46 +15,71 @@ export default function CustomersList() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
-  function load() {
-    setLoading(true);
-    api
-      .listCustomers(search ? { search } : undefined)
-      .then((res) => {
-        setCustomers(res.items);
-        setTotal(res.total);
-      })
-      .finally(() => setLoading(false));
-  }
-
   useEffect(() => {
-    load();
-  }, []);
+    setLoading(true);
+    const timer = setTimeout(() => {
+      api
+        .listCustomers(search ? { search } : undefined)
+        .then((res) => {
+          setCustomers(res.items);
+          setTotal(res.total);
+        })
+        .finally(() => setLoading(false));
+    }, search ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const columns: Column<Customer & Record<string, unknown>>[] = [
     {
       key: "firstName",
       header: "Name",
       render: (_, row) => (
-        <Link
-          href={`/crm/customers/${row.id}`}
-          className="font-medium text-(--color-primary) hover:underline"
-        >
-          {row.firstName} {row.lastName}
-        </Link>
+        <div>
+          <Link
+            href={`/crm/customers/${row.id}`}
+            className="text-sm font-medium text-ink hover:text-brand"
+          >
+            {row.firstName} {row.lastName}
+          </Link>
+          {row.email ? (
+            <p className="mt-0.5 text-xs text-ink-subtle">{row.email}</p>
+          ) : null}
+        </div>
       ),
     },
-    { key: "email", header: "Email" },
-    { key: "phone", header: "Phone" },
-    { key: "customerType", header: "Type", className: "text-(--color-tc-30)" },
+    {
+      key: "phone",
+      header: "Phone",
+      render: (value) => (
+        <span className="text-sm text-ink-muted">{(value as string) || "—"}</span>
+      ),
+    },
+    {
+      key: "customerType",
+      header: "Type",
+      render: (value) => (
+        <span className="text-sm text-ink-muted">{(value as string) || "—"}</span>
+      ),
+    },
     {
       key: "id",
       header: "Leads",
-      render: (_, row) => row._count?.leads ?? 0,
+      align: "right",
+      render: (_, row) => (
+        <span className="text-sm font-medium text-ink tabular-nums">
+          {row._count?.leads ?? 0}
+        </span>
+      ),
     },
     {
       key: "id",
       header: "Jobs",
-      render: (_, row) => row._count?.jobs ?? 0,
+      align: "right",
+      render: (_, row) => (
+        <span className="text-sm font-medium text-ink tabular-nums">
+          {row._count?.jobs ?? 0}
+        </span>
+      ),
     },
   ];
 
@@ -64,27 +87,19 @@ export default function CustomersList() {
     <CrmPageContent>
       <CrmPageHeader title="Customers" subtitle={`${total} total`} />
 
-      <div className="flex flex-wrap items-end gap-3">
-        <SearchInput
-          className="max-w-md flex-1 min-w-[200px]"
-          placeholder="Search…"
-          value={search}
-          onChange={setSearch}
-        />
-        <SecondaryButton type="button" onClick={load}>
-          Search
-        </SecondaryButton>
-      </div>
-
-      {loading ? (
+      {loading && customers.length === 0 ? (
         <LoadingSpinner />
-      ) : customers.length === 0 ? (
-        <p className="text-center text-(--color-tc-30)">No customers</p>
       ) : (
         <Table
+          title="All customers"
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search customers…"
           columns={columns}
           data={customers as (Customer & Record<string, unknown>)[]}
           getRowKey={(r) => r.id}
+          emptyMessage="No customers"
+          totalCount={total}
         />
       )}
     </CrmPageContent>

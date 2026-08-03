@@ -1,29 +1,45 @@
 import type { SelectHTMLAttributes } from "react";
+import { cn } from "@/lib/utils";
 
 export interface SelectFieldProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
+  /** `filter` = Mullr pill listbox used in table toolbars */
+  variant?: "default" | "filter";
 }
 
-export default function SelectField({ label, id, className = "", children, ...props }: SelectFieldProps) {
+export default function SelectField({
+  label,
+  id,
+  className = "",
+  children,
+  variant = "default",
+  ...props
+}: SelectFieldProps) {
   const selectId = id ?? label?.toLowerCase().replace(/\s+/g, "-");
 
   return (
-    <div className="space-y-1.5">
+    <div className={cn(variant === "filter" ? "" : "space-y-1.5")}>
       {label && (
-        <label htmlFor={selectId} className="block text-sm font-medium text-(--color-tc-40)">
+        <label htmlFor={selectId} className="block text-sm font-medium text-ink">
           {label}
         </label>
       )}
       <div className="relative">
         <select
           id={selectId}
-          className={`h-12 w-full min-w-[140px] appearance-none rounded-xl border border-(--color-tc-20) bg-white pl-4 pr-10 text-sm text-(--color-tc-40) outline-none focus:ring-2 focus:ring-(--color-primary)/20 ${className}`}
+          className={cn(
+            "w-full appearance-none border border-line bg-surface text-sm text-ink outline-none transition-all duration-200",
+            variant === "filter"
+              ? "min-w-[10.5rem] rounded-full py-2 pr-9 pl-3.5 hover:border-brand-light hover:bg-sidebar focus:border-brand-light"
+              : "min-w-[140px] rounded-lg py-2.5 pl-3 pr-10 focus:border-brand-light focus:ring-2 focus:ring-brand-muted",
+            className,
+          )}
           {...props}
         >
           {children}
         </select>
         <span
-          className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-(--color-tc-30)"
+          className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-subtle"
           aria-hidden
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
