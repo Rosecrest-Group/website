@@ -46,7 +46,6 @@ export default function JobDetail({ id }: { id: string }) {
     accessNotes: "",
   });
   const [inspectionDate, setInspectionDate] = useState("");
-  const [inspectionWindow, setInspectionWindow] = useState("");
   const [stageError, setStageError] = useState<string | null>(null);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [accessSaved, setAccessSaved] = useState(false);
@@ -62,7 +61,6 @@ export default function JobDetail({ id }: { id: string }) {
         setWorkStart(j.workStartDate?.slice(0, 10) ?? "");
         setWorkEnd(j.workEndDate?.slice(0, 10) ?? "");
         setInspectionDate(j.inspectionDate?.slice(0, 10) ?? "");
-        setInspectionWindow(j.inspectionWindow ?? "");
         setAccessForm({
           agentName: j.agentName ?? "",
           agentEmail: j.agentEmail ?? "",
@@ -251,13 +249,7 @@ export default function JobDetail({ id }: { id: string }) {
   async function saveInspectionDetails() {
     await api.updateJob(id, {
       ...(inspectionDate ? { inspectionDate: new Date(inspectionDate).toISOString() } : {}),
-      inspectionWindow,
     });
-    reload();
-  }
-
-  async function setRating3(value: boolean) {
-    await api.updateJob(id, { hasConditionRating3: value });
     reload();
   }
 
@@ -495,46 +487,7 @@ export default function JobDetail({ id }: { id: string }) {
                     </SecondaryButton>
                   ))}
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <TextField label="Inspection date" type="date" value={inspectionDate} onChange={(e) => setInspectionDate(e.target.value)} />
-                  <TextField label="Inspection window" placeholder="e.g. 9am–12pm" value={inspectionWindow} onChange={(e) => setInspectionWindow(e.target.value)} />
-                </div>
-                <SecondaryButton type="button" size="small" className="w-auto" onClick={saveInspectionDetails}>
-                  Save inspection schedule
-                </SecondaryButton>
-                <div className="flex flex-wrap items-center gap-3 border-t border-(--color-tc-20) pt-3">
-                  <span className="text-sm font-medium text-(--color-tc-40)">Condition rating 3?</span>
-                  <SecondaryButton
-                    type="button"
-                    size="small"
-                    style={job.hasConditionRating3 === false ? activeStageStyle : undefined}
-                    className="w-auto"
-                    onClick={() => setRating3(false)}
-                  >
-                    No
-                  </SecondaryButton>
-                  <SecondaryButton
-                    type="button"
-                    size="small"
-                    style={job.hasConditionRating3 === true ? activeStageStyle : undefined}
-                    className="w-auto"
-                    onClick={() => setRating3(true)}
-                  >
-                    Yes
-                  </SecondaryButton>
-                  {job.hasConditionRating3 === null && (
-                    <span className="text-xs text-amber-700">Required before Inspection Complete</span>
-                  )}
-                </div>
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-(--color-tc-40)">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(job.dataCaptureComplete)}
-                    onChange={toggleDataCapture}
-                    className="size-4 rounded border-(--color-tc-20)"
-                  />
-                  Data capture complete (photos, notes, checklist)
-                </label>
+
                 <div className="space-y-2 border-t border-(--color-tc-20) pt-3">
                   <p className="text-sm font-medium text-(--color-tc-40)">Surveyor pre-site checkpoints</p>
                   <p className="text-xs text-(--color-tc-30)">
@@ -558,6 +511,32 @@ export default function JobDetail({ id }: { id: string }) {
                     </label>
                   ))}
                 </div>
+
+                <div className="space-y-3 border-t border-(--color-tc-20) pt-3">
+                  <TextField
+                    label="Inspection date"
+                    type="date"
+                    value={inspectionDate}
+                    onChange={(e) => setInspectionDate(e.target.value)}
+                  />
+                  <SecondaryButton type="button" size="small" className="w-auto" onClick={saveInspectionDetails}>
+                    Save inspection date
+                  </SecondaryButton>
+                </div>
+
+                <div className="space-y-2 border-t border-(--color-tc-20) pt-3">
+                  <p className="text-sm font-medium text-(--color-tc-40)">After inspection</p>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-(--color-tc-40)">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(job.dataCaptureComplete)}
+                      onChange={toggleDataCapture}
+                      className="size-4 rounded border-(--color-tc-20)"
+                    />
+                    Data capture complete (photos, notes, checklist)
+                  </label>
+                </div>
+
                 {(job.stage === "COMPLETED" || job.stage === "REPORT_DELIVERED") && (
                   <div className="space-y-2 border-t border-(--color-tc-20) pt-3">
                     <p className="text-sm font-medium text-(--color-tc-40)">Review request</p>
