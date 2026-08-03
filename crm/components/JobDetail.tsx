@@ -13,6 +13,7 @@ import StatusPill from "@/crm/components/ui/StatusPill";
 import TextField from "@/crm/components/ui/TextField";
 import SelectField from "@/crm/components/ui/SelectField";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
+import ConfirmModal from "@/crm/components/ui/ConfirmModal";
 import InternalConversationPanel, { prefetchInternalThread } from "@/crm/components/InternalConversationPanel";
 import { ArrowLeft } from "lucide-react";
 
@@ -26,6 +27,9 @@ export default function JobDetail({ id }: { id: string }) {
   const [job, setJob] = useState<
     (Job & { payments?: { id: string; amount: number; status: string; paidAt?: string | null }[] }) | null
   >(null);
+  const [markingPaid, setMarkingPaid] = useState(false);
+  const [markPaidConfirmOpen, setMarkPaidConfirmOpen] = useState(false);
+  const [markPaidError, setMarkPaidError] = useState<string | null>(null);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [docType, setDocType] = useState("REPORT");
@@ -89,8 +93,18 @@ export default function JobDetail({ id }: { id: string }) {
   }
 
   async function markPaid() {
-    await api.markJobPaid(id);
-    reload();
+    if (markingPaid || job?.paymentStatus === "PAID") return;
+    setMarkingPaid(true);
+    setMarkPaidError(null);
+    try {
+      await api.markJobPaid(id);
+      setMarkPaidConfirmOpen(false);
+      await reload();
+    } catch (e) {
+      setMarkPaidError(e instanceof Error ? e.message : "Could not mark as paid");
+    } finally {
+      setMarkingPaid(false);
+    }
   }
 
   async function uploadDocument() {
@@ -374,7 +388,16 @@ export default function JobDetail({ id }: { id: string }) {
                   <PrimaryButton type="button" className="w-auto px-6" onClick={createLink}>
                     Get payment link
                   </PrimaryButton>
-                  <SecondaryButton type="button" size="small" className="w-auto" onClick={markPaid}>
+                  <SecondaryButton
+                    type="button"
+                    size="small"
+                    className="w-auto"
+                    onClick={() => {
+                      setMarkPaidError(null);
+                      setMarkPaidConfirmOpen(true);
+                    }}
+                    disabled={markingPaid}
+                  >
                     Mark paid (bank transfer)
                   </SecondaryButton>
                 </>
@@ -706,6 +729,26 @@ export default function JobDetail({ id }: { id: string }) {
             ? `Job · ${job.jobNumber} · ${job.customer.firstName} ${job.customer.lastName}`
             : `Job · ${job.jobNumber}`
         }
+      />
+      <ConfirmModal
+        isOpen={markPaidConfirmOpen}
+        title="Mark as paid?"
+        description={
+          job
+            ? `Record a bank transfer of £${job.agreedAmount} for ${job.customer?.firstName ?? ""} ${job.customer?.lastName ?? ""} — ${job.propertyAddress}, ${job.propertyPostcode}. This marks the job paid and stops lead nurture.`
+                .replace(/\s+/g, " ")
+                .trim()
+            : undefined
+        }
+        confirmLabel="Mark as paid"
+        loading={markingPaid}
+        error={markPaidError ?? undefined}
+        onConfirm={() => void markPaid()}
+        onCancel={() => {
+          if (markingPaid) return;
+          setMarkPaidConfirmOpen(false);
+          setMarkPaidError(null);
+        }}
       />
     </CrmPageContent>
   );

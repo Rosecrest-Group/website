@@ -18,6 +18,7 @@ import StatusPill, { leadStageToPillVariant } from "@/crm/components/ui/StatusPi
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import TextField from "@/crm/components/ui/TextField";
 import SelectField from "@/crm/components/ui/SelectField";
+import ConfirmModal from "@/crm/components/ui/ConfirmModal";
 import InternalConversationPanel, { prefetchInternalThread } from "@/crm/components/InternalConversationPanel";
 import LeadMessageThread from "@/crm/components/LeadMessageThread";
 import ActivityFeed from "@/crm/components/ActivityFeed";
@@ -80,6 +81,9 @@ export default function LeadDetail({
   const [lostReasonNote, setLostReasonNote] = useState("");
   const [markingLost, setMarkingLost] = useState(false);
   const [stoppingAutomation, setStoppingAutomation] = useState(false);
+  const [moveToPaidConfirmOpen, setMoveToPaidConfirmOpen] = useState(false);
+  const [movingToPaid, setMovingToPaid] = useState(false);
+  const [moveToPaidError, setMoveToPaidError] = useState<string | null>(null);
 
   function reload(options?: { silent?: boolean }) {
     if (!options?.silent) setLoading(true);
@@ -133,12 +137,22 @@ export default function LeadDetail({
     }
   }
   async function convert() {
-    const amount = lead?.quotedAmount ?? 395;
+    if (movingToPaid || !lead || lead.stage === "CONVERTED") return;
+    const amount = lead.quotedAmount ?? 0;
+    if (!amount || amount <= 0) {
+      setMoveToPaidError("Set a quoted amount before moving to paid.");
+      return;
+    }
+    setMovingToPaid(true);
+    setMoveToPaidError(null);
     try {
       const result = await api.convertLead(id, amount);
+      setMoveToPaidConfirmOpen(false);
       router.push(`/crm/jobs/${result.job.id}`);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed");
+      setMoveToPaidError(e instanceof Error ? e.message : "Failed to move to paid");
+    } finally {
+      setMovingToPaid(false);
     }
   }
 
@@ -219,7 +233,15 @@ export default function LeadDetail({
                   />
                 )}
                 {lead.stage !== "CONVERTED" && (
-                  <PrimaryButton type="button" className="w-auto min-w-0 gap-2 px-5" onClick={convert}>
+                  <PrimaryButton
+                    type="button"
+                    className="w-auto min-w-0 gap-2 px-5"
+                    disabled={movingToPaid}
+                    onClick={() => {
+                      setMoveToPaidError(null);
+                      setMoveToPaidConfirmOpen(true);
+                    }}
+                  >
                     <Zap className="size-4" />
                     Move to paid
                   </PrimaryButton>
@@ -621,6 +643,27 @@ export default function LeadDetail({
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={moveToPaidConfirmOpen}
+        title="Move to paid?"
+        description={
+          lead
+            ? `Record a bank transfer of £${lead.quotedAmount ?? "—"} for ${customer?.firstName ?? ""} ${customer?.lastName ?? ""} — ${lead.propertyAddress}, ${lead.propertyPostcode}. This creates the job as paid and stops nurture.`
+                .replace(/\s+/g, " ")
+                .trim()
+            : undefined
+        }
+        confirmLabel="Move to paid"
+        loading={movingToPaid}
+        error={moveToPaidError ?? undefined}
+        onConfirm={() => void convert()}
+        onCancel={() => {
+          if (movingToPaid) return;
+          setMoveToPaidConfirmOpen(false);
+          setMoveToPaidError(null);
+        }}
+      />
     </>
   );
 
