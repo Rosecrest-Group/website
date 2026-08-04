@@ -92,6 +92,20 @@ function prettifySource(raw?: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function formatTimeAgo(dateStr: string) {
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "—";
+  const diffMs = Date.now() - d.getTime();
+  const mins = Math.floor(diffMs / 60_000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
 function SourceIcon({ source }: { source?: string }) {
   const k = (source ?? "").toLowerCase();
   const cls = "h-3.5 w-3.5";
@@ -208,15 +222,17 @@ export default function CrmDashboard() {
     {
       key: "stage",
       header: "Stage",
-      render: (value) => {
-        const stage = value as string;
-        return (
+      render: (_, row) => (
+        <div className="flex items-center gap-2">
           <StatusPill
-            variant={leadStageToPillVariant(stage)}
-            label={LEAD_STAGE_LABELS[stage] ?? stage}
+            variant={leadStageToPillVariant(row.stage)}
+            label={LEAD_STAGE_LABELS[row.stage] ?? row.stage}
           />
-        );
-      },
+          <span className="shrink-0 text-xs text-(--color-tc-30) tabular-nums">
+            {formatTimeAgo(row.updatedAt)}
+          </span>
+        </div>
+      ),
     },
   ];
 
