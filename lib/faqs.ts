@@ -232,9 +232,9 @@ export const faqs: Record<FAQCategoryId, FAQCategory> = {
           "This service is for surveying professionals working towards Associate membership of RICS (AssocRICS). Support is tailored to each candidate’s pathway, experience and development needs.",
       },
       {
-        question: "Do you provide official MRICS or APC counselling?",
+        question: "Is this for AssocRICS only?",
         answer:
-          "This service currently relates to AssocRICS candidates. Rosecrest does not advertise official MRICS/APC counselling or sign-off unless the appointed counsellor is MRICS or FRICS.",
+          "Yes. This service is for the AssocRICS pathway only — supporting surveying professionals working towards Associate membership of RICS.",
       },
       {
         question: "Will Rosecrest write my assessment submissions?",

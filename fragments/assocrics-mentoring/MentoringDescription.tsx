@@ -44,18 +44,9 @@ const MentoringDescription = () => {
                 Our support is tailored to each candidate&apos;s pathway,
                 experience and development needs.
               </p>
-            </div>
-
-            <div className="rounded-2xl border border-[#DBB38E]/40 bg-white px-5 py-4 mb-6">
-              <p
-                className={`${sourceSans.className} text-sm lg:text-base text-[#4A5565] leading-relaxed`}
-              >
-                <span className="font-semibold text-[#101828]">
-                  Scope note:{" "}
-                </span>
-                This service currently relates to AssocRICS candidates. Rosecrest
-                must not be advertised as providing official MRICS/APC counselling
-                or sign-off unless the appointed counsellor is MRICS or FRICS.
+              <p>
+                This service is for the AssocRICS pathway only — supporting
+                candidates working towards Associate membership of RICS.
               </p>
             </div>
 
