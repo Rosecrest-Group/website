@@ -35,9 +35,9 @@ export function defaultNodeData(type: string): Record<string, unknown> {
     case "sendEmail":
     case "sendSms":
     case "sendWhatsapp":
-      return { templateId: "", templateName: "", transactional: false, workingHoursOnly: false };
+      return { templateId: "", templateName: "", transactional: false };
     case "wait":
-      return { durationHours: 48, durationDays: 0, durationMinutes: 0 };
+      return { durationHours: 48, durationDays: 0, durationMinutes: 0, workingHoursOnly: false };
     case "branch":
       return { condition: "", trueLabel: "True", falseLabel: "False" };
     case "updateRecord":

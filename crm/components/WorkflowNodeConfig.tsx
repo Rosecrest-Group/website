@@ -354,16 +354,6 @@ export default function WorkflowNodeConfig({
               />
               <span className="wf-checkbox-label">Transactional (ignore marketing opt-out)</span>
             </label>
-            <label className="wf-checkbox-row">
-              <div
-                className={`wf-checkbox ${data.workingHoursOnly ? "checked" : ""}`}
-                onClick={() => update({ workingHoursOnly: !data.workingHoursOnly })}
-                role="checkbox"
-                aria-checked={Boolean(data.workingHoursOnly)}
-                tabIndex={0}
-              />
-              <span className="wf-checkbox-label">Only send during working hours</span>
-            </label>
           </>
         )}
 
@@ -396,7 +386,21 @@ export default function WorkflowNodeConfig({
                 placeholder="Min"
               />
             </div>
-            <div className="wf-field-help">Resumes via QStash callback after the delay.</div>
+            <label className="wf-checkbox-row" style={{ marginTop: 10 }}>
+              <div
+                className={`wf-checkbox ${data.workingHoursOnly ? "checked" : ""}`}
+                onClick={() => update({ workingHoursOnly: !data.workingHoursOnly })}
+                role="checkbox"
+                aria-checked={Boolean(data.workingHoursOnly)}
+                tabIndex={0}
+              />
+              <span className="wf-checkbox-label">Working hours only (skip nights & weekends)</span>
+            </label>
+            <div className="wf-field-help">
+              {data.workingHoursOnly
+                ? "Delay is counted in working time only (e.g. 2 days ≈ 2 workdays). Resumes via QStash."
+                : "Calendar delay (includes nights/weekends). Resumes via QStash."}
+            </div>
           </div>
         )}
 

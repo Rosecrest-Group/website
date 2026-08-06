@@ -14,7 +14,7 @@ import {
   type WorkflowExecutionRecord,
 } from "@/crm/lib/workflowExecution";
 
-type StatusFilter = "all" | "running" | "completed" | "migrated";
+type StatusFilter = "all" | "running" | "completed" | "failed" | "stopped" | "migrated";
 
 type Props = {
   workflowId: string;
@@ -89,6 +89,13 @@ function RunCard({
           <span className="wf-run-current-label">Current step</span>
           <span className="wf-run-current-value">{current.label}</span>
           {current.detail && <span className="wf-run-current-detail">{current.detail}</span>}
+        </div>
+      )}
+
+      {execution.error && (
+        <div className="wf-run-current" style={{ borderColor: "rgba(220, 38, 38, 0.25)" }}>
+          <span className="wf-run-current-label">Error</span>
+          <span className="wf-run-current-value">{execution.error}</span>
         </div>
       )}
 
@@ -210,7 +217,7 @@ export default function WorkflowRunsPanel({
           </p>
         </div>
         <div className="wf-runs-filters">
-          {(["all", "running", "completed", "migrated"] as const).map((filter) => (
+          {(["all", "running", "completed", "failed", "stopped", "migrated"] as const).map((filter) => (
             <button
               key={filter}
               type="button"

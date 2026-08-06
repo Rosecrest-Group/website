@@ -82,7 +82,8 @@ export function currentStepLabel(
   if (!execution.currentNodeId) return null;
   const steps = executionSteps(execution.context);
   const lastStep = steps[steps.length - 1];
-  if (lastStep?.nodeId === execution.currentNodeId && lastStep.type === "wait") {
+  // Engine advances currentNodeId to the next node while waiting; still show the wait step.
+  if (execution.status === "running" && lastStep?.type === "wait") {
     return {
       label: lastStep.label ?? "Waiting",
       detail: lastStep.detail,
@@ -144,6 +145,10 @@ export function statusLabel(status: string): string {
       return "Completed";
     case "migrated":
       return "Migrated";
+    case "stopped":
+      return "Stopped";
+    case "failed":
+      return "Failed";
     default:
       return status;
   }

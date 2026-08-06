@@ -1639,6 +1639,16 @@
   color: #3730a3;
 }
 
+.wf-run-status--failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.wf-run-status--stopped {
+  background: #f4f4f5;
+  color: #3f3f46;
+}
+
 .wf-run-pill {
   display: inline-flex;
   padding: 2px 8px;
