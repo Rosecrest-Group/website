@@ -1,3 +1,11 @@
+/** Prefer the carrier send time; fall back to when the CRM recorded the row. */
+export function messageTimestamp(message: {
+  sentAt?: string | null;
+  createdAt: string;
+}): string {
+  return message.sentAt || message.createdAt;
+}
+
 export function formatChatTime(iso: string): string {
   const date = new Date(iso);
   return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });

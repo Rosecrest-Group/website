@@ -31,6 +31,7 @@ import {
   formatChatDateSeparator,
   formatChatTime,
   initialsFromName,
+  messageTimestamp,
 } from "@/crm/lib/formatChatTime";
 import { linkifyText } from "@/crm/lib/formatMessageBody";
 import {
@@ -322,7 +323,7 @@ function ThreadBubble({
               <span className="text-[10px] text-(--color-tc-20)">from {message.fromAddress}</span>
             )}
           </span>
-          <span>{formatChatTime(message.createdAt)}</span>
+          <span>{formatChatTime(messageTimestamp(message))}</span>
           {isOutbound && <MessageDeliveryStatus status={message.status} channel={message.channel} />}
         </div>
 
@@ -386,7 +387,11 @@ export default function LeadMessageThread({
   const expandedComposeRef = useRef<MessageRichComposeHandle>(null);
 
   const sortedMessages = useMemo(
-    () => [...messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    () =>
+      [...messages].sort(
+        (a, b) =>
+          new Date(messageTimestamp(a)).getTime() - new Date(messageTimestamp(b)).getTime()
+      ),
     [messages]
   );
 
@@ -580,7 +585,7 @@ export default function LeadMessageThread({
       ...sortedMessages.map((message) => ({
         kind: "message" as const,
         id: message.id,
-        createdAt: message.createdAt,
+        createdAt: messageTimestamp(message),
         message,
       })),
       ...callActivities.map((activity) => ({

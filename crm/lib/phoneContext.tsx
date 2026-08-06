@@ -61,10 +61,11 @@ export function PhoneProvider({ children }: { children: ReactNode }) {
   const [dialpadConfigured, setDialpadConfigured] = useState(false);
   const [dialpadEnabled, setDialpadEnabled] = useState(false);
   const [dialpadIframeUrl, setDialpadIframeUrl] = useState<string | null>(null);
-  const [dialpadSidebarOpen, setDialpadSidebarOpen] = useState(true);
+  // Start closed — auto-opening the Dialpad panel on boot covers the CRM and looks like a blank/hung page.
+  const [dialpadSidebarOpen, setDialpadSidebarOpen] = useState(false);
   const iframeRef = useRef<RefObject<HTMLIFrameElement | null> | null>(null);
 
-  async function refreshTeamConnectNumbers() {
+  const refreshTeamConnectNumbers = useCallback(async () => {
     try {
       const result = await api.listTeamConnectNumbers();
       setTeamConnectEnabled(result.enabled);
@@ -78,23 +79,22 @@ export function PhoneProvider({ children }: { children: ReactNode }) {
       setTeamConnectNumbers([]);
       setSelectedPhoneDocId(null);
     }
-  }
+  }, []);
 
-  async function refreshDialpadConfig() {
+  const refreshDialpadConfig = useCallback(async () => {
     try {
       const config = await api.getDialpadConfig();
       setDialpadConfigured(config.configured);
       setDialpadEnabled(config.enabled);
       setDialpadIframeUrl(config.ctiIframeUrl);
-      if (config.enabled) setDialpadSidebarOpen(true);
     } catch {
       setDialpadConfigured(false);
       setDialpadEnabled(false);
       setDialpadIframeUrl(null);
     }
-  }
+  }, []);
 
-  async function refreshPhoneSettings() {
+  const refreshPhoneSettings = useCallback(async () => {
     try {
       const u = await api.getMe();
       setUserPhone(u.phone ?? null);
@@ -102,11 +102,11 @@ export function PhoneProvider({ children }: { children: ReactNode }) {
       setUserPhone(null);
     }
     await Promise.all([refreshTeamConnectNumbers(), refreshDialpadConfig()]);
-  }
+  }, [refreshTeamConnectNumbers, refreshDialpadConfig]);
 
   useEffect(() => {
-    refreshPhoneSettings();
-  }, []);
+    void refreshPhoneSettings();
+  }, [refreshPhoneSettings]);
 
   const registerDialpadIframe = useCallback((ref: RefObject<HTMLIFrameElement | null>) => {
     iframeRef.current = ref;

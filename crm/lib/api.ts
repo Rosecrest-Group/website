@@ -7,6 +7,8 @@ import type {
   ApiUser,
 
   CreateLeadPayload,
+  CreateLeadResult,
+  LeadDuplicateMatch,
 
   Customer,
 
@@ -675,9 +677,21 @@ export const api = {
 
   getLead: (id: string) => request<LeadDetail>(`/leads/${id}`),
 
+  checkLeadDuplicates: (params: {
+    email: string;
+    phone: string;
+    propertyAddress?: string;
+    propertyPostcode?: string;
+  }) =>
+    request<{ matches: LeadDuplicateMatch[] }>(
+      `/leads/duplicate-check?${new URLSearchParams(
+        Object.entries(params).filter(([, value]) => Boolean(value)) as [string, string][]
+      )}`
+    ),
+
   createLead: (payload: CreateLeadPayload) =>
 
-    request<{ leadId: string; deduped: boolean }>("/intake/leads/DIRECT", {
+    request<CreateLeadResult>("/intake/leads/DIRECT", {
 
       method: "POST",
 

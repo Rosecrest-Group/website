@@ -610,6 +610,7 @@ export interface LeadDetail extends Lead {
   journey: CadenceStep[];
   cadenceRun?: CadenceRunInfo | null;
   job?: Job | null;
+  possibleDuplicateLeads?: PossibleDuplicateLead[];
 }
 
 export interface Job {
@@ -811,9 +812,56 @@ export interface Paginated<T> {
   limit: number;
 }
 
+/**
+ * duplicate — same person, same property. Blocks manual creation.
+ * possible  — phone matched but email differs. Creates a flagged separate lead.
+ * related   — same person, different property. A genuine second job.
+ */
+export type LeadDuplicateConfidence = "duplicate" | "possible" | "related";
+
+export interface LeadDuplicateMatch {
+  leadId: string;
+  stage: LeadStage;
+  source: LeadSource;
+  sourceRef: string | null;
+  createdAt: string;
+  propertyAddress: string;
+  propertyPostcode: string;
+  matchedBy: "phone" | "email" | "both";
+  confidence: LeadDuplicateConfidence;
+  sameProperty: boolean;
+  customer: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  };
+}
+
+export interface PossibleDuplicateLead {
+  leadId: string;
+  stage: LeadStage;
+  source: LeadSource;
+  createdAt: string;
+  propertyAddress: string;
+  propertyPostcode: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+}
+
+export interface CreateLeadResult {
+  leadId: string;
+  deduped: boolean;
+  duplicateMatch?: LeadDuplicateMatch;
+  possibleDuplicateOfLeadId?: string;
+}
+
 export interface CreateLeadPayload {
   source?: LeadSource;
   sourceRef?: string;
+  forceCreate?: boolean;
   customer: {
     firstName: string;
     lastName: string;

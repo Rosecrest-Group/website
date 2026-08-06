@@ -8,10 +8,11 @@ import type { CadenceStep, LeadDetail as LeadDetailType } from "@/crm/types";
 import { LEAD_STAGE_LABELS, LOST_REASON_OPTIONS, SURVEY_LEVEL_LABELS } from "@/crm/lib/constants";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ChevronRight, Mail, MapPin, Phone, Radar, Zap } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import PhoneButton from "@/crm/components/PhoneButton";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPanel from "@/crm/components/ui/CrmPanel";
+import CurvedContainer from "@/crm/components/ui/CurvedContainer";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import StatusPill, { leadStageToPillVariant } from "@/crm/components/ui/StatusPill";
@@ -32,21 +33,6 @@ function formatRelative(dateStr: string) {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
-}
-
-function automationStatusText(lead: LeadDetailType): string {
-  if (lead.stage === "CONVERTED") return "Converted — nurture workflow complete";
-  if (lead.stage === "LOST") return "Lead lost — automation stopped";
-  if (lead.cadenceStopped) return "Automation stopped";
-  if (lead.cadenceRun?.status === "RUNNING") {
-    const step = (lead.cadenceRun.currentStep ?? 0) + 1;
-    const next = lead.cadenceRun.nextRunAt
-      ? ` · next ${new Date(lead.cadenceRun.nextRunAt).toLocaleString()}`
-      : "";
-    return `Legacy cadence running — step ${step}${next}`;
-  }
-  if (lead.cadenceRun?.status === "PAUSED") return "Legacy cadence paused";
-  return "Nurture workflow active";
 }
 
 function nextWorkflowStepText(lead: LeadDetailType, currentStep?: CadenceStep): string {
@@ -214,55 +200,54 @@ export default function LeadDetail({
     ? `${customer.firstName[0]}${customer.lastName[0]}`
     : "??";
 
+  const possibleDuplicates = lead.possibleDuplicateLeads ?? [];
+
   const detailBody = (
     <>
+      {possibleDuplicates.length > 0 && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-medium">
+            Possible duplicate — this phone number is shared with{" "}
+            {possibleDuplicates.length === 1 ? "another lead" : `${possibleDuplicates.length} other leads`}
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {possibleDuplicates.map((related) => (
+              <li key={related.leadId} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span>
+                  {related.customerName} · {related.customerEmail} · {related.propertyAddress},{" "}
+                  {related.propertyPostcode}
+                </span>
+                <Link
+                  href={`/crm/leads/${related.leadId}`}
+                  className="font-medium underline underline-offset-2"
+                >
+                  Open lead
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs opacity-80">
+            The email addresses differ, so these were kept separate. Mark one as lost if it is a duplicate.
+          </p>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <div className="space-y-6">
-          <div className="overflow-hidden rounded-2xl border border-(--color-tc-20)/60 bg-white shadow-sm">
-            {(customer?.phone || lead.stage !== "CONVERTED") && (
-              <div className="flex flex-wrap items-center justify-end gap-2 border-b border-(--color-tc-20)/50 bg-(--color-nc-10)/50 px-4 py-3 sm:px-5">
-                {customer?.phone && (
-                  <PhoneButton
-                    number={customer.phone}
-                    context={{
-                      leadId: lead.id,
-                      customerName: customer
-                        ? `${customer.firstName} ${customer.lastName}`
-                        : undefined,
-                    }}
-                  />
-                )}
-                {lead.stage !== "CONVERTED" && (
-                  <PrimaryButton
-                    type="button"
-                    className="w-auto min-w-0 gap-2 px-5"
-                    disabled={movingToPaid}
-                    onClick={() => {
-                      setMoveToPaidError(null);
-                      setMoveToPaidConfirmOpen(true);
-                    }}
-                  >
-                    <Zap className="size-4" />
-                    Move to paid
-                  </PrimaryButton>
-                )}
-              </div>
-            )}
-
-            <div className="p-5">
-              <div className="flex items-start gap-4">
-                <div className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-(--color-primary) text-lg font-semibold tracking-tight text-white shadow-sm ring-4 ring-(--color-primary)/10">
+          <CurvedContainer className="p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-3.5">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-brand-light/35 bg-brand-muted text-sm font-semibold text-brand">
                   {initials}
                 </div>
-
-                <div className="min-w-0 flex-1 pt-0.5">
-                  <h1 className="text-xl font-semibold tracking-tight break-words text-(--color-tc-40) sm:text-2xl">
-                    {customer ? `${customer.firstName} ${customer.lastName}` : "Lead"}
-                  </h1>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className="shrink-0 rounded-md border border-(--color-tc-20)/60 bg-(--color-nc-10) px-2 py-0.5 font-mono text-[11px] text-(--color-tc-30)">
-                      ld_{lead.id.slice(0, 8)}
-                    </span>
+                <div className="min-w-0 pt-0.5">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+                    Lead
+                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <h1 className="text-lg font-medium tracking-tight break-words text-ink">
+                      {customer ? `${customer.firstName} ${customer.lastName}` : "Lead"}
+                    </h1>
                     <StatusPill
                       variant={leadStageToPillVariant(lead.stage)}
                       label={LEAD_STAGE_LABELS[lead.stage] ?? lead.stage}
@@ -271,102 +256,66 @@ export default function LeadDetail({
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-2.5 border-t border-(--color-tc-20)/40 pt-5 sm:grid-cols-2">
-                {customer?.email && (
-                  <div className="flex min-w-0 items-center gap-3 rounded-xl bg-(--color-nc-10)/50 px-3 py-2.5">
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-(--color-tc-20)/40 bg-white text-(--color-tc-30)">
-                      <Mail className="size-3.5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-semibold tracking-wider text-(--color-tc-20) uppercase">
-                        Email
-                      </p>
-                      <p className="truncate text-sm text-(--color-tc-40)">{customer.email}</p>
-                    </div>
-                  </div>
-                )}
-                {customer?.phone && (
-                  <div className="flex min-w-0 items-center gap-3 rounded-xl bg-(--color-nc-10)/50 px-3 py-2.5">
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-(--color-tc-20)/40 bg-white text-(--color-tc-30)">
-                      <Phone className="size-3.5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-semibold tracking-wider text-(--color-tc-20) uppercase">
-                        Phone
-                      </p>
-                      <p className="text-sm text-(--color-tc-40)">{customer.phone}</p>
-                    </div>
-                  </div>
-                )}
-                <div className="flex min-w-0 items-start gap-3 rounded-xl bg-(--color-nc-10)/50 px-3 py-2.5 sm:col-span-2">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-(--color-tc-20)/40 bg-white text-(--color-tc-30)">
-                    <MapPin className="size-3.5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-semibold tracking-wider text-(--color-tc-20) uppercase">
-                      Property
-                    </p>
-                    <p className="text-sm break-words text-(--color-tc-40)">
-                      {lead.propertyAddress}, {lead.propertyPostcode}
-                    </p>
-                  </div>
+              {customer?.phone && (
+                <PhoneButton
+                  number={customer.phone}
+                  className="shrink-0"
+                  context={{
+                    leadId: lead.id,
+                    customerName: customer
+                      ? `${customer.firstName} ${customer.lastName}`
+                      : undefined,
+                  }}
+                />
+              )}
+            </div>
+
+            <div className="mt-2 flex items-center justify-between gap-3 pl-[3.375rem]">
+              <p className="font-mono text-xs text-ink-subtle">
+                ld_{lead.id.slice(0, 8)}
+              </p>
+              <p className="text-xs font-medium text-brand">{lead.source}</p>
+            </div>
+
+            <div className="mt-4 grid gap-x-6 gap-y-3 border-t border-line pt-4 sm:grid-cols-2">
+              {customer?.email && (
+                <div className="min-w-0 sm:col-span-2">
+                  <p className="text-xs text-ink-muted">Email</p>
+                  <p className="mt-0.5 text-sm font-medium break-all text-ink" title={customer.email}>
+                    {customer.email}
+                  </p>
                 </div>
-                <div className="flex min-w-0 items-center gap-3 rounded-xl bg-(--color-nc-10)/50 px-3 py-2.5 sm:col-span-2">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-(--color-tc-20)/40 bg-white text-(--color-tc-30)">
-                    <Radar className="size-3.5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-semibold tracking-wider text-(--color-tc-20) uppercase">
-                      Source
-                    </p>
-                    <p className="text-sm text-(--color-tc-40)">
-                      <span className="font-medium text-(--color-primary)">{lead.source}</span>
-                    </p>
-                  </div>
+              )}
+              {customer?.phone && (
+                <div className="min-w-0">
+                  <p className="text-xs text-ink-muted">Phone</p>
+                  <p className="mt-0.5 text-sm font-medium text-ink">{customer.phone}</p>
                 </div>
+              )}
+              <div className="min-w-0 sm:col-span-2">
+                <p className="text-xs text-ink-muted">Property</p>
+                <p className="mt-0.5 text-sm font-medium break-words text-ink">
+                  {lead.propertyAddress}, {lead.propertyPostcode}
+                </p>
               </div>
             </div>
-          </div>
 
-          <CrmPanel>
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-(--color-tc-40)">
-                Where {customer?.firstName ?? "lead"} is in the funnel
-              </h2>
-              <span className="text-xs text-(--color-tc-30)">
-                started {formatRelative(lead.createdAt)}
-              </span>
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {lead.journey.map((step, i) => (
-                <div
-                  key={step.name}
-                  className={cn(
-                    "min-w-[100px] flex-1 rounded-lg border px-2 py-3 text-center",
-                    step.status === "completed" && "border-(--color-tc-20) bg-(--color-nc-10)",
-                    step.status === "current" && "border-(--color-primary) bg-(--color-primary) text-white",
-                    step.status === "upcoming" && "border-dashed border-(--color-tc-20) bg-white"
-                  )}
+            {lead.stage !== "CONVERTED" && (
+              <div className="mt-4 border-t border-line pt-4">
+                <PrimaryButton
+                  type="button"
+                  className="!h-auto w-full !px-4 !py-1.5"
+                  disabled={movingToPaid}
+                  onClick={() => {
+                    setMoveToPaidError(null);
+                    setMoveToPaidConfirmOpen(true);
+                  }}
                 >
-                  <p
-                    className={cn(
-                      "text-xs font-medium",
-                      step.status === "current" ? "text-white" : "text-(--color-tc-30)"
-                    )}
-                  >
-                    {step.name}
-                  </p>
-                  {step.status === "current" && (
-                    <span className="mt-1 inline-block rounded-full bg-white/20 px-2 py-0.5 text-[10px]">
-                      Current step
-                    </span>
-                  )}
-                  {i < lead.journey.length - 1 && <span className="sr-only">→</span>}
-                </div>
-              ))}
-            </div>
-            <p className="mt-4 text-xs text-(--color-tc-30)">{automationStatusText(lead)}</p>
-          </CrmPanel>
+                  {movingToPaid ? "Moving…" : "Move to paid"}
+                </PrimaryButton>
+              </div>
+            )}
+          </CurvedContainer>
 
           <div className="grid gap-px overflow-hidden rounded-xl border border-(--color-tc-20) bg-(--color-tc-20) grid-cols-2">
             {[
@@ -416,14 +365,6 @@ export default function LeadDetail({
                 Next: {new Date(nextRun).toLocaleString()}
               </p>
             )}
-          </CrmPanel>
-
-          <CrmPanel title="Property">
-            <div className="space-y-2 text-sm">
-              <Row label="Address" value={lead.propertyAddress} />
-              <Row label="Postcode" value={lead.propertyPostcode} />
-              <Row label="Value band" value={lead.propertyValueBand ?? "—"} />
-            </div>
           </CrmPanel>
 
           <LeadTags

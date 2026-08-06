@@ -21,6 +21,14 @@ function tagClassName(color: string) {
   return TAG_COLOR_CLASSES[color] ?? TAG_COLOR_CLASSES.gray;
 }
 
+function mergeServerTags(previous: LeadTag[], serverTags: LeadTag[]) {
+  const serverNames = new Set(serverTags.map((t) => t.name.toLowerCase()));
+  const pending = previous.filter(
+    (t) => t.id.startsWith("temp-") && !serverNames.has(t.name.toLowerCase())
+  );
+  return [...serverTags, ...pending];
+}
+
 export interface LeadTagsProps {
   leadId: string;
   tags: LeadTag[];
@@ -31,6 +39,7 @@ export default function LeadTags({ leadId, tags, onChange }: LeadTagsProps) {
   const listboxId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const tagsRef = useRef(tags);
 
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState("");
@@ -38,7 +47,8 @@ export default function LeadTags({ leadId, tags, onChange }: LeadTagsProps) {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
-  const [saving, setSaving] = useState(false);
+
+  tagsRef.current = tags;
 
   const appliedTagIds = new Set(tags.map((t) => t.id));
   const trimmedQuery = query.trim();
@@ -87,39 +97,87 @@ export default function LeadTags({ leadId, tags, onChange }: LeadTagsProps) {
     setHighlight(0);
   }, [options.length, query]);
 
-  async function applyTag(payload: { tagId?: string; name?: string }) {
-    setSaving(true);
+  async function applyTag(
+    payload: { tagId?: string; name?: string },
+    preview: Pick<LeadTag, "name" | "color"> & { id?: string }
+  ) {
+    const name = preview.name.trim();
+    if (!name) return;
+
+    const current = tagsRef.current;
+    if (current.some((t) => t.name.toLowerCase() === name.toLowerCase())) {
+      setQuery("");
+      setOpen(true);
+      return;
+    }
+
+    const optimistic: LeadTag = {
+      id: preview.id ?? `temp-${crypto.randomUUID()}`,
+      name,
+      color: preview.color,
+    };
+
+    const next = [...current, optimistic];
+    tagsRef.current = next;
+    onChange(next);
+    setQuery("");
+    setOpen(true);
+    setAdding(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
+
     try {
       const updated = await api.addLeadTag(leadId, payload);
-      onChange(updated.tags ?? []);
-      setQuery("");
-      setOpen(false);
-      setAdding(false);
+      const merged = mergeServerTags(tagsRef.current, updated.tags ?? []);
+      tagsRef.current = merged;
+      onChange(merged);
     } catch (e) {
+      const rolledBack = tagsRef.current.filter((t) => t.id !== optimistic.id);
+      tagsRef.current = rolledBack;
+      onChange(rolledBack);
       alert(e instanceof Error ? e.message : "Failed to add tag");
-    } finally {
-      setSaving(false);
     }
   }
 
   async function removeTag(tagId: string) {
-    setSaving(true);
+    if (tagId.startsWith("temp-")) return;
+
+    const previous = tagsRef.current;
+    const next = previous.filter((t) => t.id !== tagId);
+    tagsRef.current = next;
+    onChange(next);
+
     try {
       const updated = await api.removeLeadTag(leadId, tagId);
-      onChange(updated.tags ?? []);
+      const merged = mergeServerTags(tagsRef.current, updated.tags ?? []);
+      tagsRef.current = merged;
+      onChange(merged);
     } catch (e) {
+      tagsRef.current = previous;
+      onChange(previous);
       alert(e instanceof Error ? e.message : "Failed to remove tag");
-    } finally {
-      setSaving(false);
     }
+  }
+
+  function commitQueryAsTag() {
+    if (!trimmedQuery) return;
+
+    const existing = suggestions.find(
+      (t) => t.name.toLowerCase() === trimmedQuery.toLowerCase() && !appliedTagIds.has(t.id)
+    );
+    if (existing) {
+      void applyTag({ tagId: existing.id }, existing);
+      return;
+    }
+
+    void applyTag({ name: trimmedQuery }, { name: trimmedQuery, color: "gray" });
   }
 
   function selectOption(option: LeadTag) {
     if (option.id === "__create__") {
-      void applyTag({ name: option.name });
+      void applyTag({ name: option.name }, { name: option.name, color: "gray" });
       return;
     }
-    void applyTag({ tagId: option.id });
+    void applyTag({ tagId: option.id }, option);
   }
 
   function onInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -140,18 +198,50 @@ export default function LeadTags({ leadId, tags, onChange }: LeadTagsProps) {
       setHighlight((h) => Math.max(h - 1, 0));
       return;
     }
+    if (e.key === "," || e.key === " ") {
+      if (trimmedQuery.length > 0) {
+        e.preventDefault();
+        commitQueryAsTag();
+      }
+      return;
+    }
     if (e.key === "Enter") {
       e.preventDefault();
       if (options.length > 0) {
         selectOption(options[highlight]);
       } else if (canCreate) {
-        void applyTag({ name: trimmedQuery });
+        commitQueryAsTag();
       }
     }
   }
 
+  function onInputChange(value: string) {
+    if (/[,\s]/.test(value)) {
+      const parts = value.split(/[,\s]+/);
+      const remainder = /[,\s]$/.test(value) ? "" : parts.pop() ?? "";
+      for (const part of parts) {
+        const name = part.trim();
+        if (!name) continue;
+        const existing = suggestions.find(
+          (t) => t.name.toLowerCase() === name.toLowerCase() && !appliedTagIds.has(t.id)
+        );
+        if (existing) {
+          void applyTag({ tagId: existing.id }, existing);
+        } else if (!tagsRef.current.some((t) => t.name.toLowerCase() === name.toLowerCase())) {
+          void applyTag({ name }, { name, color: "gray" });
+        }
+      }
+      setQuery(remainder);
+      setOpen(true);
+      return;
+    }
+
+    setQuery(value);
+    setOpen(true);
+  }
+
   return (
-    <CrmPanel title="Tags">
+    <CrmPanel title="Tags" className="overflow-visible">
       <div className="space-y-3">
         {tags.length > 0 ? (
           <div className="flex flex-wrap gap-2">
@@ -166,7 +256,7 @@ export default function LeadTags({ leadId, tags, onChange }: LeadTagsProps) {
                 {tag.name}
                 <button
                   type="button"
-                  disabled={saving}
+                  disabled={tag.id.startsWith("temp-")}
                   className="rounded-full p-0.5 hover:bg-black/5 disabled:opacity-50"
                   aria-label={`Remove ${tag.name}`}
                   onClick={() => removeTag(tag.id)}
@@ -177,22 +267,18 @@ export default function LeadTags({ leadId, tags, onChange }: LeadTagsProps) {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-(--color-tc-30)">No tags yet</p>
+          <p className="text-sm text-ink-muted">No tags yet</p>
         )}
 
         {adding ? (
-          <div ref={containerRef} className="relative">
+          <div ref={containerRef} className="space-y-1">
             <input
               ref={inputRef}
               type="text"
               value={query}
-              disabled={saving}
-              placeholder="Search or create a tag…"
-              className="h-10 w-full rounded-xl border border-(--color-tc-20) bg-white px-3 text-sm text-(--color-tc-40) outline-none placeholder:text-(--color-tc-30) focus:ring-2 focus:ring-(--color-primary)/20"
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setOpen(true);
-              }}
+              placeholder="Type a tag, then space or comma…"
+              className="h-10 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-subtle focus:border-brand-light focus:ring-2 focus:ring-brand-muted"
+              onChange={(e) => onInputChange(e.target.value)}
               onFocus={() => setOpen(true)}
               onKeyDown={onInputKeyDown}
               autoComplete="off"
@@ -204,10 +290,10 @@ export default function LeadTags({ leadId, tags, onChange }: LeadTagsProps) {
               <ul
                 id={listboxId}
                 role="listbox"
-                className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-(--color-tc-20) bg-white py-1 shadow-lg"
+                className="max-h-48 w-full overflow-auto rounded-lg border border-line bg-surface py-1"
               >
                 {loading && options.length === 0 ? (
-                  <li className="px-3 py-2 text-sm text-(--color-tc-30)">Loading…</li>
+                  <li className="px-3 py-2 text-sm text-ink-muted">Loading…</li>
                 ) : (
                   options.map((option, i) => (
                     <li key={option.id}>
@@ -216,15 +302,15 @@ export default function LeadTags({ leadId, tags, onChange }: LeadTagsProps) {
                         role="option"
                         aria-selected={i === highlight}
                         className={cn(
-                          "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-(--color-tc-40) hover:bg-(--color-nc-10)",
-                          i === highlight && "bg-(--color-nc-10)"
+                          "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-sidebar",
+                          i === highlight && "bg-sidebar"
                         )}
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => selectOption(option)}
                       >
                         {option.id === "__create__" ? (
                           <>
-                            <Plus className="size-3.5 text-(--color-primary)" />
+                            <Plus className="size-3.5 text-brand" />
                             <span>
                               Create tag &ldquo;{option.name}&rdquo;
                             </span>
@@ -252,7 +338,6 @@ export default function LeadTags({ leadId, tags, onChange }: LeadTagsProps) {
             size="small"
             className="w-full justify-start gap-1"
             icon={<Plus className="size-4" />}
-            disabled={saving}
             onClick={() => {
               setAdding(true);
               setOpen(true);

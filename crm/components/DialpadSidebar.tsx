@@ -13,13 +13,13 @@ import { cn } from "@/lib/utils";
 export default function DialpadSidebar() {
   const router = useRouter();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const linkedDialpadUserId = useRef<string | null>(null);
   const {
     dialpadEnabled,
     dialpadIframeUrl,
     dialpadSidebarOpen,
     setDialpadSidebarOpen,
     registerDialpadIframe,
-    refreshPhoneSettings,
   } = usePhone();
 
   useEffect(() => {
@@ -31,13 +31,14 @@ export default function DialpadSidebar() {
 
     return attachDialpadMessageListener({
       onAuthenticated: async (payload) => {
-        if (payload.user_authenticated && payload.user_id != null) {
-          try {
-            await api.linkDialpadUser(String(payload.user_id));
-            await refreshPhoneSettings();
-          } catch {
-            // User may already be linked — non-fatal
-          }
+        if (!payload.user_authenticated || payload.user_id == null) return;
+        const dialpadUserId = String(payload.user_id);
+        if (linkedDialpadUserId.current === dialpadUserId) return;
+        try {
+          await api.linkDialpadUser(dialpadUserId);
+          linkedDialpadUserId.current = dialpadUserId;
+        } catch {
+          // User may already be linked — non-fatal
         }
       },
       onCallRinging: async (payload) => {
@@ -78,7 +79,7 @@ export default function DialpadSidebar() {
         }
       },
     });
-  }, [dialpadEnabled, refreshPhoneSettings, router, setDialpadSidebarOpen]);
+  }, [dialpadEnabled, router, setDialpadSidebarOpen]);
 
   if (!dialpadEnabled || !dialpadIframeUrl) return null;
 
@@ -96,11 +97,13 @@ export default function DialpadSidebar() {
         </button>
       )}
 
+      {/* Fixed overlay (not md:static) so Dialpad never collapses the lead page layout */}
       <aside
         className={cn(
-          "fixed inset-y-0 right-0 z-30 flex w-[min(100vw,22rem)] flex-col border-l border-(--color-line) bg-(--color-surface) shadow-[var(--shadow-elevated)] transition-transform duration-200 md:static md:z-auto md:shrink-0 md:shadow-none",
-          dialpadSidebarOpen ? "translate-x-0" : "translate-x-full md:hidden"
+          "fixed inset-y-0 right-0 z-30 flex w-[min(100vw,22rem)] flex-col border-l border-(--color-line) bg-(--color-surface) shadow-[var(--shadow-elevated)] transition-transform duration-200",
+          dialpadSidebarOpen ? "translate-x-0" : "pointer-events-none translate-x-full"
         )}
+        aria-hidden={!dialpadSidebarOpen}
         aria-label="Dialpad softphone"
       >
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-(--color-tc-20) px-3 py-2">
