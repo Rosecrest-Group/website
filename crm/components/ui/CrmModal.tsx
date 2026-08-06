@@ -14,6 +14,7 @@ export interface CrmModalProps {
   closeDisabled?: boolean;
   size?: "sm" | "md" | "lg" | "xl";
   fitScreen?: boolean;
+  bodyClassName?: string;
 }
 
 const sizeClass = {
@@ -33,6 +34,7 @@ export default function CrmModal({
   closeDisabled = false,
   size = "md",
   fitScreen = false,
+  bodyClassName,
 }: CrmModalProps) {
   if (!isOpen) return null;
 
@@ -57,21 +59,21 @@ export default function CrmModal({
         aria-modal="true"
         aria-labelledby="crm-modal-title"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-(--color-line) bg-linear-to-b from-(--color-brand-muted)/20 via-(--color-surface) to-(--color-surface) px-5 py-4 sm:px-5">
+        <div className="flex items-center justify-between gap-3 border-b border-(--color-line) bg-linear-to-b from-(--color-brand-muted)/20 via-(--color-surface) to-(--color-surface) px-4 py-2.5 sm:px-5">
           <div className="min-w-0">
             <h2
               id="crm-modal-title"
-              className="text-lg font-medium tracking-[-0.02em] text-(--color-ink)"
+              className="text-base font-medium tracking-[-0.02em] text-(--color-ink)"
             >
               {title}
             </h2>
             {description && (
-              <p className="mt-1 text-sm text-(--color-ink-muted)">{description}</p>
+              <p className="mt-0.5 text-sm text-(--color-ink-muted)">{description}</p>
             )}
           </div>
           <button
             type="button"
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-(--color-ink-subtle) transition-colors hover:border-(--color-line) hover:bg-(--color-nc-20) hover:text-(--color-ink) disabled:opacity-50"
+            className="flex size-7 shrink-0 items-center justify-center rounded-lg text-(--color-ink-subtle) transition-colors hover:border-(--color-line) hover:bg-(--color-nc-20) hover:text-(--color-ink) disabled:opacity-50"
             onClick={onClose}
             disabled={closeDisabled}
             aria-label="Close"
@@ -83,7 +85,8 @@ export default function CrmModal({
         <div
           className={cn(
             "flex-1 px-5 py-4",
-            fitScreen ? "flex min-h-0 flex-col overflow-hidden" : "overflow-y-auto"
+            fitScreen ? "flex min-h-0 flex-col overflow-hidden" : "overflow-y-auto",
+            bodyClassName
           )}
         >
           {children}

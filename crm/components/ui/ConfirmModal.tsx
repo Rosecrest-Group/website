@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 
@@ -7,6 +8,7 @@ export interface ConfirmModalProps {
   isOpen: boolean;
   title: string;
   description?: string;
+  children?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   loading?: boolean;
@@ -20,6 +22,7 @@ export default function ConfirmModal({
   isOpen,
   title,
   description,
+  children,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   loading = false,
@@ -51,6 +54,7 @@ export default function ConfirmModal({
         {description && (
           <p className="mt-2 text-sm text-(--color-ink-muted)">{description}</p>
         )}
+        {children ? <div className="mt-4">{children}</div> : null}
         {error && <p className="mt-2 text-sm text-orange-700">{error}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <SecondaryButton type="button" className="w-auto" disabled={loading} onClick={onCancel}>

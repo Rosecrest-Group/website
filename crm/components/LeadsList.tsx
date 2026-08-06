@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
-import type { Lead, LeadStage } from "@/crm/types";
+import { prefetchLead } from "@/crm/lib/leadDetailCache";
+import type { Lead, LeadStage, Paginated } from "@/crm/types";
 import { LEAD_STAGE_LABELS, SURVEY_LEVEL_LABELS } from "@/crm/lib/constants";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
@@ -39,16 +40,31 @@ function formatTimeAgo(dateStr: string) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-export default function LeadsList() {
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [total, setTotal] = useState(0);
+export type LeadsListInitialData = Paginated<Lead> & {
+  stageLabels?: Record<string, string>;
+};
+
+export default function LeadsList({
+  initialData,
+}: {
+  initialData?: LeadsListInitialData | null;
+}) {
+  const router = useRouter();
+  const [leads, setLeads] = useState<Lead[]>(() => initialData?.items ?? []);
+  const [total, setTotal] = useState(() => initialData?.total ?? 0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [stage, setStage] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !initialData);
   const [error, setError] = useState("");
+  const skipInitialFetch = useRef(Boolean(initialData));
+  const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false;
+      return;
+    }
     setLoading(true);
     const params: Record<string, string> = {
       page: String(page),
@@ -70,6 +86,12 @@ export default function LeadsList() {
     return () => clearTimeout(timer);
   }, [search, stage, page]);
 
+  useEffect(() => {
+    return () => {
+      if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
+    };
+  }, []);
+
   function handleSearchChange(value: string) {
     setSearch(value);
     setPage(1);
@@ -80,21 +102,27 @@ export default function LeadsList() {
     setPage(1);
   }
 
+  function warmLead(leadId: string) {
+    router.prefetch(`/crm/leads/${leadId}`);
+    if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
+    prefetchTimerRef.current = setTimeout(() => {
+      void prefetchLead(leadId);
+      prefetchTimerRef.current = null;
+    }, 80);
+  }
+
   const columns: Column<Lead & Record<string, unknown>>[] = [
     {
       key: "customerName",
       header: "Customer",
       render: (_, row) => (
         <div>
-          <Link
-            href={`/crm/leads/${row.id}`}
-            className="text-sm font-medium text-ink hover:text-brand"
-          >
+          <span className="text-sm font-medium text-ink">
             {row.customerName ??
               (row.customer
                 ? `${row.customer.firstName} ${row.customer.lastName}`
                 : "—")}
-          </Link>
+          </span>
           {row.customer?.email ? (
             <p className="mt-0.5 text-xs text-ink-subtle">{row.customer.email}</p>
           ) : null}
@@ -146,11 +174,12 @@ export default function LeadsList() {
   ];
 
   return (
-    <CrmPageContent>
+    <CrmPageContent className="!pt-3 sm:!pt-4 lg:!pt-4 space-y-4">
       <CrmPageHeader
+        compact
         title="Leads"
         subtitle={`${total} total`}
-        actions={<PrimaryButton href="/crm/leads/new">New lead</PrimaryButton>}
+        actions={<PrimaryButton href="/crm/leads/new">Add new lead</PrimaryButton>}
       />
 
       {error ? <p className="text-sm text-orange-700">{error}</p> : null}
@@ -180,6 +209,8 @@ export default function LeadsList() {
           columns={columns}
           data={leads as (Lead & Record<string, unknown>)[]}
           getRowKey={(r) => r.id}
+          onRowClick={(row) => router.push(`/crm/leads/${row.id}`)}
+          onRowMouseEnter={(row) => warmLead(row.id)}
           emptyMessage="No leads found"
           totalCount={total}
           page={page}

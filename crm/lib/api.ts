@@ -38,6 +38,8 @@ import type {
 
   Paginated,
 
+  SurveyLevel,
+
   SnaggingItem,
 
   WebhookEventSummary,
@@ -707,10 +709,18 @@ export const api = {
 
     request<Lead>(`/leads/${id}/mark-lost`, { method: "POST", body: JSON.stringify({ lostReason, lostReasonNote }) }),
 
-  convertLead: (id: string, agreedAmount: number) =>
-
-    request<{ lead: Lead; job: Job }>(`/leads/${id}/convert-to-job`, { method: "POST", body: JSON.stringify({ agreedAmount }) }),
-
+  convertLead: (
+    id: string,
+    agreedAmount: number,
+    options?: { surveyLevel?: SurveyLevel }
+  ) =>
+    request<{ lead: Lead; job: Job }>(`/leads/${id}/convert-to-job`, {
+      method: "POST",
+      body: JSON.stringify({
+        agreedAmount,
+        ...(options?.surveyLevel ? { surveyLevel: options.surveyLevel } : {}),
+      }),
+    }),
   stopCadence: (id: string, reason?: string) =>
 
     request<Lead>(`/leads/${id}/stop-cadence`, { method: "POST", body: JSON.stringify({ reason }) }),

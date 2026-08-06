@@ -22,6 +22,7 @@ export type TableProps<T> = {
   actions?: DropdownAction[];
   onActionClick?: (actionId: string, row: T, index: number) => void;
   onRowClick?: (row: T, index: number) => void;
+  onRowMouseEnter?: (row: T, index: number) => void;
   getRowKey?: (row: T, index: number) => string | number;
   headerClassName?: string;
   rowClassName?: (row: T, index: number) => string;
@@ -76,6 +77,7 @@ export default function Table<T extends Record<string, unknown>>({
   actions,
   onActionClick,
   onRowClick,
+  onRowMouseEnter,
   getRowKey,
   headerClassName,
   rowClassName,
@@ -197,6 +199,7 @@ export default function Table<T extends Record<string, unknown>>({
                   <tr
                     key={key}
                     onClick={() => onRowClick?.(row, rowIndex)}
+                    onMouseEnter={() => onRowMouseEnter?.(row, rowIndex)}
                     className={cn(
                       "border-b border-line last:border-b-0 transition-colors hover:bg-sidebar/60",
                       onRowClick && "cursor-pointer",

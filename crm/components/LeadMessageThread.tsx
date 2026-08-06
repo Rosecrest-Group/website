@@ -5,7 +5,7 @@ import {
   AlertCircle,
   Check,
   CheckCheck,
-  ChevronUp,
+  ChevronDown,
   Clock3,
   Eye,
   Mail,
@@ -378,7 +378,7 @@ export default function LeadMessageThread({
   const [plainBody, setPlainBody] = useState("");
   const [htmlBody, setHtmlBody] = useState("");
   const [error, setError] = useState("");
-  const [composeCollapsed, setComposeCollapsed] = useState(false);
+  const [composeCollapsed, setComposeCollapsed] = useState(true);
   const [composeExpanded, setComposeExpanded] = useState(false);
   const { teamConnectEnabled, teamConnectNumbers, selectedPhoneDocId, setSelectedPhoneDocId, dialpadEnabled } =
     usePhone();
@@ -411,30 +411,36 @@ export default function LeadMessageThread({
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    const hasSeed = initialMessages.length > 0;
+    if (!hasSeed) setLoading(true);
+
     (async () => {
       try {
-        if (teamConnectEnabled) {
-          await api.syncLeadSmsFromTeamConnect(leadId).catch(() => undefined);
-        }
-        const [result, lead] = await Promise.all([
-          api.listMessages({ leadId, limit: "100" }),
-          dialpadEnabled ? api.getLead(leadId).catch(() => null) : Promise.resolve(null),
-        ]);
-        if (!cancelled) {
-          setMessages(result.items);
-          if (lead) {
-            setCallActivities(lead.activities.filter((a) => a.type.includes("call")));
-          }
-        }
+        // Show DB messages immediately — do not wait on TeamConnect sync.
+        // Call activities already come from LeadDetail's getLead; no need to refetch.
+        const result = await api.listMessages({ leadId, limit: "100" });
+        if (!cancelled) setMessages(result.items);
       } finally {
         if (!cancelled) setLoading(false);
       }
+
+      if (!teamConnectEnabled || cancelled) return;
+
+      // Background sync: merge any new SMS without blocking first paint.
+      try {
+        await api.syncLeadSmsFromTeamConnect(leadId);
+        if (cancelled) return;
+        const synced = await api.listMessages({ leadId, limit: "100" });
+        if (!cancelled) setMessages(synced.items);
+      } catch {
+        // Sync is best-effort; UI already has DB messages.
+      }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [leadId, teamConnectEnabled, dialpadEnabled]);
+  }, [leadId, teamConnectEnabled]);
 
   useLayoutEffect(() => {
     scrollChatContainerToBottom(scrollRef.current, sortedMessages.length > 0 ? "smooth" : "instant");
@@ -467,9 +473,10 @@ export default function LeadMessageThread({
   async function refreshMessages() {
     setLoading(true);
     try {
-      if (teamConnectEnabled) {
-        await api.syncLeadSmsFromTeamConnect(leadId).catch(() => undefined);
-      }
+      const syncPromise = teamConnectEnabled
+        ? api.syncLeadSmsFromTeamConnect(leadId).catch(() => undefined)
+        : Promise.resolve();
+
       const [result, lead] = await Promise.all([
         api.listMessages({ leadId, limit: "100" }),
         dialpadEnabled ? api.getLead(leadId).catch(() => null) : Promise.resolve(null),
@@ -477,6 +484,13 @@ export default function LeadMessageThread({
       setMessages(result.items);
       if (lead) {
         setCallActivities(lead.activities.filter((a) => a.type.includes("call")));
+      }
+      setLoading(false);
+
+      if (teamConnectEnabled) {
+        await syncPromise;
+        const synced = await api.listMessages({ leadId, limit: "100" });
+        setMessages(synced.items);
       }
     } finally {
       setLoading(false);
@@ -622,27 +636,17 @@ export default function LeadMessageThread({
 
   return (
     <CurvedContainer
-      className={cn("flex min-h-[32rem] flex-col overflow-hidden", className)}
+      className={cn(
+        "flex min-h-[min(32rem,calc(100dvh-8rem))] max-h-[calc(100dvh-8rem)] flex-col overflow-hidden",
+        className
+      )}
       showBorderAndShadow
     >
-      <div className="flex items-center justify-between border-b border-(--color-tc-20) px-4 py-3">
-        <div>
-          <p className="text-sm font-semibold text-(--color-tc-40)">Conversation with {customerName}</p>
-          <p className="text-xs text-(--color-tc-30)">Email, SMS, WhatsApp, and calls in one thread</p>
-        </div>
-        <div className="flex items-center gap-2">
+      {headerActions ? (
+        <div className="flex shrink-0 items-center justify-end border-b border-(--color-tc-20) px-4 py-2">
           {headerActions}
-          <SecondaryButton
-            type="button"
-            size="small"
-            className="w-auto"
-            onClick={() => refreshMessages()}
-            disabled={loading}
-          >
-            {loading ? "Refreshing…" : "Refresh"}
-          </SecondaryButton>
         </div>
-      </div>
+      ) : null}
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-(--color-nc-10) px-4 py-4">
         {loading && sortedThreadEntries.length === 0 ? (
@@ -681,7 +685,7 @@ export default function LeadMessageThread({
             className="flex w-full items-center justify-between rounded-2xl border border-(--color-tc-20) bg-white px-4 py-3 text-left text-sm text-(--color-tc-30) shadow-[0_1px_3px_rgba(15,23,42,0.06)] transition hover:border-(--color-primary)/30 hover:bg-(--color-nc-10)/50"
           >
             <span>{composePlaceholder}</span>
-            <ChevronUp className="size-4 shrink-0" aria-hidden />
+            <ChevronDown className="size-4 shrink-0" aria-hidden />
           </button>
         ) : (
           <>

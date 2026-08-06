@@ -4,14 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
-import type { CadenceStep, LeadDetail as LeadDetailType } from "@/crm/types";
+import type { CadenceStep, LeadDetail as LeadDetailType, SurveyLevel } from "@/crm/types";
+import { getCachedLead, setCachedLead } from "@/crm/lib/leadDetailCache";
 import { LEAD_STAGE_LABELS, LOST_REASON_OPTIONS, SURVEY_LEVEL_LABELS } from "@/crm/lib/constants";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight, Maximize2 } from "lucide-react";
 import PhoneButton from "@/crm/components/PhoneButton";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPanel from "@/crm/components/ui/CrmPanel";
+import CrmModal from "@/crm/components/ui/CrmModal";
 import CurvedContainer from "@/crm/components/ui/CurvedContainer";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
@@ -55,10 +57,11 @@ export default function LeadDetail({
 }) {
   const router = useRouter();
   const { setLeft: setTopBar } = useCrmTopBar();
-  const [lead, setLead] = useState<LeadDetailType | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [lead, setLead] = useState<LeadDetailType | null>(() => getCachedLead(id));
+  const [loading, setLoading] = useState(() => !getCachedLead(id));
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("messages");
+  const [messagesMaximized, setMessagesMaximized] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -70,12 +73,15 @@ export default function LeadDetail({
   const [moveToPaidConfirmOpen, setMoveToPaidConfirmOpen] = useState(false);
   const [movingToPaid, setMovingToPaid] = useState(false);
   const [moveToPaidError, setMoveToPaidError] = useState<string | null>(null);
+  const [moveToPaidAmount, setMoveToPaidAmount] = useState("");
+  const [moveToPaidSurveyLevel, setMoveToPaidSurveyLevel] = useState<SurveyLevel>("LEVEL_2");
 
   function reload(options?: { silent?: boolean }) {
     if (!options?.silent) setLoading(true);
     api
       .getLead(id)
       .then((l) => {
+        setCachedLead(id, l);
         setLead(l);
         prefetchInternalThread({ leadId: l.id });
       })
@@ -86,6 +92,18 @@ export default function LeadDetail({
   }
 
   useEffect(() => {
+    const cached = getCachedLead(id);
+    if (cached) {
+      setLead(cached);
+      setLoading(false);
+      setError("");
+      prefetchInternalThread({ leadId: cached.id });
+      // Refresh in background so hover-prefetch stays fresh
+      reload({ silent: true });
+      return;
+    }
+    setLead(null);
+    setError("");
     reload();
   }, [id]);
 
@@ -124,15 +142,21 @@ export default function LeadDetail({
   }
   async function convert() {
     if (movingToPaid || !lead || lead.stage === "CONVERTED") return;
-    const amount = lead.quotedAmount ?? 0;
-    if (!amount || amount <= 0) {
-      setMoveToPaidError("Set a quoted amount before moving to paid.");
+    const amount = Number(moveToPaidAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setMoveToPaidError("Enter a valid amount greater than 0.");
+      return;
+    }
+    if (!moveToPaidSurveyLevel) {
+      setMoveToPaidError("Select a survey level.");
       return;
     }
     setMovingToPaid(true);
     setMoveToPaidError(null);
     try {
-      const result = await api.convertLead(id, amount);
+      const result = await api.convertLead(id, amount, {
+        surveyLevel: moveToPaidSurveyLevel,
+      });
       setMoveToPaidConfirmOpen(false);
       router.push(`/crm/jobs/${result.job.id}`);
     } catch (e) {
@@ -308,6 +332,12 @@ export default function LeadDetail({
                   disabled={movingToPaid}
                   onClick={() => {
                     setMoveToPaidError(null);
+                    setMoveToPaidAmount(
+                      lead.quotedAmount != null && lead.quotedAmount > 0
+                        ? String(lead.quotedAmount)
+                        : ""
+                    );
+                    setMoveToPaidSurveyLevel(lead.surveyLevel ?? "LEVEL_2");
                     setMoveToPaidConfirmOpen(true);
                   }}
                 >
@@ -425,29 +455,50 @@ export default function LeadDetail({
           </CrmPanel>
         </div>
 
-        <div className="min-w-0 lg:sticky lg:top-6 lg:self-start">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-4 h-auto w-full justify-start rounded-none border-b border-(--color-tc-20) bg-transparent p-0">
-              <TabsTrigger
-                value="messages"
-                className="rounded-none border-b-2 border-transparent px-4 py-2 text-(--color-tc-30) data-[state=active]:border-(--color-primary) data-[state=active]:bg-transparent data-[state=active]:text-(--color-primary) data-[state=active]:shadow-none"
+        <div className="flex min-h-0 min-w-0 flex-col lg:sticky lg:top-3 lg:h-[calc(100dvh-5.5rem)] lg:self-start">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <div className="mb-3 flex shrink-0 items-end gap-2 border-b border-(--color-tc-20)">
+              <TabsList className="h-auto min-w-0 flex-1 justify-start rounded-none border-0 bg-transparent p-0">
+                <TabsTrigger
+                  value="messages"
+                  className="h-auto rounded-none border-b-2 border-transparent px-3 py-1.5 text-(--color-tc-30) data-[state=active]:border-(--color-primary) data-[state=active]:bg-transparent data-[state=active]:text-(--color-primary) data-[state=active]:shadow-none"
+                >
+                  Messages ({lead.messages.length})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="activity"
+                  className="h-auto rounded-none border-b-2 border-transparent px-3 py-1.5 text-(--color-tc-30) data-[state=active]:border-(--color-primary) data-[state=active]:bg-transparent data-[state=active]:text-(--color-primary) data-[state=active]:shadow-none"
+                >
+                  Activity ({lead.activities.length})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="internal"
+                  className="h-auto rounded-none border-b-2 border-transparent px-3 py-1.5 text-(--color-tc-30) data-[state=active]:border-(--color-primary) data-[state=active]:bg-transparent data-[state=active]:text-(--color-primary) data-[state=active]:shadow-none"
+                >
+                  Internal
+                </TabsTrigger>
+              </TabsList>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("messages");
+                  setMessagesMaximized(true);
+                }}
+                className="mb-1.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-sidebar hover:text-ink"
+                title="Maximize messages"
+                aria-label="Maximize messages"
               >
-                Messages ({lead.messages.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="activity"
-                className="rounded-none border-b-2 border-transparent px-4 py-2 text-(--color-tc-30) data-[state=active]:border-(--color-primary) data-[state=active]:bg-transparent data-[state=active]:text-(--color-primary) data-[state=active]:shadow-none"
-              >
-                Activity ({lead.activities.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="internal"
-                className="rounded-none border-b-2 border-transparent px-4 py-2 text-(--color-tc-30) data-[state=active]:border-(--color-primary) data-[state=active]:bg-transparent data-[state=active]:text-(--color-primary) data-[state=active]:shadow-none"
-              >
-                Internal
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="messages" className="mt-0">
+                <Maximize2 className="size-4" strokeWidth={1.75} />
+              </button>
+            </div>
+            <TabsContent
+              value="messages"
+              className="mt-0 min-h-0 flex-1 data-[state=active]:flex data-[state=active]:flex-col"
+            >
               <LeadMessageThread
                 leadId={lead.id}
                 customerName={
@@ -456,9 +507,10 @@ export default function LeadDetail({
                 messages={lead.messages}
                 callActivities={lead.activities.filter((a) => a.type.includes("call"))}
                 onSent={() => reload({ silent: true })}
+                className="h-full min-h-0 flex-1"
               />
             </TabsContent>
-            <TabsContent value="activity" className="mt-0">
+            <TabsContent value="activity" className="mt-0 min-h-0 flex-1 overflow-y-auto">
               <ActivityFeed
                 activities={lead.activities}
                 leadName={
@@ -469,7 +521,7 @@ export default function LeadDetail({
                 }
               />
             </TabsContent>
-            <TabsContent value="internal" className="mt-0">
+            <TabsContent value="internal" className="mt-0 min-h-0 flex-1 overflow-y-auto">
               <InternalConversationPanel
                 leadId={lead.id}
                 title={
@@ -590,7 +642,7 @@ export default function LeadDetail({
         title="Move to paid?"
         description={
           lead
-            ? `Record a bank transfer of £${lead.quotedAmount ?? "—"} for ${customer?.firstName ?? ""} ${customer?.lastName ?? ""} — ${lead.propertyAddress}, ${lead.propertyPostcode}. This creates the job as paid and stops nurture.`
+            ? `Record a bank transfer for ${customer?.firstName ?? ""} ${customer?.lastName ?? ""} — ${lead.propertyAddress}, ${lead.propertyPostcode}.`
                 .replace(/\s+/g, " ")
                 .trim()
             : undefined
@@ -604,7 +656,78 @@ export default function LeadDetail({
           setMoveToPaidConfirmOpen(false);
           setMoveToPaidError(null);
         }}
-      />
+      >
+        <p className="mb-4 text-sm text-ink-muted">
+          This creates the job as paid and stops nurture.
+        </p>
+        <div className="space-y-3">
+          <SelectField
+            label="Survey level"
+            value={moveToPaidSurveyLevel}
+            disabled={movingToPaid}
+            onChange={(e) => {
+              setMoveToPaidSurveyLevel(e.target.value as SurveyLevel);
+              if (moveToPaidError) setMoveToPaidError(null);
+            }}
+          >
+            {(Object.keys(SURVEY_LEVEL_LABELS) as SurveyLevel[]).map((level) => (
+              <option key={level} value={level}>
+                {SURVEY_LEVEL_LABELS[level]}
+              </option>
+            ))}
+          </SelectField>
+          <div>
+            <TextField
+              label="Amount (£)"
+              type="text"
+              inputMode="decimal"
+              value={moveToPaidAmount}
+              disabled={movingToPaid}
+              autoFocus
+              placeholder={
+                lead?.quotedAmount != null ? String(lead.quotedAmount) : "0.00"
+              }
+              onChange={(e) => {
+                const next = e.target.value.replace(/[^0-9.]/g, "");
+                setMoveToPaidAmount(next);
+                if (moveToPaidError) setMoveToPaidError(null);
+              }}
+            />
+            {lead?.quotedAmount != null && lead.quotedAmount > 0 ? (
+              <p className="mt-1.5 text-xs text-ink-muted">
+                Quoted: £{lead.quotedAmount}
+                {lead.surveyLevel
+                  ? ` · ${SURVEY_LEVEL_LABELS[lead.surveyLevel] ?? lead.surveyLevel}`
+                  : ""}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </ConfirmModal>
+
+      <CrmModal
+        isOpen={messagesMaximized}
+        title={
+          customer
+            ? `Messages · ${customer.firstName} ${customer.lastName}`
+            : "Messages"
+        }
+        onClose={() => setMessagesMaximized(false)}
+        size="xl"
+        fitScreen
+        bodyClassName="p-0"
+      >
+        <LeadMessageThread
+          leadId={lead.id}
+          customerName={
+            customer ? `${customer.firstName} ${customer.lastName}` : "Customer"
+          }
+          messages={lead.messages}
+          callActivities={lead.activities.filter((a) => a.type.includes("call"))}
+          onSent={() => reload({ silent: true })}
+          className="h-full min-h-0 max-h-none flex-1 rounded-none border-0"
+        />
+      </CrmModal>
     </>
   );
 
@@ -612,7 +735,7 @@ export default function LeadDetail({
     return <div className={contentWrapperClass}>{detailBody}</div>;
   }
 
-  return <CrmPageContent>{detailBody}</CrmPageContent>;
+  return <CrmPageContent className="!pt-3 sm:!pt-4 lg:!pt-4">{detailBody}</CrmPageContent>;
 }
 
 function Row({ label, value }: { label: string; value: string }) {
