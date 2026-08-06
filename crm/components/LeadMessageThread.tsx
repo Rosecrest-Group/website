@@ -35,9 +35,8 @@ import {
 } from "@/crm/lib/formatChatTime";
 import { linkifyText } from "@/crm/lib/formatMessageBody";
 import {
-  isHtmlContent,
   parseWhatsAppFormatting,
-  sanitizeEmailHtml,
+  prepareEmailHtmlForThread,
 } from "@/crm/lib/messageFormatting";
 import { scrollChatContainerToBottom } from "@/crm/lib/scrollChatThread";
 import { parseTrailingMediaUrls } from "@/crm/lib/messageMediaAttachments";
@@ -126,16 +125,14 @@ function MessageBody({
     ? "underline underline-offset-2 opacity-90 hover:opacity-100"
     : "text-(--color-primary) underline underline-offset-2 hover:opacity-80";
 
-  if (channel === "EMAIL" && isHtmlContent(body)) {
+  if (channel === "EMAIL") {
     return (
       <div
         className={cn(
-          "prose prose-sm max-w-none text-sm leading-relaxed [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl",
-          isOutbound
-            ? "prose-invert [&_a]:text-white"
-            : "prose-neutral [&_a]:text-(--color-primary)"
+          "crm-email-body crm-email-body--thread text-sm leading-relaxed [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl",
+          isOutbound ? "[&_a]:text-indigo-700" : "[&_a]:text-(--color-primary)"
         )}
-        dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(body) }}
+        dangerouslySetInnerHTML={{ __html: prepareEmailHtmlForThread(body) }}
       />
     );
   }
@@ -316,7 +313,14 @@ function ThreadBubble({
           )}
         >
           <span className="font-medium text-(--color-tc-40)">{authorName}</span>
-          <span className="inline-flex items-center gap-1">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1",
+              message.channel === "WHATSAPP" && "text-emerald-600",
+              message.channel === "SMS" && "text-orange-500",
+              message.channel === "EMAIL" && "text-indigo-500"
+            )}
+          >
             <ChannelIcon className="size-3" aria-hidden />
             {channelLabel(message.channel)}
             {message.channel === "SMS" && isOutbound && message.fromAddress && (
@@ -331,7 +335,18 @@ function ThreadBubble({
           variant={isOutbound ? "primary" : "white"}
           className={cn(
             "px-4 py-3",
-            isOutbound ? "text-white [&_a]:text-white" : "text-(--color-tc-40)"
+            message.channel === "WHATSAPP" &&
+              (isOutbound ? "bg-emerald-600" : "border-emerald-200 bg-emerald-50/70"),
+            message.channel === "SMS" &&
+              (isOutbound
+                ? "border border-orange-200 bg-orange-100 text-orange-950 [&_a]:text-orange-800"
+                : "border-orange-100 bg-orange-50/80"),
+            message.channel === "EMAIL" &&
+              (isOutbound
+                ? "border border-indigo-200 bg-indigo-100 text-indigo-950 [&_a]:text-indigo-700"
+                : "border-indigo-100 bg-indigo-50/80"),
+            isOutbound && message.channel !== "SMS" && message.channel !== "EMAIL" && "text-white [&_a]:text-white",
+            !isOutbound && "text-(--color-tc-40)"
           )}
           showBorderAndShadow={!isOutbound}
         >
@@ -339,7 +354,7 @@ function ThreadBubble({
             <p
               className={cn(
                 "mb-2 border-b pb-2 text-sm font-semibold",
-                isOutbound ? "border-white/20" : "border-(--color-tc-20)"
+                isOutbound ? "border-indigo-200/80" : "border-(--color-tc-20)"
               )}
             >
               {message.subject}

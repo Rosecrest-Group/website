@@ -31,12 +31,52 @@ const EMAIL_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   },
 };
 
+/** Thread bubbles: semantic markup only — no layout styles that fight the chat column. */
+const THREAD_EMAIL_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: EMAIL_ALLOWED_TAGS,
+  allowedAttributes: {
+    a: ["href", "target", "rel"],
+    img: ["src", "alt"],
+  },
+  transformTags: {
+    a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer", target: "_blank" }),
+  },
+};
+
 export function isHtmlContent(body: string): boolean {
   return /<\/?[a-z][\s\S]*>/i.test(body.trim());
 }
 
 export function sanitizeEmailHtml(html: string): string {
   return sanitizeHtml(html, EMAIL_SANITIZE_OPTIONS);
+}
+
+/**
+ * Normalize email HTML for chat-thread bubbles.
+ * Contenteditable often emits <div> lines; inbound/templates carry layout styles that
+ * look scattered in a narrow bubble. Pure string transform so SSR and client match.
+ */
+export function prepareEmailHtmlForThread(body: string): string {
+  const raw = isHtmlContent(body) ? body : plainTextToHtml(body);
+  let html = sanitizeHtml(raw, THREAD_EMAIL_SANITIZE_OPTIONS);
+
+  // Contenteditable / marketing wrappers → paragraphs
+  html = html.replace(/<div(\s[^>]*)?>/gi, "<p>").replace(/<\/div>/gi, "</p>");
+
+  // Flatten accidental nested paragraphs from wrapper conversion
+  for (let i = 0; i < 4; i++) {
+    const next = html.replace(/<p>\s*<p>/gi, "<p>").replace(/<\/p>\s*<\/p>/gi, "</p>");
+    if (next === html) break;
+    html = next;
+  }
+
+  // Blank contenteditable lines → soft breaks instead of empty blocks
+  html = html.replace(/<p>\s*(?:&nbsp;|\u00a0|\s|<br\s*\/?\s*>)*\s*<\/p>/gi, "<br>");
+
+  // Keep at most one blank line between blocks
+  html = html.replace(/(?:<br\s*\/?\s*>\s*){3,}/gi, "<br><br>");
+
+  return html.trim() || "<p></p>";
 }
 
 export function htmlToPlainText(html: string): string {
