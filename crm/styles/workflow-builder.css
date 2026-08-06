@@ -1084,6 +1084,26 @@
   font-size: 13px;
 }
 
+.wf-source-checklist {
+  display: flex;
+  flex-direction: column;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px 0;
+  border: 1px solid var(--wf-border-strong);
+  border-radius: var(--wf-radius);
+  background: var(--wf-bg);
+}
+
+.wf-source-checklist .wf-checkbox-row {
+  padding: 6px 10px;
+  margin: 0;
+}
+
+.wf-source-checklist .wf-checkbox-row:hover {
+  background: rgba(24, 24, 27, 0.03);
+}
+
 .wf-section-divider {
   height: 1px;
   background: var(--wf-border);

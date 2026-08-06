@@ -8,15 +8,32 @@ import { WORKFLOW_NODE_META_BY_TYPE } from "@/crm/lib/workflowNodeMeta";
 import WorkflowTemplateEditor from "@/crm/components/workflow/WorkflowTemplateEditor";
 import WorkflowTemplatePreviewModal from "@/crm/components/workflow/WorkflowTemplatePreviewModal";
 
-const LEAD_SOURCE_FILTER_RE = /^lead\.source\s*==\s*'([^']+)'$/;
+const LEAD_SOURCE_EQ_RE = /lead\.source\s*==\s*'([^']+)'/g;
 
-function parseLeadSourceFilter(filter: string): string {
-  const match = filter.trim().match(LEAD_SOURCE_FILTER_RE);
-  return match?.[1] ?? "";
+function parseLeadSourceFilter(filter: string): string[] {
+  const trimmed = filter.trim();
+  if (!trimmed) return [];
+  const sources: string[] = [];
+  for (const match of trimmed.matchAll(new RegExp(LEAD_SOURCE_EQ_RE))) {
+    if (match[1] && !sources.includes(match[1])) sources.push(match[1]);
+  }
+  // Only treat as a source multi-filter when every OR/AND clause is a lead.source equality.
+  const withoutSources = trimmed
+    .replace(new RegExp(LEAD_SOURCE_EQ_RE), "")
+    .replace(/\|\|/g, "")
+    .replace(/&&/g, "")
+    .trim();
+  if (withoutSources || sources.length === 0) return [];
+  return sources;
 }
 
-function buildLeadSourceFilter(source: string): string {
-  return source ? `lead.source == '${source}'` : "";
+function buildLeadSourceFilter(sources: string[]): string {
+  if (sources.length === 0) return "";
+  return sources.map((source) => `lead.source == '${source}'`).join(" || ");
+}
+
+function toggleLeadSource(selected: string[], value: string): string[] {
+  return selected.includes(value) ? selected.filter((s) => s !== value) : [...selected, value];
 }
 
 type Props = {
@@ -64,6 +81,10 @@ export default function WorkflowNodeConfig({
   const selectedTemplate = selectedTemplateId
     ? templates.find((t) => t.id === selectedTemplateId) ?? null
     : null;
+  const selectedLeadSources =
+    nodeType === "trigger" && triggerType === "lead.created"
+      ? parseLeadSourceFilter(String(data.filter ?? ""))
+      : [];
 
   useEffect(() => {
     setPositionExpanded(false);
@@ -130,24 +151,64 @@ export default function WorkflowNodeConfig({
             {triggerType === "lead.created" ? (
               <div className="wf-field">
                 <div className="wf-field-label">
-                  Lead source{" "}
+                  Lead sources{" "}
                   <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--wf-text-3)" }}>
                     optional
                   </span>
                 </div>
-                <select
-                  className="wf-select"
-                  value={parseLeadSourceFilter(String(data.filter ?? ""))}
-                  onChange={(e) => update({ filter: buildLeadSourceFilter(e.target.value) })}
-                >
-                  <option value="">Any source</option>
-                  {LEAD_SOURCES.map((source) => (
-                    <option key={source.value} value={source.value}>
-                      {source.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="wf-field-help">Run only when the lead comes from this source.</div>
+                <div className="wf-source-checklist">
+                  <label className="wf-checkbox-row">
+                    <div
+                      className={`wf-checkbox ${selectedLeadSources.length === 0 ? "checked" : ""}`}
+                      onClick={() => update({ filter: "" })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          update({ filter: "" });
+                        }
+                      }}
+                      role="checkbox"
+                      aria-checked={selectedLeadSources.length === 0}
+                      tabIndex={0}
+                    />
+                    <span className="wf-checkbox-label">Any source</span>
+                  </label>
+                  {LEAD_SOURCES.map((source) => {
+                    const checked = selectedLeadSources.includes(source.value);
+                    return (
+                      <label key={source.value} className="wf-checkbox-row">
+                        <div
+                          className={`wf-checkbox ${checked ? "checked" : ""}`}
+                          onClick={() =>
+                            update({
+                              filter: buildLeadSourceFilter(
+                                toggleLeadSource(selectedLeadSources, source.value)
+                              ),
+                            })
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              update({
+                                filter: buildLeadSourceFilter(
+                                  toggleLeadSource(selectedLeadSources, source.value)
+                                ),
+                              });
+                            }
+                          }}
+                          role="checkbox"
+                          aria-checked={checked}
+                          tabIndex={0}
+                        />
+                        <span className="wf-checkbox-label">{source.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="wf-field-help">
+                  Run only when the lead comes from one of the selected sources. Leave as Any source to
+                  run for every lead.
+                </div>
               </div>
             ) : (
               <div className="wf-field">

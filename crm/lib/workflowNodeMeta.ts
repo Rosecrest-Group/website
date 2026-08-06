@@ -110,10 +110,14 @@ export function nodeDisplayDetail(node: Node): string {
   switch (type) {
     case "trigger": {
       if (!data.filter) return "on event";
-      const sourceMatch = String(data.filter).match(/^lead\.source\s*==\s*'([^']+)'$/);
-      if (sourceMatch) {
-        const label = LEAD_SOURCES.find((s) => s.value === sourceMatch[1])?.label ?? sourceMatch[1];
-        return `source: ${label}`;
+      const sourceMatches = [...String(data.filter).matchAll(/lead\.source\s*==\s*'([^']+)'/g)];
+      if (sourceMatches.length > 0) {
+        const labels = sourceMatches.map(
+          (m) => LEAD_SOURCES.find((s) => s.value === m[1])?.label ?? m[1]
+        );
+        if (labels.length === 1) return `source: ${labels[0]}`;
+        if (labels.length <= 3) return `sources: ${labels.join(", ")}`;
+        return `sources: ${labels.slice(0, 2).join(", ")} +${labels.length - 2}`;
       }
       return `filter: ${data.filter}`;
     }

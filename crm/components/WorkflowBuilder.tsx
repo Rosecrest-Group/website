@@ -78,6 +78,32 @@ function validationDetailsMessage(err: unknown): string | null {
   return details.map((d) => d.message).filter(Boolean).join("; ");
 }
 
+/** Turn API error text like QStash rate-limit JSON into a readable modal message. */
+function formatTestRunErrorMessage(message: string): string {
+  const rateLimitMatch = message.match(/^Exceeded daily rate limit\.\s*(\{[\s\S]*\})$/);
+  if (!rateLimitMatch?.[1]) return message;
+  try {
+    const data = JSON.parse(rateLimitMatch[1]) as {
+      limit?: string;
+      remaining?: string;
+      reset?: string;
+    };
+    const limit = data.limit ?? "?";
+    const remaining = data.remaining ?? "?";
+    const resetSec = Number(data.reset);
+    if (Number.isFinite(resetSec) && resetSec > 0) {
+      const resetLabel = new Date(resetSec * 1000).toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+      return `Daily rate limit exceeded (${remaining} of ${limit} remaining). Resets ${resetLabel}.`;
+    }
+    return `Daily rate limit exceeded (${remaining} of ${limit} remaining).`;
+  } catch {
+    return "Daily rate limit exceeded. Try again after the daily reset.";
+  }
+}
+
 function isKeyboardEditingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (
@@ -507,7 +533,7 @@ function WorkflowBuilderInner({ id }: { id: string }) {
       let message = err instanceof Error ? err.message : "Test run failed";
       const details = validationDetailsMessage(err);
       if (details) message = `${message}: ${details}`;
-      setTestRunError(message);
+      setTestRunError(formatTestRunErrorMessage(message));
     } finally {
       setTestRunning(false);
     }

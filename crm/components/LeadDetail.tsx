@@ -271,8 +271,8 @@ export default function LeadDetail({
             </div>
 
             <div className="mt-2 flex items-center justify-between gap-3 pl-[3.375rem]">
-              <p className="font-mono text-xs text-ink-subtle">
-                ld_{lead.id.slice(0, 8)}
+              <p className="font-mono text-xs text-ink-subtle break-all">
+                {lead.id}
               </p>
               <p className="text-xs font-medium text-brand">{lead.source}</p>
             </div>
