@@ -97,11 +97,13 @@ export default function LeadsList({
   }, []);
 
   function handleSearchChange(value: string) {
+    setLoading(true);
     setSearch(value);
     setPage(1);
   }
 
   function handleStageChange(value: string) {
+    setLoading(true);
     setStage(value);
     setPage(1);
   }
@@ -228,7 +230,11 @@ export default function LeadsList({
           totalCount={total}
           page={page}
           pageSize={PAGE_SIZE}
-          onPageChange={setPage}
+          onPageChange={(next) => {
+            setLoading(true);
+            setPage(next);
+          }}
+          loading={loading}
         />
       )}
     </CrmPageContent>

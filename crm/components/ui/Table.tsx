@@ -43,6 +43,8 @@ export type TableProps<T> = {
   page?: number;
   pageSize?: number;
   onPageChange?: (page: number) => void;
+  /** Keep rows visible but dimmed while refetching (stale-while-revalidate) */
+  loading?: boolean;
   className?: string;
 };
 
@@ -93,6 +95,7 @@ export default function Table<T extends Record<string, unknown>>({
   page,
   pageSize,
   onPageChange,
+  loading = false,
   className,
 }: TableProps<T>) {
   const getCellValue = (row: T, key: keyof T | string): unknown => {
@@ -118,6 +121,7 @@ export default function Table<T extends Record<string, unknown>>({
 
   return (
     <section
+      aria-busy={loading || undefined}
       className={cn(
         "overflow-hidden rounded-xl border border-line bg-surface",
         className,
@@ -143,7 +147,12 @@ export default function Table<T extends Record<string, unknown>>({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto">
+      <div
+        className={cn(
+          "overflow-x-auto transition-opacity duration-150",
+          loading && "pointer-events-none opacity-50",
+        )}
+      >
         <table
           className={cn(
             "w-full border-collapse",
@@ -262,6 +271,7 @@ export default function Table<T extends Record<string, unknown>>({
               totalPages={totalPages}
               onPageChange={onPageChange}
               label="Table pagination"
+              disabled={loading}
             />
           ) : null}
         </div>

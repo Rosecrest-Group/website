@@ -10,6 +10,7 @@ type PaginationProps = {
   onPageChange: (page: number) => void;
   label?: string;
   className?: string;
+  disabled?: boolean;
 };
 
 function PaginationButton({
@@ -70,14 +71,15 @@ export default function Pagination({
   onPageChange,
   label = "Pagination",
   className,
+  disabled = false,
 }: PaginationProps) {
   if (totalPages <= 1) return null;
 
   return (
-    <nav aria-label={label} className={cn("flex items-center gap-1.5", className)}>
+    <nav aria-label={label} aria-busy={disabled || undefined} className={cn("flex items-center gap-1.5", className)}>
       <PaginationButton
         ariaLabel="Previous page"
-        disabled={currentPage === 1}
+        disabled={disabled || currentPage === 1}
         onClick={() => onPageChange(currentPage - 1)}
       >
         <ChevronLeft className="size-4" strokeWidth={1.75} />
@@ -93,6 +95,7 @@ export default function Pagination({
             key={page}
             ariaLabel={`Page ${page}`}
             active={page === currentPage}
+            disabled={disabled}
             onClick={() => onPageChange(page)}
           >
             {page}
@@ -102,7 +105,7 @@ export default function Pagination({
 
       <PaginationButton
         ariaLabel="Next page"
-        disabled={currentPage === totalPages}
+        disabled={disabled || currentPage === totalPages}
         onClick={() => onPageChange(currentPage + 1)}
       >
         <ChevronRight className="size-4" strokeWidth={1.75} />
