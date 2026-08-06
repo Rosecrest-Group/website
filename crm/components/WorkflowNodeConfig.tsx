@@ -7,6 +7,28 @@ import { LEAD_SOURCES, SURVEY_LEVELS, WORKFLOW_TRIGGERS } from "@/crm/lib/consta
 import { WORKFLOW_NODE_META_BY_TYPE } from "@/crm/lib/workflowNodeMeta";
 import WorkflowTemplateEditor from "@/crm/components/workflow/WorkflowTemplateEditor";
 import WorkflowTemplatePreviewModal from "@/crm/components/workflow/WorkflowTemplatePreviewModal";
+import WorkflowTagSelect, {
+  WF_TAG_COLORS,
+  type WorkflowTagSelectOption,
+} from "@/crm/components/workflow/WorkflowTagSelect";
+
+const LEAD_SOURCE_TAG_OPTIONS: WorkflowTagSelectOption[] = LEAD_SOURCES.map((source, index) => ({
+  ...source,
+  color: WF_TAG_COLORS[index % WF_TAG_COLORS.length],
+}));
+
+const SURVEY_LEVEL_TAG_OPTIONS: WorkflowTagSelectOption[] = SURVEY_LEVELS.map((level) => ({
+  ...level,
+  color:
+    (
+      {
+        LEVEL_1: "blue",
+        LEVEL_2: "emerald",
+        LEVEL_3: "violet",
+        CPR_35: "amber",
+      } as const
+    )[level.value as "LEVEL_1" | "LEVEL_2" | "LEVEL_3" | "CPR_35"] ?? "slate",
+}));
 
 const LEAD_SOURCE_EQ_RE = /lead\.source\s*==\s*'([^']+)'/g;
 const SURVEY_LEVEL_EQ_RE = /lead\.surveyLevel\s*==\s*'([^']+)'/g;
@@ -64,10 +86,6 @@ function buildLeadCreatedFilter(sources: string[], surveyLevels: string[]): stri
   return clauses.join(" || ");
 }
 
-function toggleValue(selected: string[], value: string): string[] {
-  return selected.includes(value) ? selected.filter((s) => s !== value) : [...selected, value];
-}
-
 type Props = {
   node: Node;
   templates: MessageTemplate[];
@@ -119,7 +137,7 @@ export default function WorkflowNodeConfig({
       : [];
   const selectedSurveyLevels =
     nodeType === "trigger" && triggerType === "lead.created"
-      ? parseSurveyLevelFilter(String(data.filter ?? ""))
+      ? parseSurveyLevelFilter(String(data.filter ?? "")).slice(0, 1)
       : [];
   const setLeadCreatedFilter = (sources: string[], surveyLevels: string[]) =>
     update({ filter: buildLeadCreatedFilter(sources, surveyLevels) });
@@ -195,53 +213,13 @@ export default function WorkflowNodeConfig({
                       optional
                     </span>
                   </div>
-                  <div className="wf-source-checklist">
-                    <label className="wf-checkbox-row">
-                      <div
-                        className={`wf-checkbox ${selectedLeadSources.length === 0 ? "checked" : ""}`}
-                        onClick={() => setLeadCreatedFilter([], selectedSurveyLevels)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setLeadCreatedFilter([], selectedSurveyLevels);
-                          }
-                        }}
-                        role="checkbox"
-                        aria-checked={selectedLeadSources.length === 0}
-                        tabIndex={0}
-                      />
-                      <span className="wf-checkbox-label">Any source</span>
-                    </label>
-                    {LEAD_SOURCES.map((source) => {
-                      const checked = selectedLeadSources.includes(source.value);
-                      return (
-                        <label key={source.value} className="wf-checkbox-row">
-                          <div
-                            className={`wf-checkbox ${checked ? "checked" : ""}`}
-                            onClick={() =>
-                              setLeadCreatedFilter(
-                                toggleValue(selectedLeadSources, source.value),
-                                selectedSurveyLevels
-                              )
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                setLeadCreatedFilter(
-                                  toggleValue(selectedLeadSources, source.value),
-                                  selectedSurveyLevels
-                                );
-                              }
-                            }}
-                            role="checkbox"
-                            aria-checked={checked}
-                            tabIndex={0}
-                          />
-                          <span className="wf-checkbox-label">{source.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
+                  <WorkflowTagSelect
+                    ariaLabel="Lead sources"
+                    options={LEAD_SOURCE_TAG_OPTIONS}
+                    selected={selectedLeadSources}
+                    placeholder="Type to add a source…"
+                    onChange={(sources) => setLeadCreatedFilter(sources, selectedSurveyLevels)}
+                  />
                   <div className="wf-field-help">
                     Run only when the lead comes from one of the selected sources. Leave as Any source to
                     allow every source.
@@ -254,55 +232,16 @@ export default function WorkflowNodeConfig({
                       optional
                     </span>
                   </div>
-                  <div className="wf-source-checklist">
-                    <label className="wf-checkbox-row">
-                      <div
-                        className={`wf-checkbox ${selectedSurveyLevels.length === 0 ? "checked" : ""}`}
-                        onClick={() => setLeadCreatedFilter(selectedLeadSources, [])}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setLeadCreatedFilter(selectedLeadSources, []);
-                          }
-                        }}
-                        role="checkbox"
-                        aria-checked={selectedSurveyLevels.length === 0}
-                        tabIndex={0}
-                      />
-                      <span className="wf-checkbox-label">Any level</span>
-                    </label>
-                    {SURVEY_LEVELS.map((level) => {
-                      const checked = selectedSurveyLevels.includes(level.value);
-                      return (
-                        <label key={level.value} className="wf-checkbox-row">
-                          <div
-                            className={`wf-checkbox ${checked ? "checked" : ""}`}
-                            onClick={() =>
-                              setLeadCreatedFilter(
-                                selectedLeadSources,
-                                toggleValue(selectedSurveyLevels, level.value)
-                              )
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                setLeadCreatedFilter(
-                                  selectedLeadSources,
-                                  toggleValue(selectedSurveyLevels, level.value)
-                                );
-                              }
-                            }}
-                            role="checkbox"
-                            aria-checked={checked}
-                            tabIndex={0}
-                          />
-                          <span className="wf-checkbox-label">{level.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
+                  <WorkflowTagSelect
+                    ariaLabel="Survey level"
+                    options={SURVEY_LEVEL_TAG_OPTIONS}
+                    selected={selectedSurveyLevels}
+                    placeholder="Type to choose a level…"
+                    multiple={false}
+                    onChange={(surveyLevels) => setLeadCreatedFilter(selectedLeadSources, surveyLevels)}
+                  />
                   <div className="wf-field-help">
-                    Run only for selected survey levels. Leave as Any level to allow every level.
+                    Run only for one survey level. Leave empty to allow every level.
                   </div>
                 </div>
               </>

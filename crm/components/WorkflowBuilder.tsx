@@ -652,14 +652,29 @@ function WorkflowBuilderInner({ id }: { id: string }) {
             <i className="ti ti-arrow-left" />
           </Link>
           <div className="wf-workflow-meta">
-            <span className="wf-workflow-title">{workflow.name}</span>
-            {workflow.activeVersion && (
-              <span className="wf-workflow-version">
-                {workflow.isActive
-                  ? `v${workflow.activeVersion.versionNumber} active`
-                  : `v${workflow.activeVersion.versionNumber} unpublished`}
-              </span>
-            )}
+            <span className="wf-workflow-title">
+              {workflow.name}
+              {workflow.activeVersion && (
+                <span
+                  className={`wf-workflow-version${workflow.isActive ? " is-active" : " is-unpublished"}`}
+                >
+                  {` — ${
+                    workflow.isActive
+                      ? `v${workflow.activeVersion.versionNumber} active`
+                      : `v${workflow.activeVersion.versionNumber} unpublished`
+                  }`}
+                </span>
+              )}
+              {saving && (
+                <span className="wf-workflow-saving" aria-live="polite">
+                  <span className="wf-workflow-saving-dot" aria-hidden />
+                  {"Saving"}
+                  <span className="wf-workflow-saving-dots" aria-hidden>
+                    ...
+                  </span>
+                </span>
+              )}
+            </span>
           </div>
         </div>
 
@@ -756,12 +771,6 @@ function WorkflowBuilderInner({ id }: { id: string }) {
               <i className="ti ti-rocket" />
               {canGoLiveWithoutNewVersion ? "Publish" : `Publish v${nextVersionNumber}`}
               <i className="ti ti-chevron-down" />
-              {(unsavedChanges > 0 || saving) && (
-                <span
-                  className={`wf-unsaved-dot${saving ? " is-saving" : ""}`}
-                  aria-hidden
-                />
-              )}
             </button>
             {publishMenuOpen && (
               <div className="wf-action-menu-panel" role="menu">
