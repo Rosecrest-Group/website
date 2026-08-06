@@ -1,5 +1,5 @@
 import type { Node } from "@xyflow/react";
-import { LEAD_SOURCES } from "@/crm/lib/constants";
+import { LEAD_SOURCES, SURVEY_LEVELS } from "@/crm/lib/constants";
 
 export type WorkflowPaletteColor = "slate" | "blue" | "amber" | "emerald" | "violet" | "rose";
 
@@ -110,16 +110,26 @@ export function nodeDisplayDetail(node: Node): string {
   switch (type) {
     case "trigger": {
       if (!data.filter) return "on event";
-      const sourceMatches = [...String(data.filter).matchAll(/lead\.source\s*==\s*'([^']+)'/g)];
+      const filter = String(data.filter);
+      const sourceMatches = [...filter.matchAll(/lead\.source\s*==\s*'([^']+)'/g)];
+      const levelMatches = [...filter.matchAll(/lead\.surveyLevel\s*==\s*'([^']+)'/g)];
+      const parts: string[] = [];
       if (sourceMatches.length > 0) {
-        const labels = sourceMatches.map(
-          (m) => LEAD_SOURCES.find((s) => s.value === m[1])?.label ?? m[1]
+        const labels = [...new Set(sourceMatches.map((m) => m[1]))].map(
+          (value) => LEAD_SOURCES.find((s) => s.value === value)?.label ?? value
         );
-        if (labels.length === 1) return `source: ${labels[0]}`;
-        if (labels.length <= 3) return `sources: ${labels.join(", ")}`;
-        return `sources: ${labels.slice(0, 2).join(", ")} +${labels.length - 2}`;
+        if (labels.length === 1) parts.push(labels[0]);
+        else if (labels.length <= 3) parts.push(labels.join(", "));
+        else parts.push(`${labels.slice(0, 2).join(", ")} +${labels.length - 2}`);
       }
-      return `filter: ${data.filter}`;
+      if (levelMatches.length > 0) {
+        const labels = [...new Set(levelMatches.map((m) => m[1]))].map(
+          (value) => SURVEY_LEVELS.find((s) => s.value === value)?.label ?? value
+        );
+        parts.push(labels.join(", "));
+      }
+      if (parts.length > 0) return parts.join(" · ");
+      return `filter: ${filter}`;
     }
     case "sendEmail":
     case "sendSms":

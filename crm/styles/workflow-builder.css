@@ -105,7 +105,7 @@
   align-items: center;
   gap: 12px;
   min-height: 48px;
-  padding: 0 20px;
+  padding: 6px 20px;
   border-bottom: 1px solid var(--wf-border);
   background: var(--wf-bg);
   z-index: 20;
@@ -152,11 +152,15 @@
   font-size: 15px;
   font-weight: 500;
   letter-spacing: -0.015em;
+  line-height: 1.25;
   color: var(--wf-text-1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   min-width: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .wf-workflow-version {

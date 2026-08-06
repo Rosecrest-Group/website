@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
 import { prefetchLead } from "@/crm/lib/leadDetailCache";
 import type { Lead, LeadStage, Paginated } from "@/crm/types";
-import { LEAD_STAGE_LABELS, SURVEY_LEVEL_LABELS } from "@/crm/lib/constants";
+import {
+  BEDROOM_BAND_LABELS,
+  LEAD_STAGE_LABELS,
+  SURVEY_LEVEL_LABELS,
+} from "@/crm/lib/constants";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
@@ -152,6 +156,15 @@ export default function LeadsList({
       render: (value) => (
         <span className="text-sm text-ink">
           {value ? SURVEY_LEVEL_LABELS[value as string] ?? (value as string) : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "bedroomBand",
+      header: "Bedrooms",
+      render: (value) => (
+        <span className="text-sm text-ink-muted">
+          {value ? BEDROOM_BAND_LABELS[value as string] ?? (value as string) : "—"}
         </span>
       ),
     },

@@ -172,9 +172,27 @@ export const TASK_STATUS_LABELS: Record<string, string> = {
   DONE: "Done",
 };
 
-export const SURVEY_LEVEL_LABELS: Record<string, string> = {
-  LEVEL_1: "Level 1",
-  LEVEL_2: "Level 2",
-  LEVEL_3: "Level 3",
-  CPR_35: "CPR-35",
+export const SURVEY_LEVELS: { value: string; label: string }[] = [
+  { value: "LEVEL_1", label: "Level 1" },
+  { value: "LEVEL_2", label: "Level 2" },
+  { value: "LEVEL_3", label: "Level 3" },
+  { value: "CPR_35", label: "CPR-35" },
+];
+
+export const SURVEY_LEVEL_LABELS: Record<string, string> = Object.fromEntries(
+  SURVEY_LEVELS.map((level) => [level.value, level.label])
+);
+
+export const BEDROOM_BAND_LABELS: Record<string, string> = {
+  STUDIO: "Studio",
+  "1_BED": "1 bed",
+  "2_BED": "2 bed",
+  "3_BED": "3 bed",
+  "4_BED": "4 bed",
+  "5_BED": "5 bed",
+  "6_BED": "6 bed",
+  "7_BED": "7 bed",
+  "8_BED": "8 bed",
+  "9_BED": "9 bed",
+  ABOVE_9: "9+ bed",
 };

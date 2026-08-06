@@ -462,6 +462,7 @@ export interface Lead {
   propertyAddress: string;
   propertyPostcode: string;
   propertyValueBand: string | null;
+  bedroomBand: string | null;
   quotedAmount: number | null;
   quotedAt: string | null;
   cadenceStopped: boolean;
