@@ -922,6 +922,12 @@ export const api = {
 
     request<unknown>(`/workflows/${id}/publish`, { method: "POST", body: JSON.stringify({ changeNote }) }),
 
+  unpublishWorkflow: (id: string) =>
+    request<WorkflowDetail>(`/workflows/${id}/unpublish`, { method: "POST", body: JSON.stringify({}) }),
+
+  activateWorkflow: (id: string) =>
+    request<WorkflowDetail>(`/workflows/${id}/activate`, { method: "POST", body: JSON.stringify({}) }),
+
   listWorkflowVersions: (id: string) => request<{ items: WorkflowVersion[] }>(`/workflows/${id}/versions`),
 
   restoreWorkflowVersion: (id: string, versionId: string) =>

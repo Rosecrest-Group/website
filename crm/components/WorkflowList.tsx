@@ -311,8 +311,8 @@ export default function WorkflowList() {
             {deletedExpanded && (
               <>
                 <p className="pl-6 text-sm text-(--color-tc-30)">
-                  Deactivated workflows are kept for reference. Running executions continue to completion.
-                  Admins can restore workflows back to the active list.
+                  Deleted workflows are kept for reference. Running executions continue to completion.
+                  Admins can restore workflows back to the list (unpublished — publish again to go live).
                   {canPurge && " Super admins can purge workflows with no execution history."}
                 </p>
                 {restoreError && <p className="pl-6 text-sm text-red-600">{restoreError}</p>}
@@ -343,7 +343,7 @@ export default function WorkflowList() {
       <ConfirmModal
         isOpen={deleteTarget != null}
         title={`Delete ${deleteTarget?.name ?? "workflow"}?`}
-        description="This deactivates the workflow and moves it to the deleted section below. Any running executions will continue to completion."
+        description="This removes the workflow from the list. Running executions continue to completion. You can restore it later from Deleted workflows. Use Unpublish in the builder if you only want to pause new runs."
         confirmLabel="Delete workflow"
         loading={deleting}
         danger

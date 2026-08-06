@@ -22,6 +22,7 @@ import "@/crm/styles/workflow-builder.css";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import ConfirmModal from "@/crm/components/ui/ConfirmModal";
 import { api } from "@/crm/lib/api";
 import { diffWorkflowVersions } from "@/crm/lib/workflowDiff";
@@ -129,6 +130,9 @@ function WorkflowBuilderInner({ id }: { id: string }) {
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [showUnpublish, setShowUnpublish] = useState(false);
+  const [unpublishing, setUnpublishing] = useState(false);
+  const [unpublishError, setUnpublishError] = useState("");
   const [inFlight, setInFlight] = useState(0);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -155,8 +159,10 @@ function WorkflowBuilderInner({ id }: { id: string }) {
   const [savedSnapshot, setSavedSnapshot] = useState("");
   const [saving, setSaving] = useState(false);
   const [graphLoaded, setGraphLoaded] = useState(false);
+  const [publishMenuOpen, setPublishMenuOpen] = useState(false);
 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const publishMenuRef = useRef<HTMLDivElement>(null);
   const configCommitTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const deleteNodeRef = useRef<(nodeId: string) => void>(() => {});
   const duplicateNodeRef = useRef<(nodeId: string) => void>(() => {});
@@ -332,6 +338,25 @@ function WorkflowBuilderInner({ id }: { id: string }) {
   }, [load]);
 
   useEffect(() => {
+    if (!publishMenuOpen) return;
+    function onPointerDown(e: Event) {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (publishMenuRef.current?.contains(target)) return;
+      setPublishMenuOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setPublishMenuOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [publishMenuOpen]);
+
+  useEffect(() => {
     if (selectedNodeId && !nodes.some((n) => n.id === selectedNodeId)) {
       setSelectedNodeId(null);
     }
@@ -449,6 +474,9 @@ function WorkflowBuilderInner({ id }: { id: string }) {
     try {
       await api.saveWorkflowDraft(id, { nodes: sanitizeNodesForSave(nodes), edges });
       setSavedSnapshot(serializeGraph(nodes, edges));
+      toast.success("Draft saved");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save draft");
     } finally {
       setSaving(false);
     }
@@ -475,6 +503,7 @@ function WorkflowBuilderInner({ id }: { id: string }) {
       await api.publishWorkflow(id, changeNote);
       setShowPublish(false);
       setChangeNote("");
+      toast.success(`Published v${nextVersionNumber}`);
       load();
     } catch (err) {
       let message = err instanceof Error ? err.message : "Failed to publish workflow";
@@ -483,6 +512,35 @@ function WorkflowBuilderInner({ id }: { id: string }) {
       setPublishError(message);
     } finally {
       setPublishing(false);
+    }
+  }
+
+  async function goLiveExistingVersion() {
+    setPublishing(true);
+    try {
+      const wf = await api.activateWorkflow(id);
+      const versionNumber = wf.activeVersion?.versionNumber;
+      toast.success(versionNumber ? `v${versionNumber} is published` : "Workflow published");
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to publish workflow");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  async function unpublishWorkflow() {
+    setUnpublishError("");
+    setUnpublishing(true);
+    try {
+      await api.unpublishWorkflow(id);
+      setShowUnpublish(false);
+      toast.success("Workflow unpublished — new runs are paused");
+      load();
+    } catch (err) {
+      setUnpublishError(err instanceof Error ? err.message : "Failed to unpublish workflow");
+    } finally {
+      setUnpublishing(false);
     }
   }
 
@@ -504,8 +562,14 @@ function WorkflowBuilderInner({ id }: { id: string }) {
   }
 
   async function activateVersion(versionId: string) {
-    await api.activateWorkflowVersion(id, versionId);
-    load();
+    try {
+      await api.activateWorkflowVersion(id, versionId);
+      const version = versions.find((v) => v.id === versionId);
+      toast.success(version ? `v${version.versionNumber} is now published` : "Version is now published");
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to activate version");
+    }
   }
 
   async function runTestRun() {
@@ -561,6 +625,14 @@ function WorkflowBuilderInner({ id }: { id: string }) {
   }
 
   const nextVersionNumber = (workflow?.activeVersion?.versionNumber ?? 0) + 1;
+  const canGoLiveWithoutNewVersion = Boolean(
+    workflow &&
+      !workflow.isActive &&
+      !workflow.deletedAt &&
+      workflow.activeVersion &&
+      unsavedChanges === 0 &&
+      !workflow.draftNodes
+  );
 
   if (!workflow) {
     return (
@@ -582,13 +654,10 @@ function WorkflowBuilderInner({ id }: { id: string }) {
           <div className="wf-workflow-meta">
             <span className="wf-workflow-title">{workflow.name}</span>
             {workflow.activeVersion && (
-              <span className="wf-workflow-version">v{workflow.activeVersion.versionNumber} active</span>
-            )}
-            {(unsavedChanges > 0 || saving) && (
-              <span className="wf-draft-pill">
-                <span className="wf-draft-pill-dot" />
-                Draft v{nextVersionNumber}
-                {unsavedChanges > 0 ? " · unsaved" : saving ? " · saving…" : ""}
+              <span className="wf-workflow-version">
+                {workflow.isActive
+                  ? `v${workflow.activeVersion.versionNumber} active`
+                  : `v${workflow.activeVersion.versionNumber} unpublished`}
               </span>
             )}
           </div>
@@ -666,21 +735,86 @@ function WorkflowBuilderInner({ id }: { id: string }) {
             <i className="ti ti-player-play" />
             Test run
           </button>
-          <button type="button" className="wf-btn" onClick={saveDraftNow}>
-            <i className="ti ti-device-floppy" />
-            Save draft
-          </button>
-          <button
-            type="button"
-            className="wf-btn wf-btn-primary"
-            onClick={() => {
-              setPublishError("");
-              setShowPublish(true);
-            }}
-          >
-            <i className="ti ti-rocket" />
-            Publish v{nextVersionNumber}
-          </button>
+          <div className="wf-action-menu" ref={publishMenuRef}>
+            <button
+              type="button"
+              className="wf-btn wf-btn-primary"
+              disabled={publishing || unpublishing || saving}
+              aria-expanded={publishMenuOpen}
+              aria-haspopup="menu"
+              title={
+                unsavedChanges > 0
+                  ? `Unsaved draft v${nextVersionNumber}`
+                  : saving
+                    ? "Saving draft…"
+                    : canGoLiveWithoutNewVersion
+                      ? "Publish"
+                      : `Publish v${nextVersionNumber}`
+              }
+              onClick={() => setPublishMenuOpen((open) => !open)}
+            >
+              <i className="ti ti-rocket" />
+              {canGoLiveWithoutNewVersion ? "Publish" : `Publish v${nextVersionNumber}`}
+              <i className="ti ti-chevron-down" />
+              {(unsavedChanges > 0 || saving) && (
+                <span
+                  className={`wf-unsaved-dot${saving ? " is-saving" : ""}`}
+                  aria-hidden
+                />
+              )}
+            </button>
+            {publishMenuOpen && (
+              <div className="wf-action-menu-panel" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="wf-action-menu-item"
+                  disabled={saving}
+                  onClick={() => {
+                    setPublishMenuOpen(false);
+                    saveDraftNow();
+                  }}
+                >
+                  <i className="ti ti-device-floppy" />
+                  {unsavedChanges > 0 ? "Save draft" : saving ? "Saving…" : "Save draft"}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="wf-action-menu-item"
+                  disabled={publishing}
+                  onClick={() => {
+                    setPublishMenuOpen(false);
+                    if (canGoLiveWithoutNewVersion) {
+                      goLiveExistingVersion();
+                      return;
+                    }
+                    setPublishError("");
+                    setShowPublish(true);
+                  }}
+                >
+                  <i className="ti ti-rocket" />
+                  {canGoLiveWithoutNewVersion ? "Publish" : `Publish v${nextVersionNumber}`}
+                </button>
+                {workflow.isActive && workflow.activeVersion && !workflow.deletedAt && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="wf-action-menu-item"
+                    disabled={unpublishing}
+                    onClick={() => {
+                      setPublishMenuOpen(false);
+                      setUnpublishError("");
+                      setShowUnpublish(true);
+                    }}
+                  >
+                    <i className="ti ti-player-pause" />
+                    Unpublish
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           {!workflow.deletedAt && (
             <>
               <div className="wf-divider-v" />
@@ -713,7 +847,8 @@ function WorkflowBuilderInner({ id }: { id: string }) {
             <div key={v.id} className="wf-version-card">
               <div>
                 <p className="font-medium">
-                  v{v.versionNumber} {workflow.activeVersionId === v.id && "(active)"}
+                  v{v.versionNumber}
+                  {workflow.activeVersionId === v.id && (workflow.isActive ? " (active)" : " (unpublished)")}
                 </p>
                 <p className="text-xs" style={{ color: "var(--wf-text-3)" }}>
                   {v.inFlight} in-flight · {v.completed} completed · {v.changeNote ?? "No note"}
@@ -723,9 +858,25 @@ function WorkflowBuilderInner({ id }: { id: string }) {
                 <button type="button" className="wf-btn" onClick={() => restoreVersion(v.id)}>
                   Restore as draft
                 </button>
-                <button type="button" className="wf-btn" onClick={() => activateVersion(v.id)}>
-                  Make active
-                </button>
+                {workflow.activeVersionId === v.id ? (
+                  workflow.isActive ? (
+                    <button type="button" className="wf-btn" disabled aria-current="true">
+                      Active
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="wf-btn wf-btn-primary"
+                      onClick={() => activateVersion(v.id)}
+                    >
+                      Publish
+                    </button>
+                  )
+                ) : (
+                  <button type="button" className="wf-btn" onClick={() => activateVersion(v.id)}>
+                    Make active
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -1082,12 +1233,25 @@ function WorkflowBuilderInner({ id }: { id: string }) {
       )}
 
       <ConfirmModal
+        isOpen={showUnpublish}
+        title={`Unpublish ${workflow.name}?`}
+        description="New triggers will stop starting this workflow. Published versions are kept. In-flight runs continue. Publish again when you want it live."
+        confirmLabel="Unpublish"
+        loading={unpublishing}
+        error={unpublishError || undefined}
+        onCancel={() => {
+          if (!unpublishing) setShowUnpublish(false);
+        }}
+        onConfirm={unpublishWorkflow}
+      />
+
+      <ConfirmModal
         isOpen={showDelete}
         title={`Delete ${workflow.name}?`}
         description={
           inFlight > 0
-            ? `This deactivates the workflow and hides it from the list. ${inFlight} running execution${inFlight === 1 ? "" : "s"} will continue to completion.`
-            : "This deactivates the workflow and hides it from the list. Any running executions will continue to completion."
+            ? `This removes the workflow from the list. ${inFlight} running execution${inFlight === 1 ? "" : "s"} will continue to completion. You can restore it later from Deleted workflows.`
+            : "This removes the workflow from the list. You can restore it later from Deleted workflows. Use Unpublish if you only want to pause new runs."
         }
         confirmLabel="Delete workflow"
         loading={deleting}

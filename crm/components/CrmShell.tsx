@@ -31,6 +31,7 @@ function CrmShellInner({ children }: { children: React.ReactNode }) {
   const { left: topBarLeft } = useCrmTopBar();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pathname = usePathname();
+  const isWorkflowBuilder = /^\/crm\/workflows\/[^/]+/.test(pathname);
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -90,7 +91,7 @@ function CrmShellInner({ children }: { children: React.ReactNode }) {
           <NotificationBell />
         </header>
 
-        <CrmTopPanel left={topBarLeft} />
+        {!isWorkflowBuilder && <CrmTopPanel left={topBarLeft} />}
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {children}
