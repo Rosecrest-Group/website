@@ -123,7 +123,7 @@ export default function NewLeadForm() {
       propertyAddress: String(fd.get("propertyAddress")),
       propertyPostcode: String(fd.get("propertyPostcode")),
       quotedAmount: fd.get("quotedAmount") ? Number(fd.get("quotedAmount")) : undefined,
-      marketingOptIn: fd.get("marketingOptIn") === "on",
+      marketingOptIn: true,
       consent: {
         timestamp: new Date().toISOString(),
         source: "crm_manual_entry",
@@ -151,7 +151,7 @@ export default function NewLeadForm() {
   }
 
   return (
-    <CrmPageContent className="max-w-2xl">
+    <CrmPageContent>
       <CrmPageHeader title="New lead" />
 
       <CurvedContainer>
@@ -198,42 +198,44 @@ export default function NewLeadForm() {
             );
           })}
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <TextField label="First name" name="firstName" required />
             <TextField label="Last name" name="lastName" required />
+            <TextField
+              label="Email"
+              name="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <TextField
+              label="Phone (UK)"
+              name="phone"
+              placeholder="07700 900142"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+            />
           </div>
-          <TextField
-            label="Email"
-            name="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <TextField
-            label="Phone (UK)"
-            name="phone"
-            placeholder="07700 900142"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            required
-          />
-          <TextField
-            label="Property address"
-            name="propertyAddress"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            required
-          />
-          <TextField
-            label="Postcode"
-            name="propertyPostcode"
-            placeholder="BR2 8LN"
-            value={postcode}
-            onChange={(e) => setPostcode(e.target.value)}
-            required
-          />
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="sm:col-span-2">
+              <TextField
+                label="Property address"
+                name="propertyAddress"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                required
+              />
+            </div>
+            <TextField
+              label="Postcode"
+              name="propertyPostcode"
+              placeholder="BR2 8LN"
+              value={postcode}
+              onChange={(e) => setPostcode(e.target.value)}
+              required
+            />
             <SelectField label="Survey level" name="surveyLevel" defaultValue="LEVEL_2">
               <option value="LEVEL_1">Level 1</option>
               <option value="LEVEL_2">Level 2</option>
@@ -241,10 +243,6 @@ export default function NewLeadForm() {
             </SelectField>
             <TextField label="Quoted amount (£)" name="quotedAmount" type="number" step="0.01" />
           </div>
-          <label className="flex items-center gap-2 text-sm text-(--color-tc-40)">
-            <input type="checkbox" name="marketingOptIn" className="rounded" />
-            Marketing opt-in
-          </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex flex-wrap gap-3">
             <PrimaryButton type="submit" disabled={loading} className="w-auto min-w-40">

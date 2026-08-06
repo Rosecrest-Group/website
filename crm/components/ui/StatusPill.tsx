@@ -3,7 +3,14 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-type StatusVariant = "completed" | "pending" | "in-review" | "failed";
+type StatusVariant =
+  | "completed"
+  | "pending"
+  | "in-review"
+  | "failed"
+  | "new"
+  | "awaiting"
+  | "paused";
 
 type StatusPillProps = {
   variant: StatusVariant;
@@ -15,21 +22,74 @@ type StatusPillProps = {
 const statusConfig: Record<
   StatusVariant,
   {
-    badgeVariant: "crmCompleted" | "crmPending" | "crmInReview" | "crmFailed";
+    badgeVariant:
+      | "crmCompleted"
+      | "crmPending"
+      | "crmInReview"
+      | "crmFailed"
+      | "crmNew"
+      | "crmAwaiting"
+      | "crmPaused";
     defaultLabel: string;
+    dotClass: string;
   }
 > = {
-  completed: { badgeVariant: "crmCompleted", defaultLabel: "Completed" },
-  pending: { badgeVariant: "crmPending", defaultLabel: "Pending" },
-  "in-review": { badgeVariant: "crmInReview", defaultLabel: "In review" },
-  failed: { badgeVariant: "crmFailed", defaultLabel: "Failed" },
+  completed: {
+    badgeVariant: "crmCompleted",
+    defaultLabel: "Completed",
+    dotClass: "bg-emerald-500",
+  },
+  pending: {
+    badgeVariant: "crmPending",
+    defaultLabel: "Pending",
+    dotClass: "bg-brand",
+  },
+  "in-review": {
+    badgeVariant: "crmInReview",
+    defaultLabel: "In review",
+    dotClass: "bg-amber-500",
+  },
+  failed: {
+    badgeVariant: "crmFailed",
+    defaultLabel: "Failed",
+    dotClass: "bg-orange-500",
+  },
+  new: {
+    badgeVariant: "crmNew",
+    defaultLabel: "New",
+    dotClass: "bg-sky-500",
+  },
+  awaiting: {
+    badgeVariant: "crmAwaiting",
+    defaultLabel: "Awaiting",
+    dotClass: "bg-teal-500",
+  },
+  paused: {
+    badgeVariant: "crmPaused",
+    defaultLabel: "Paused",
+    dotClass: "bg-slate-400",
+  },
 };
 
 export function leadStageToPillVariant(stage: string): StatusVariant {
-  if (stage === "CONVERTED") return "completed";
-  if (stage === "LOST") return "failed";
-  if (stage === "AWAITING_PAYMENT" || stage === "FOLLOWING_UP") return "pending";
-  return "in-review";
+  switch (stage) {
+    case "NEW":
+      return "new";
+    case "QUOTE_SENT":
+      return "in-review";
+    case "FOLLOWING_UP":
+      return "pending";
+    case "AWAITING_PAYMENT":
+      return "awaiting";
+    case "PAUSED":
+      return "paused";
+    case "CONVERTED":
+      return "completed";
+    case "LOST":
+      return "failed";
+    default:
+      return "in-review";
+  }
 }
 
 export default function StatusPill({
@@ -49,13 +109,7 @@ export default function StatusPill({
       )}
     >
       <span
-        className={cn(
-          "size-1.5 shrink-0 rounded-full",
-          variant === "completed" && "bg-emerald-500",
-          variant === "pending" && "bg-brand",
-          variant === "in-review" && "bg-amber-500",
-          variant === "failed" && "bg-orange-500",
-        )}
+        className={cn("size-1.5 shrink-0 rounded-full", config.dotClass)}
         aria-hidden
       />
       <span className="whitespace-nowrap">{displayLabel}</span>
