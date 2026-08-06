@@ -2,13 +2,20 @@
 
 ## Roles
 
-| Role | Capabilities |
-|------|----------------|
-| Super Admin | All settings, user purge, workflow purge, bulk migration |
-| Admin | Workflows, templates, integrations, user management |
-| Ops | Leads, jobs, messaging, cadence control |
-| Finance | Read + export + payment links |
-| Surveyor / Trade | Assigned jobs and schedule only |
+| Role | See | Do | Must not |
+|------|-----|----|----------|
+| **Super Admin** | Everything | Users/roles, billing, purge, full webhook replay | — |
+| **Admin** | All leads, jobs, inbox, dashboards, workflows | Templates/workflows publish, integrations | Billing / role grants (Super Admin); technical report approval |
+| **Ops** | All leads + jobs, inbox, customers | Chase leads, send messages, assign surveyor, booking stages, mark paid | Report QC approval; user role changes |
+| **Surveyor** | **Assigned jobs only** + schedule/tasks | Checkpoints, inspection complete, report upload on own jobs | Leads, inbox, customer directory, messaging, workflows/templates, reassign jobs |
+| **Trade Operative** | **Assigned trade jobs** + schedule | Trade stages, snagging, sign-off | Leads, inbox, survey jobs, messaging |
+| **QC** | Jobs in QC (`REPORT_QC` / `IN_QC`) | Approve / reject / request revisions | Lead chase, inbox, sales pipeline |
+| **Finance** | Jobs + finance dashboard, customers (read) | Export, payment links / mark paid | Lead mutations, messaging, workflow publish |
+| **Read Only** | Jobs / customers / dashboards (read) | — | Any edit, send, assign, publish |
+
+Ops in the CRM matches the **Administration Team** in operational docs. There is no separate Sales CRM role — the sales funnel is Ops-owned.
+
+Enforcement: sidebar + page redirects in the CRM UI; **API is authoritative** (`requireExactRoles` for leads/messages; `assignedToId` scoping for Surveyor/Trade; QC stage filter).
 
 ## User setup
 

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
 import type { Job } from "@/crm/types";
+import { BEDROOM_BAND_LABELS } from "@/crm/lib/constants";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import Table, { type Column } from "@/crm/components/ui/Table";
@@ -11,6 +12,7 @@ import StatusPill from "@/crm/components/ui/StatusPill";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 
 export default function CrmJobsList() {
+  const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -22,14 +24,24 @@ export default function CrmJobsList() {
       .finally(() => setLoading(false));
   }, []);
 
+  const leadName = (job: Job) =>
+    job.customer
+      ? `${job.customer.firstName} ${job.customer.lastName}`.trim()
+      : "";
+
   const filtered = search.trim()
     ? jobs.filter((job) => {
         const q = search.toLowerCase();
+        const rooms = job.bedroomBand
+          ? (BEDROOM_BAND_LABELS[job.bedroomBand] ?? job.bedroomBand).toLowerCase()
+          : "";
         return (
           job.jobNumber?.toLowerCase().includes(q) ||
+          leadName(job).toLowerCase().includes(q) ||
+          job.propertyAddress?.toLowerCase().includes(q) ||
           job.propertyPostcode?.toLowerCase().includes(q) ||
-          job.stage?.toLowerCase().includes(q) ||
-          job.paymentStatus?.toLowerCase().includes(q)
+          rooms.includes(q) ||
+          job.stage?.toLowerCase().includes(q)
         );
       })
     : jobs;
@@ -38,20 +50,33 @@ export default function CrmJobsList() {
     {
       key: "jobNumber",
       header: "Job #",
-      render: (value, row) => (
-        <Link
-          href={`/crm/jobs/${row.id}`}
-          className="text-sm font-medium text-ink tabular-nums hover:text-brand"
-        >
-          {value as string}
-        </Link>
+      render: (value) => (
+        <span className="text-sm font-medium text-ink tabular-nums">{value as string}</span>
       ),
     },
     {
-      key: "propertyPostcode",
+      key: "customer",
+      header: "Lead",
+      render: (_, row) => (
+        <span className="text-sm font-medium text-ink">{leadName(row) || "—"}</span>
+      ),
+    },
+    {
+      key: "propertyAddress",
       header: "Property",
       render: (value) => (
-        <span className="text-sm text-ink-muted">{(value as string) || "—"}</span>
+        <span className="block max-w-[240px] truncate text-sm text-ink-muted">
+          {(value as string) || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "bedroomBand",
+      header: "Rooms",
+      render: (value) => (
+        <span className="text-sm text-ink-muted">
+          {value ? BEDROOM_BAND_LABELS[value as string] ?? (value as string) : "—"}
+        </span>
       ),
     },
     {
@@ -59,13 +84,6 @@ export default function CrmJobsList() {
       header: "Stage",
       render: (value) => (
         <StatusPill variant="in-review" label={(value as string).replace(/_/g, " ")} />
-      ),
-    },
-    {
-      key: "paymentStatus",
-      header: "Payment",
-      render: (value) => (
-        <span className="text-sm text-ink-muted">{(value as string) || "—"}</span>
       ),
     },
     {
@@ -95,6 +113,7 @@ export default function CrmJobsList() {
           columns={columns}
           data={filtered as (Job & Record<string, unknown>)[]}
           getRowKey={(r) => r.id}
+          onRowClick={(row) => router.push(`/crm/jobs/${row.id}`)}
           emptyMessage="No jobs yet — convert a lead to create one"
           totalCount={filtered.length}
         />

@@ -61,13 +61,13 @@ export default function CrmSlidePanel({
   if (!mounted || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="crm-theme fixed inset-0 z-200">
+    <div className="fixed inset-0 z-200">
       <button
         type="button"
         aria-label="Close panel"
         className={cn(
-          "absolute inset-0 bg-(--color-ink)/20 backdrop-blur-[1px] transition-opacity duration-300",
-          visible ? "opacity-100" : "opacity-0"
+          "absolute inset-0 bg-white/25 backdrop-blur-sm transition-[opacity,backdrop-filter] duration-300 ease-out",
+          visible ? "opacity-100" : "opacity-0",
         )}
         onClick={closeDisabled ? undefined : onClose}
       />
@@ -77,9 +77,9 @@ export default function CrmSlidePanel({
         aria-modal="true"
         aria-labelledby={title ? "crm-slide-panel-title" : undefined}
         className={cn(
-          "absolute inset-y-0 right-0 flex h-dvh max-h-dvh w-full flex-col border-l border-(--color-line) bg-(--color-surface) shadow-(--shadow-elevated) transition-transform duration-300 ease-[var(--ease-out-expo)]",
+          "crm-theme absolute inset-y-0 right-0 flex h-dvh max-h-dvh w-full flex-col border-l border-(--color-line) bg-(--color-surface) shadow-[0_0_48px_rgba(63,63,80,0.12)] transition-transform duration-300 ease-[var(--ease-out-expo)] will-change-transform",
           widthClassName,
-          visible ? "translate-x-0" : "translate-x-full"
+          visible ? "translate-x-0" : "translate-x-full",
         )}
       >
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-(--color-line) px-5 py-4">

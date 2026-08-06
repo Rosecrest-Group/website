@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import CrmAuthKeeper from "@/crm/components/CrmAuthKeeper";
+import CrmRoleGuard from "@/crm/components/CrmRoleGuard";
 import CrmGlobalSearch from "@/crm/components/CrmGlobalSearch";
 import CrmSidebar from "@/crm/components/layout/CrmSidebar";
 import NotificationBell from "@/crm/components/NotificationBell";
@@ -107,6 +108,7 @@ export default function CrmShell({ children }: { children: React.ReactNode }) {
   return (
     <PhoneProvider>
       <CrmAuthKeeper />
+      <CrmRoleGuard />
       <Toaster richColors position="top-right" />
       <CrmTopBarProvider>
         <CrmShellInner>{children}</CrmShellInner>

@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { FileText, Search, UserPlus, Users } from "lucide-react";
 import { api } from "@/crm/lib/api";
 import { CRM_BASE_PATH } from "@/crm/lib/constants";
-import type { Customer, Job, Lead } from "@/crm/types";
+import { prefetchCurrentUser } from "@/crm/lib/currentUserCache";
+import {
+  canAccessCustomerDirectory,
+  canReadLeads,
+} from "@/crm/lib/rbac";
+import type { Customer, Job, Lead, UserRole } from "@/crm/types";
 import { cn } from "@/lib/utils";
 
 type SearchResultType = "lead" | "job" | "customer";
@@ -106,17 +111,28 @@ export default function CrmGlobalSearch() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
+  const [role, setRole] = useState<UserRole | null>(null);
 
   const trimmed = query.trim();
   const showDropdown = open && trimmed.length > 0;
 
-  const runSearch = useCallback(async (search: string) => {
+  useEffect(() => {
+    void prefetchCurrentUser().then((me) => {
+      if (me?.role) setRole(me.role);
+    });
+    api.getMe().then((me) => setRole(me.role)).catch(() => setRole(null));
+  }, []);
+
+  const runSearch = useCallback(async (search: string, userRole: UserRole | null) => {
     setLoading(true);
     try {
       const params = { search, limit: "5" };
+      const includeLeads = userRole ? canReadLeads(userRole) : false;
+      const includeCustomers = userRole ? canAccessCustomerDirectory(userRole) : false;
+
       const [leadsRes, customersRes, jobsRes] = await Promise.all([
-        api.listLeads(params),
-        api.listCustomers(params),
+        includeLeads ? api.listLeads(params) : Promise.resolve({ items: [] as Lead[] }),
+        includeCustomers ? api.listCustomers(params) : Promise.resolve({ items: [] as Customer[] }),
         api.listJobs(params),
       ]);
       setResults(buildResults(leadsRes.items, jobsRes.items, customersRes.items, search));
@@ -153,10 +169,16 @@ export default function CrmGlobalSearch() {
       return;
     }
     const timer = setTimeout(() => {
-      void runSearch(trimmed);
+      void runSearch(trimmed, role);
     }, 300);
     return () => clearTimeout(timer);
-  }, [trimmed, runSearch]);
+  }, [trimmed, runSearch, role]);
+
+  const searchPlaceholder = role && !canReadLeads(role)
+    ? canAccessCustomerDirectory(role)
+      ? "Search jobs, customers..."
+      : "Search jobs..."
+    : "Search leads, jobs, customers...";
 
   useEffect(() => {
     setHighlight(0);
@@ -226,8 +248,8 @@ export default function CrmGlobalSearch() {
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={onInputKeyDown}
-        placeholder="Search leads, jobs, customers..."
-        aria-label="Search leads, jobs, and customers"
+        placeholder={searchPlaceholder}
+        aria-label={searchPlaceholder}
         aria-expanded={showDropdown}
         aria-autocomplete="list"
         role="combobox"

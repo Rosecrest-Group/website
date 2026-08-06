@@ -1,6 +1,7 @@
 import { api } from "@/crm/lib/api";
+import type { UserRole } from "@/crm/types";
 
-export type CachedCurrentUser = { id: string; fullName: string };
+export type CachedCurrentUser = { id: string; fullName: string; role: UserRole };
 
 let cached: CachedCurrentUser | null = null;
 let inflight: Promise<CachedCurrentUser> | null = null;
@@ -16,7 +17,7 @@ export function prefetchCurrentUser(): Promise<CachedCurrentUser | null> {
   inflight = api
     .getMe()
     .then((me) => {
-      cached = { id: me.id, fullName: me.fullName };
+      cached = { id: me.id, fullName: me.fullName, role: me.role };
       return cached;
     })
     .finally(() => {

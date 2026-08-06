@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { api } from "@/crm/lib/api";
-import type { DashboardSales, Lead, Task, TaskStatus } from "@/crm/types";
-import { LEAD_STAGE_LABELS, TASK_STATUS_LABELS } from "@/crm/lib/constants";
+import type { DashboardSales, Job, Lead, Task, TaskStatus, UserRole } from "@/crm/types";
+import { CRM_BASE_PATH, LEAD_STAGE_LABELS, TASK_STATUS_LABELS } from "@/crm/lib/constants";
+import { canReadLeads } from "@/crm/lib/rbac";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
@@ -121,28 +122,56 @@ function SourceIcon({ source }: { source?: string }) {
 
 export default function CrmDashboard() {
   const router = useRouter();
+  const [role, setRole] = useState<UserRole | null>(null);
   const [data, setData] = useState<DashboardSales | null>(null);
   const [recentLeads, setRecentLeads] = useState<Lead[]>([]);
+  const [myJobs, setMyJobs] = useState<Job[]>([]);
   const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
   const [createdTasks, setCreatedTasks] = useState<Task[]>([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      api.getDashboard(),
-      api.listLeads({ limit: "5", page: "1" }),
-      api.getMyTasks(),
-    ])
-      .then(([dashboard, leadsRes, tasksRes]) => {
-        setData(dashboard);
-        setRecentLeads(leadsRes.items);
-        setAssignedTasks(tasksRes.assignedToMe);
-        setCreatedTasks(tasksRes.createdByMe);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
-      .finally(() => setIsLoading(false));
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await api.getMe();
+        if (cancelled) return;
+        setRole(me.role);
+
+        if (canReadLeads(me.role)) {
+          const [dashboard, leadsRes, tasksRes] = await Promise.all([
+            api.getDashboard(),
+            api.listLeads({ limit: "5", page: "1" }),
+            api.getMyTasks(),
+          ]);
+          if (cancelled) return;
+          setData(dashboard);
+          setRecentLeads(leadsRes.items);
+          setAssignedTasks(tasksRes.assignedToMe);
+          setCreatedTasks(tasksRes.createdByMe);
+        } else {
+          const [jobsRes, tasksRes] = await Promise.all([
+            api.listJobs({ limit: "8", page: "1" }),
+            api.getMyTasks(),
+          ]);
+          if (cancelled) return;
+          setMyJobs(jobsRes.items);
+          setAssignedTasks(tasksRes.assignedToMe);
+          setCreatedTasks(tasksRes.createdByMe);
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const showOpsDashboard = role ? canReadLeads(role) : true;
 
   const stageColumns: Column<{ stage: string; count: number }>[] = [
     {
@@ -315,6 +344,109 @@ export default function CrmDashboard() {
       stage: row.stage,
       count: row._count.id,
     })) ?? [];
+
+  if (!showOpsDashboard) {
+    return (
+      <CrmPageContent>
+        <CrmPageHeader
+          title="Dashboard"
+          subtitle="Your assigned work"
+          actions={
+            <PrimaryButton href={`${CRM_BASE_PATH}/jobs`}>View jobs</PrimaryButton>
+          }
+        />
+
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <StatsCard
+            title="Assigned jobs"
+            value={myJobs.length}
+            icon={<CheckCircle />}
+            iconTint="primary"
+            action={{ label: "View all", href: `${CRM_BASE_PATH}/jobs` }}
+          />
+          <StatsCard
+            title="Open tasks"
+            value={myTasks.filter((t) => t.status !== "DONE").length}
+            icon={<Users />}
+            iconTint="info"
+            action={{ label: "View all", href: `${CRM_BASE_PATH}/tasks` }}
+          />
+        </div>
+
+        <section>
+          <Table
+            title="Your jobs"
+            columns={[
+              {
+                key: "jobNumber",
+                header: "Job",
+                render: (_, row) => (
+                  <Link
+                    href={`${CRM_BASE_PATH}/jobs/${(row as Job).id}`}
+                    className="font-medium text-brand hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {(row as Job).jobNumber}
+                  </Link>
+                ),
+              },
+              {
+                key: "propertyAddress",
+                header: "Property",
+                render: (value) => (
+                  <span className="block max-w-[240px] truncate text-ink-muted">
+                    {(value as string) || "—"}
+                  </span>
+                ),
+              },
+              {
+                key: "stage",
+                header: "Stage",
+                render: (value) => (
+                  <span className="text-sm text-ink">
+                    {String(value).replace(/_/g, " ")}
+                  </span>
+                ),
+              },
+            ]}
+            data={myJobs as (Job & Record<string, unknown>)[]}
+            getRowKey={(row) => (row as Job).id}
+            onRowClick={(row) => router.push(`${CRM_BASE_PATH}/jobs/${(row as Job).id}`)}
+            emptyMessage="No jobs assigned to you"
+            toolbarExtra={
+              <Link
+                href={`${CRM_BASE_PATH}/jobs`}
+                className="text-sm font-medium text-brand hover:underline"
+              >
+                View all →
+              </Link>
+            }
+          />
+        </section>
+
+        <section className="w-full max-w-2xl">
+          <Table
+            title="My tasks"
+            columns={taskColumns}
+            data={myTasks as (DashboardTaskRow & Record<string, unknown>)[]}
+            getRowKey={(row) => row.id}
+            onRowClick={(row) => router.push(`/crm/tasks?taskId=${row.id}`)}
+            hideHeader
+            compact
+            emptyMessage="No tasks assigned to or created by you"
+            toolbarExtra={
+              <Link
+                href="/crm/tasks"
+                className="text-sm font-medium text-brand hover:underline"
+              >
+                View all →
+              </Link>
+            }
+          />
+        </section>
+      </CrmPageContent>
+    );
+  }
 
   return (
     <CrmPageContent>

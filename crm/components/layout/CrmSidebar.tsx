@@ -36,9 +36,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CRM_BASE_PATH, CRM_NAV_SECTIONS } from "@/crm/lib/constants";
+import { CRM_BASE_PATH } from "@/crm/lib/constants";
 import { api, logout } from "@/crm/lib/api";
 import { prefetchCurrentUser } from "@/crm/lib/currentUserCache";
+import { canAccessAdminSettings, navSectionsForRole } from "@/crm/lib/rbac";
 import { useTeamChatUnreadCount } from "@/crm/lib/useTeamChatUnreadCount";
 import type { ApiUser } from "@/crm/types";
 import { cn } from "@/lib/utils";
@@ -102,6 +103,14 @@ export default function CrmSidebar({
   const pathname = usePathname();
   const teamChatUnread = useTeamChatUnreadCount();
   const teamChatHref = `${CRM_BASE_PATH}/conversations`;
+  const [user, setUser] = useState<ApiUser | null>(null);
+
+  useEffect(() => {
+    void prefetchCurrentUser();
+    api.getMe().then(setUser).catch(() => setUser(null));
+  }, []);
+
+  const navSections = navSectionsForRole(user?.role);
 
   return (
     <aside
@@ -137,7 +146,7 @@ export default function CrmSidebar({
 
       <ScrollArea className="min-h-0 flex-1">
         <nav className="flex flex-col gap-5 pb-2">
-          {CRM_NAV_SECTIONS.map((section) => (
+          {navSections.map((section) => (
             <div key={section.title}>
               <p className="mb-1.5 px-2.5 text-[11px] font-medium uppercase tracking-wide text-ink-faint">
                 {section.title}
@@ -194,7 +203,7 @@ export default function CrmSidebar({
         </nav>
       </ScrollArea>
 
-      {footer ?? <SidebarFooter />}
+      {footer ?? <SidebarFooter user={user} />}
     </aside>
   );
 }
@@ -209,17 +218,17 @@ function userInitials(fullName: string) {
     .toUpperCase();
 }
 
-function canAccessAdminSettings(role: ApiUser["role"]) {
-  return role === "ADMIN" || role === "SUPER_ADMIN";
-}
-
-function SidebarFooter() {
-  const [user, setUser] = useState<ApiUser | null>(null);
+function SidebarFooter({ user: userProp }: { user?: ApiUser | null }) {
+  const [user, setUser] = useState<ApiUser | null>(userProp ?? null);
 
   useEffect(() => {
+    if (userProp) {
+      setUser(userProp);
+      return;
+    }
     void prefetchCurrentUser();
     api.getMe().then(setUser).catch(() => setUser(null));
-  }, []);
+  }, [userProp]);
 
   const showAdminLinks = user ? canAccessAdminSettings(user.role) : false;
   const initials = user ? userInitials(user.fullName) : "·";

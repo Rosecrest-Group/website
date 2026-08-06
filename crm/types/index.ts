@@ -622,6 +622,7 @@ export interface Job {
   surveyLevel: SurveyLevel | null;
   propertyAddress: string;
   propertyPostcode: string;
+  bedroomBand?: string | null;
   agreedAmount: number;
   depositAmount: number | null;
   paymentStatus: string;
