@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api } from "@/crm/lib/api";
 import type { Customer } from "@/crm/types";
@@ -9,13 +9,23 @@ import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import Table, { type Column } from "@/crm/components/ui/Table";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 
-export default function CustomersList() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [total, setTotal] = useState(0);
+export default function CustomersList({
+  initialData = null,
+}: {
+  initialData?: { items: Customer[]; total: number } | null;
+}) {
+  const [customers, setCustomers] = useState<Customer[]>(() => initialData?.items ?? []);
+  const [total, setTotal] = useState(() => initialData?.total ?? 0);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !initialData);
+  const skipInitialFetch = useRef(Boolean(initialData));
 
   useEffect(() => {
+    if (skipInitialFetch.current && !search) {
+      skipInitialFetch.current = false;
+      return;
+    }
+    skipInitialFetch.current = false;
     setLoading(true);
     const timer = setTimeout(() => {
       api

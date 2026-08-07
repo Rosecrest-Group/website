@@ -9,12 +9,14 @@ import CrmGlobalSearch from "@/crm/components/CrmGlobalSearch";
 import CrmSidebar from "@/crm/components/layout/CrmSidebar";
 import NotificationBell from "@/crm/components/NotificationBell";
 import { CrmTopBarProvider, useCrmTopBar } from "@/crm/lib/crmTopBarContext";
+import { seedCurrentUser } from "@/crm/lib/currentUserCache";
 import { PhoneProvider } from "@/crm/lib/phoneContext";
 import DialpadSidebar from "@/crm/components/DialpadSidebar";
 import { inter } from "@/lib/fonts";
+import type { ApiUser } from "@/crm/types";
 import { Toaster } from "sonner";
 
-function CrmTopPanel({ left }: { left?: React.ReactNode }) {
+function CrmTopPanel({ left }: { left?: ReturnType<typeof useCrmTopBar>["left"] }) {
   return (
     <header className="flex shrink-0 flex-col gap-3 border-b border-line bg-surface px-4 py-3 sm:gap-4 sm:px-6 lg:flex-row lg:items-center lg:px-12">
       <div className="hidden min-w-0 flex-1 lg:block">{left}</div>
@@ -28,7 +30,13 @@ function CrmTopPanel({ left }: { left?: React.ReactNode }) {
   );
 }
 
-function CrmShellInner({ children }: { children: React.ReactNode }) {
+function CrmShellInner({
+  children,
+  initialUser,
+}: {
+  children: React.ReactNode;
+  initialUser?: ApiUser | null;
+}) {
   const { left: topBarLeft } = useCrmTopBar();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pathname = usePathname();
@@ -48,7 +56,7 @@ function CrmShellInner({ children }: { children: React.ReactNode }) {
   return (
     <div className={`crm-theme ${inter.variable} flex h-dvh w-full overflow-hidden bg-surface text-ink`}>
       <div className="hidden min-h-0 lg:flex">
-        <CrmSidebar />
+        <CrmSidebar initialUser={initialUser} />
       </div>
 
       <button
@@ -70,6 +78,7 @@ function CrmShellInner({ children }: { children: React.ReactNode }) {
         ].join(" ")}
         onNavigate={() => setMobileNavOpen(false)}
         onClose={() => setMobileNavOpen(false)}
+        initialUser={initialUser}
       />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -104,14 +113,22 @@ function CrmShellInner({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function CrmShell({ children }: { children: React.ReactNode }) {
+export default function CrmShell({
+  children,
+  initialUser,
+}: {
+  children: React.ReactNode;
+  initialUser?: ApiUser | null;
+}) {
+  if (initialUser) seedCurrentUser(initialUser);
+
   return (
-    <PhoneProvider>
+    <PhoneProvider initialUser={initialUser}>
       <CrmAuthKeeper />
-      <CrmRoleGuard />
+      <CrmRoleGuard initialRole={initialUser?.role ?? null} />
       <Toaster richColors position="top-right" />
       <CrmTopBarProvider>
-        <CrmShellInner>{children}</CrmShellInner>
+        <CrmShellInner initialUser={initialUser}>{children}</CrmShellInner>
       </CrmTopBarProvider>
     </PhoneProvider>
   );

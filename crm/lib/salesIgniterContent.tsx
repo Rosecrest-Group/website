@@ -1,5 +1,6 @@
 import { linkifyText } from "@/crm/lib/formatMessageBody";
 import { htmlToPlainText, isHtmlContent, sanitizeEmailHtml } from "@/crm/lib/messageFormatting";
+import { cn } from "@/lib/utils";
 
 const BRACKET_URL_REGEX = /\[?(https?:\/\/[^\]\s<>]+)\]?/gi;
 const EMAIL_PREVIEW_LABEL = /view this email in browser/i;
@@ -73,24 +74,41 @@ type RichContentProps = {
   body?: string;
   html?: string;
   compact?: boolean;
+  isOutbound?: boolean;
+  channel?: "EMAIL" | "SMS" | "WHATSAPP" | "CALL" | "OTHER";
 };
 
-export function SalesIgniterRichContent({ body, html, compact = false }: RichContentProps) {
-  const linkClassName = "text-(--color-primary) underline underline-offset-2 hover:opacity-80";
+export function SalesIgniterRichContent({
+  body,
+  html,
+  compact = false,
+  isOutbound = false,
+  channel = "OTHER",
+}: RichContentProps) {
+  const linkClassName =
+    isOutbound && channel !== "EMAIL" && channel !== "SMS"
+      ? "underline underline-offset-2 opacity-90 hover:opacity-100"
+      : channel === "EMAIL" && isOutbound
+        ? "text-indigo-700 underline underline-offset-2 hover:opacity-80"
+        : channel === "SMS" && isOutbound
+          ? "text-orange-800 underline underline-offset-2 hover:opacity-80"
+          : "text-(--color-primary) underline underline-offset-2 hover:opacity-80";
   const source = html?.trim() || body?.trim() || "";
 
   if (!source) {
-    return <span className="text-sm text-(--color-tc-30)">No content</span>;
+    return <span className="text-sm opacity-70">No content</span>;
   }
 
   if (isHtmlContent(source)) {
     return (
       <div
-        className={
-          compact
-            ? "prose prose-sm max-w-none text-sm leading-relaxed prose-neutral [&_a]:text-(--color-primary) [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-lg"
-            : "prose prose-sm max-w-none text-sm leading-relaxed prose-neutral [&_a]:text-(--color-primary) [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-lg"
-        }
+        className={cn(
+          "crm-email-body crm-email-body--thread text-sm leading-relaxed [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl",
+          compact && "prose prose-sm max-w-none prose-neutral",
+          isOutbound && channel === "EMAIL"
+            ? "[&_a]:text-indigo-700"
+            : "[&_a]:text-(--color-primary)"
+        )}
         dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(source) }}
       />
     );
@@ -98,14 +116,14 @@ export function SalesIgniterRichContent({ body, html, compact = false }: RichCon
 
   if (isEmailPreviewStub(source)) {
     return (
-      <div className="space-y-1 text-sm text-(--color-tc-40)">
+      <div className="space-y-1 text-sm">
         {formatPlainDumpText(source, linkClassName)}
       </div>
     );
   }
 
   return (
-    <div className="whitespace-pre-wrap text-sm leading-relaxed text-(--color-tc-40)">
+    <div className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed">
       {formatPlainDumpText(source, linkClassName)}
     </div>
   );

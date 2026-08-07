@@ -29,7 +29,6 @@ import MessageRichCompose, {
   getEmailPayload,
   type MessageRichComposeHandle,
 } from "@/crm/components/ui/MessageRichCompose";
-import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import {
   formatChatDateSeparator,
   formatChatTime,
@@ -46,9 +45,26 @@ import { parseTrailingMediaUrls } from "@/crm/lib/messageMediaAttachments";
 import { cadenceStopTooltip } from "@/crm/lib/cadenceStopReason";
 import SelectField from "@/crm/components/ui/SelectField";
 import { usePhone } from "@/crm/lib/phoneContext";
+import {
+  MESSAGE_FIRST_PAGE_SIZE,
+  getCachedLeadThread,
+  prefetchLeadThread,
+  setCachedLeadThread,
+} from "@/crm/lib/leadMessageCache";
+import MessageThreadSkeleton from "@/crm/components/ui/MessageThreadSkeleton";
 import { cn } from "@/lib/utils";
 
 type Channel = MessageChannel;
+
+type ThreadEntry =
+  | { kind: "message"; id: string; createdAt: string; message: Message }
+  | { kind: "call"; id: string; createdAt: string; activity: Activity }
+  | { kind: "cadence_stop"; id: string; createdAt: string; activity: Activity }
+  | { kind: "payment"; id: string; createdAt: string; activity: Activity };
+
+const MESSAGE_PAGE_SIZE = 40;
+/** A thread this recently fetched (usually by the inbox prefetch) skips its own revalidate. */
+const CACHE_FRESH_MS = 30_000;
 
 function channelLabel(channel: string) {
   if (channel === "EMAIL") return "Email";
@@ -478,6 +494,8 @@ export default function LeadMessageThread({
   onSent,
   className,
   headerActions,
+  /** When true, paint seed immediately but still fetch fresh messages (inbox preview). */
+  revalidateSeed = false,
 }: {
   leadId: string;
   customerName: string;
@@ -487,10 +505,30 @@ export default function LeadMessageThread({
   onSent?: () => void;
   className?: string;
   headerActions?: ReactNode;
+  revalidateSeed?: boolean;
 }) {
-  const [messages, setMessages] = useState(initialMessages);
-  const [threadActivities, setThreadActivities] = useState(initialThreadActivities);
-  const [loading, setLoading] = useState(false);
+  const cachedThread = getCachedLeadThread(leadId);
+  const [messages, setMessages] = useState(() =>
+    initialMessages.length > 0 ? initialMessages : cachedThread?.messages ?? []
+  );
+  const [messagesPage, setMessagesPage] = useState(() =>
+    initialMessages.length > 0 ? 1 : cachedThread?.page ?? 1
+  );
+  const [messagesHasMore, setMessagesHasMore] = useState(() =>
+    initialMessages.length > 0 ? false : cachedThread?.hasMore ?? false
+  );
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
+  const [threadActivities, setThreadActivities] = useState(() =>
+    initialThreadActivities.length > 0
+      ? initialThreadActivities
+      : cachedThread?.activities ?? []
+  );
+  const [loading, setLoading] = useState(
+    () =>
+      initialMessages.length === 0 &&
+      !cachedThread &&
+      initialThreadActivities.length === 0
+  );
   const [sending, setSending] = useState(false);
   const [channel, setChannel] = useState<Channel>("EMAIL");
   const [subject, setSubject] = useState("");
@@ -502,6 +540,7 @@ export default function LeadMessageThread({
   const { teamConnectEnabled, teamConnectNumbers, selectedPhoneDocId, setSelectedPhoneDocId, dialpadEnabled } =
     usePhone();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hasScrolledToBottomRef = useRef(false);
   const composeRef = useRef<MessageRichComposeHandle>(null);
   const expandedComposeRef = useRef<MessageRichComposeHandle>(null);
 
@@ -513,6 +552,36 @@ export default function LeadMessageThread({
       ),
     [messages]
   );
+
+  function applyMessagePage(
+    result: { items: Message[]; page: number; limit: number; total: number; hasMore?: boolean },
+    mode: "replace" | "append"
+  ) {
+    const hasMore = result.hasMore ?? result.page * result.limit < result.total;
+    setMessages((prev) => {
+      if (mode === "replace") return result.items;
+      const seen = new Set(prev.map((message) => message.id));
+      return [...prev, ...result.items.filter((message) => !seen.has(message.id))];
+    });
+    setMessagesPage(result.page);
+    setMessagesHasMore(hasMore);
+
+    const cached = getCachedLeadThread(leadId);
+    const mergedMessages =
+      mode === "replace"
+        ? result.items
+        : (() => {
+            const prev = cached?.messages ?? [];
+            const seen = new Set(prev.map((message) => message.id));
+            return [...prev, ...result.items.filter((message) => !seen.has(message.id))];
+          })();
+    setCachedLeadThread(leadId, {
+      messages: mergedMessages,
+      page: result.page,
+      hasMore,
+      activities: cached?.activities,
+    });
+  }
 
   useEffect(() => {
     // Ignore empty seed arrays — inbox passes `messages={[]}` which would otherwise
@@ -531,26 +600,97 @@ export default function LeadMessageThread({
   useEffect(() => {
     let cancelled = false;
     const hasSeed = initialMessages.length > 0;
-    if (!hasSeed) setLoading(true);
+    const cached = getCachedLeadThread(leadId);
+    const cacheIsFresh = cached ? Date.now() - cached.fetchedAt < CACHE_FRESH_MS : false;
+
+    if (hasSeed) {
+      setLoading(false);
+    } else if (cached) {
+      setMessages(cached.messages);
+      setMessagesPage(cached.page);
+      setMessagesHasMore(cached.hasMore);
+      setThreadActivities(cached.activities);
+      setLoading(false);
+    } else {
+      setMessages([]);
+      setMessagesPage(1);
+      setMessagesHasMore(false);
+      setLoading(true);
+    }
+
+    if (hasSeed && !revalidateSeed) {
+      // Authoritative seed from lead detail — keep existing cache warm.
+      setCachedLeadThread(leadId, {
+        messages: initialMessages,
+        activities: initialThreadActivities,
+        page: 1,
+        hasMore: false,
+      });
+      return;
+    }
 
     (async () => {
       try {
-        // Show DB messages immediately — do not wait on TeamConnect sync.
-        // Call activities already come from LeadDetail's getLead; no need to refetch.
-        const result = await api.listMessages({ leadId, limit: "100" });
-        if (!cancelled) setMessages(result.items);
+        if (!hasSeed && !cached) {
+          // Nothing painted yet, so join the request the inbox already started on
+          // hover/click rather than firing a duplicate.
+          const thread = await prefetchLeadThread(leadId, async () => {
+            const result = await api.listMessages({
+              leadId,
+              limit: String(MESSAGE_FIRST_PAGE_SIZE),
+              page: "1",
+            });
+            return {
+              messages: result.items,
+              page: result.page,
+              hasMore: result.hasMore ?? result.page * result.limit < result.total,
+            };
+          });
+          if (cancelled) return;
+          setMessages(thread.messages);
+          setMessagesPage(thread.page);
+          setMessagesHasMore(thread.hasMore);
+          setThreadActivities(thread.activities);
+        } else if (!cacheIsFresh) {
+          const take = Math.max(
+            MESSAGE_FIRST_PAGE_SIZE,
+            cached?.messages.length ?? 0,
+            hasSeed ? initialMessages.length : 0
+          );
+
+          // Cache / seed is already painted, so this only replaces stale content.
+          const result = await api.listMessages({
+            leadId,
+            limit: String(take),
+            page: "1",
+          });
+          if (cancelled) return;
+          applyMessagePage(result, "replace");
+        }
+      } catch {
+        // keep cache / seed / empty state
       } finally {
         if (!cancelled) setLoading(false);
       }
 
       if (!teamConnectEnabled || cancelled) return;
 
-      // Background sync: merge any new SMS without blocking first paint.
+      // Defer TeamConnect sync so first paint isn't blocked.
+      await new Promise((resolve) => window.setTimeout(resolve, 1500));
+      if (cancelled) return;
+
       try {
-        await api.syncLeadSmsFromTeamConnect(leadId);
-        if (cancelled) return;
-        const synced = await api.listMessages({ leadId, limit: "100" });
-        if (!cancelled) setMessages(synced.items);
+        const sync = await api.syncLeadSmsFromTeamConnect(leadId);
+        // Nothing new upstream, so the thread on screen is already current.
+        if (cancelled || sync.synced === 0) return;
+        const synced = await api.listMessages({
+          leadId,
+          limit: String(
+            Math.max(MESSAGE_PAGE_SIZE, getCachedLeadThread(leadId)?.messages.length ?? 0)
+          ),
+          page: "1",
+        });
+        if (!cancelled) applyMessagePage(synced, "replace");
       } catch {
         // Sync is best-effort; UI already has DB messages.
       }
@@ -559,10 +699,19 @@ export default function LeadMessageThread({
     return () => {
       cancelled = true;
     };
-  }, [leadId, teamConnectEnabled]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when lead / TeamConnect changes
+  }, [leadId, teamConnectEnabled, revalidateSeed]);
+
+  useEffect(() => {
+    hasScrolledToBottomRef.current = false;
+  }, [leadId]);
 
   useLayoutEffect(() => {
-    scrollChatContainerToBottom(scrollRef.current, sortedMessages.length > 0 ? "smooth" : "instant");
+    // Jump on the thread's first paint; only animate for messages that arrive after it.
+    const behavior: ScrollBehavior =
+      sortedMessages.length > 0 && hasScrolledToBottomRef.current ? "smooth" : "instant";
+    if (sortedMessages.length > 0) hasScrolledToBottomRef.current = true;
+    scrollChatContainerToBottom(scrollRef.current, behavior);
   }, [sortedMessages.length, sortedMessages[sortedMessages.length - 1]?.id]);
 
   useEffect(() => {
@@ -589,45 +738,68 @@ export default function LeadMessageThread({
     }
   }
 
-  async function refreshMessages() {
-    setLoading(true);
+  async function loadOlderMessages() {
+    if (!messagesHasMore || loadingOlderMessages) return;
+    setLoadingOlderMessages(true);
+    try {
+      const result = await api.listMessages({
+        leadId,
+        limit: String(MESSAGE_PAGE_SIZE),
+        page: String(messagesPage + 1),
+      });
+      applyMessagePage(result, "append");
+    } catch {
+      // keep current list
+    } finally {
+      setLoadingOlderMessages(false);
+    }
+  }
+
+  async function refreshMessages(opts?: { silent?: boolean }) {
+    const silent = opts?.silent ?? false;
+    if (!silent) setLoading(true);
     try {
       const syncPromise = teamConnectEnabled
         ? api.syncLeadSmsFromTeamConnect(leadId).catch(() => undefined)
-        : Promise.resolve();
+        : Promise.resolve(undefined);
 
+      const take = Math.max(MESSAGE_PAGE_SIZE, messages.length, messagesPage * MESSAGE_PAGE_SIZE);
       const [result, lead] = await Promise.all([
-        api.listMessages({ leadId, limit: "100" }),
+        api.listMessages({ leadId, limit: String(take), page: "1" }),
         api.getLead(leadId).catch(() => null),
       ]);
-      setMessages(result.items);
+      applyMessagePage(result, "replace");
       if (lead) {
-        setThreadActivities(
-          lead.activities.filter(
-            (a) =>
-              a.type.includes("call") ||
-              a.type === "cadence.stopped" ||
-              a.type === "payment.received"
-          )
+        const activities = lead.activities.filter(
+          (a) =>
+            a.type.includes("call") ||
+            a.type === "cadence.stopped" ||
+            a.type === "payment.received"
         );
+        setThreadActivities(activities);
+        setCachedLeadThread(leadId, { activities });
       }
-      setLoading(false);
+      if (!silent) setLoading(false);
 
       if (teamConnectEnabled) {
-        await syncPromise;
-        const synced = await api.listMessages({ leadId, limit: "100" });
-        setMessages(synced.items);
+        const sync = await syncPromise;
+        if (sync?.synced) {
+          const synced = await api.listMessages({ leadId, limit: String(take), page: "1" });
+          applyMessagePage(synced, "replace");
+        }
       }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
   useEffect(() => {
     if (!teamConnectEnabled && !dialpadEnabled) return;
-    const timer = window.setInterval(() => {
-      void refreshMessages();
-    }, 30_000);
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      void refreshMessages({ silent: true });
+    };
+    const timer = window.setInterval(tick, 60_000);
     return () => window.clearInterval(timer);
   }, [leadId, teamConnectEnabled, dialpadEnabled]);
 
@@ -718,19 +890,14 @@ export default function LeadMessageThread({
   }
 
   const sortedThreadEntries = useMemo(() => {
-    const entries: Array<
-      | { kind: "message"; id: string; createdAt: string; message: Message }
-      | { kind: "call"; id: string; createdAt: string; activity: Activity }
-      | { kind: "cadence_stop"; id: string; createdAt: string; activity: Activity }
-      | { kind: "payment"; id: string; createdAt: string; activity: Activity }
-    > = [
+    const entries: ThreadEntry[] = [
       ...sortedMessages.map((message) => ({
         kind: "message" as const,
         id: message.id,
         createdAt: messageTimestamp(message),
         message,
       })),
-      ...threadActivities.flatMap((activity) => {
+      ...threadActivities.flatMap((activity): ThreadEntry[] => {
         if (activity.type === "payment.received") {
           return [
             {
@@ -813,9 +980,7 @@ export default function LeadMessageThread({
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-(--color-nc-10) px-4 py-4">
         {loading && sortedThreadEntries.length === 0 ? (
-          <div className="flex h-full items-center justify-center py-12">
-            <LoadingSpinner />
-          </div>
+          <MessageThreadSkeleton />
         ) : sortedThreadEntries.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center py-12 text-center">
             <p className="text-sm font-medium text-(--color-tc-40)">No messages yet</p>
@@ -824,7 +989,20 @@ export default function LeadMessageThread({
             </p>
           </div>
         ) : (
-          threadItems.map((item) =>
+          <>
+            {messagesHasMore ? (
+              <div className="flex justify-center py-1">
+                <button
+                  type="button"
+                  onClick={() => void loadOlderMessages()}
+                  disabled={loadingOlderMessages}
+                  className="rounded-full border border-(--color-tc-20) bg-white px-3 py-1 text-xs font-medium text-(--color-tc-40) shadow-sm transition hover:bg-(--color-nc-10) disabled:opacity-60"
+                >
+                  {loadingOlderMessages ? "Loading…" : "Load earlier messages"}
+                </button>
+              </div>
+            ) : null}
+            {threadItems.map((item) =>
             item.kind === "date" ? (
               <div key={item.key} className="flex justify-center">
                 <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-(--color-tc-30) shadow-sm">
@@ -840,7 +1018,8 @@ export default function LeadMessageThread({
             ) : (
               <ThreadBubble key={item.key} message={item.message} customerName={customerName} />
             )
-          )
+          )}
+          </>
         )}
       </div>
 

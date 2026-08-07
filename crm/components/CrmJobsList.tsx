@@ -11,18 +11,23 @@ import Table, { type Column } from "@/crm/components/ui/Table";
 import StatusPill from "@/crm/components/ui/StatusPill";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 
-export default function CrmJobsList() {
+export default function CrmJobsList({
+  initialData = null,
+}: {
+  initialData?: { items: Job[] } | null;
+}) {
   const router = useRouter();
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs] = useState<Job[]>(() => initialData?.items ?? []);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !initialData);
 
   useEffect(() => {
+    if (initialData) return;
     api
-      .listJobs()
+      .listJobs({ limit: "50", page: "1" })
       .then((res) => setJobs(res.items))
       .finally(() => setLoading(false));
-  }, []);
+  }, [initialData]);
 
   const leadName = (job: Job) =>
     job.customer
@@ -99,8 +104,8 @@ export default function CrmJobsList() {
   ];
 
   return (
-    <CrmPageContent>
-      <CrmPageHeader title="Jobs" subtitle="Fulfilment pipeline" />
+    <CrmPageContent className="space-y-4 py-3 sm:py-4 lg:py-4">
+      <CrmPageHeader compact title="Jobs" subtitle="Fulfilment pipeline" />
 
       {loading ? (
         <LoadingSpinner />

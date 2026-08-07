@@ -312,28 +312,37 @@ export async function logout() {
 
 }
 
+async function getMeCached(force = false): Promise<ApiUser> {
+  const { getOrFetchCurrentUser } = await import("@/crm/lib/currentUserCache");
+  return getOrFetchCurrentUser(() => request<ApiUser>("/auth/me"), force);
+}
 
+async function cacheMe(user: ApiUser): Promise<ApiUser> {
+  const { setCachedCurrentUser } = await import("@/crm/lib/currentUserCache");
+  setCachedCurrentUser(user);
+  return user;
+}
 
 export const api = {
 
-  getMe: () => request<ApiUser>("/auth/me"),
+  getMe: (opts?: { force?: boolean }) => getMeCached(opts?.force ?? false),
 
   updateProfile: (payload: { fullName?: string; phone?: string | null }) =>
     request<ApiUser>("/auth/me", {
       method: "PATCH",
       body: JSON.stringify(payload),
-    }),
+    }).then(cacheMe),
 
   uploadAvatar: (image: string) =>
     request<ApiUser>("/auth/me/avatar", {
       method: "POST",
       body: JSON.stringify({ image }),
-    }),
+    }).then(cacheMe),
 
   removeAvatar: () =>
     request<ApiUser>("/auth/me/avatar", {
       method: "DELETE",
-    }),
+    }).then(cacheMe),
 
   changePassword: (payload: { currentPassword: string; newPassword: string }) =>
     request<{ changed: boolean }>("/auth/change-password", {
@@ -546,12 +555,21 @@ export const api = {
     }>(`/data-dump/inbox${q ? `?${q}` : ""}`);
   },
 
-  listDumpInboxThreads: () =>
-    request<{
+  listDumpInboxThreads: (params?: { page?: number; limit?: number; query?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.limit) qs.set("limit", String(params.limit));
+    if (params?.query) qs.set("query", params.query);
+    const q = qs.toString();
+    return request<{
       threads: SalesIgniterConversation[];
       total: number;
-      sync: DumpInboxSyncStatus;
-    }>("/data-dump/inbox/db"),
+      page: number;
+      limit: number;
+      hasMore: boolean;
+      sync: DumpInboxSyncStatus | null;
+    }>(`/data-dump/inbox/db${q ? `?${q}` : ""}`);
+  },
 
   getDumpInboxSyncStatus: () =>
     request<DumpInboxSyncStatus>("/data-dump/inbox/sync/status"),
@@ -577,10 +595,23 @@ export const api = {
     );
   },
 
-  listDumpConversationMessages: (conversationId: string) =>
-    request<{ conversationId: string; messages: SalesIgniterMessage[] }>(
-      `/data-dump/inbox/db/${encodeURIComponent(conversationId)}/messages`
-    ),
+  listDumpConversationMessages: (
+    conversationId: string,
+    params?: { limit?: number; before?: string }
+  ) => {
+    const qs = new URLSearchParams();
+    if (params?.limit) qs.set("limit", String(params.limit));
+    if (params?.before) qs.set("before", params.before);
+    const q = qs.toString();
+    return request<{
+      conversationId: string;
+      messages: SalesIgniterMessage[];
+      hasMore: boolean;
+      oldestDateAdded: string | null;
+    }>(
+      `/data-dump/inbox/db/${encodeURIComponent(conversationId)}/messages${q ? `?${q}` : ""}`
+    );
+  },
 
   getSalesIgniterConversationMessages: (conversationId: string) =>
     request<{ conversationId: string; messages: SalesIgniterMessage[] }>(
@@ -843,7 +874,19 @@ export const api = {
 
   },
 
-  getInbox: () => request<{ items: InboxThread[] }>("/messages/inbox"),
+  getInbox: (params?: { cursor?: string | null; limit?: number; query?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.cursor) qs.set("cursor", params.cursor);
+    if (params?.limit) qs.set("limit", String(params.limit));
+    if (params?.query) qs.set("query", params.query);
+    const q = qs.toString();
+    return request<{
+      items: InboxThread[];
+      limit: number;
+      hasMore: boolean;
+      nextCursor: string | null;
+    }>(`/messages/inbox${q ? `?${q}` : ""}`);
+  },
 
   sendMessage: (payload: {
 

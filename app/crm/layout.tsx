@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import CrmShell from "@/crm/components/CrmShell";
 import DataDumpShell from "@/crm/components/data-dump/DataDumpShell";
 import { inter } from "@/lib/fonts";
+import { getServerCrmUser } from "@/crm/lib/serverCrmApi";
 
 import { isCrmDataDumpRoute, isCrmPublicRoute } from "@/crm/lib/constants";
 
@@ -34,5 +35,7 @@ export default async function CrmLayout({
     return <DataDumpShell>{children}</DataDumpShell>;
   }
 
-  return <CrmShell>{children}</CrmShell>;
+  const initialUser = await getServerCrmUser();
+
+  return <CrmShell initialUser={initialUser}>{children}</CrmShell>;
 }

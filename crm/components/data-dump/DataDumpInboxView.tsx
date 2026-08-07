@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Mail, MessageSquare, Phone, RefreshCw, Search } from "lucide-react";
 import { api } from "@/crm/lib/api";
 import {
@@ -18,8 +18,9 @@ import {
 } from "@/crm/components/data-dump/opportunityLink";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
-import { formatChatTime } from "@/crm/lib/formatChatTime";
+import { formatInboxListTime } from "@/crm/lib/formatChatTime";
 import { scrollChatContainerToBottom } from "@/crm/lib/scrollChatThread";
+import { useInfiniteScroll } from "@/crm/lib/useInfiniteScroll";
 import type {
   DumpInboxSyncStatus,
   SalesIgniterConversation,
@@ -27,6 +28,8 @@ import type {
   SalesIgniterOpportunity,
 } from "@/crm/types";
 import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 10;
 
 function messagePreview(body?: string): string {
   const text = (body ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -46,7 +49,7 @@ function threadDisplayName(thread: SalesIgniterConversation) {
 
 function threadTimestamp(thread: SalesIgniterConversation) {
   const raw = thread.lastMessageDate ?? thread.dateUpdated ?? thread.dateAdded;
-  return raw ? formatChatTime(raw) : "";
+  return raw ? formatInboxListTime(raw) : "";
 }
 
 function formatSyncTime(value?: string | null) {
@@ -54,16 +57,29 @@ function formatSyncTime(value?: string | null) {
   return new Date(value).toLocaleString("en-GB");
 }
 
-export default function DataDumpInboxView() {
-  const configured = useDataDumpConfigured();
+export default function DataDumpInboxView({
+  enableSync = true,
+}: {
+  enableSync?: boolean;
+} = {}) {
+  const dumpConfigured = useDataDumpConfigured();
+  const configured = enableSync ? dumpConfigured : true;
   const autoSyncStarted = useRef(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadingMoreRef = useRef(false);
 
   const [threads, setThreads] = useState<SalesIgniterConversation[]>([]);
   const [syncStatus, setSyncStatus] = useState<DumpInboxSyncStatus | null>(null);
   const [selected, setSelected] = useState<SalesIgniterConversation | null>(null);
   const [messages, setMessages] = useState<SalesIgniterMessage[]>([]);
+  const [messagesHasMore, setMessagesHasMore] = useState(false);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
   const [threadLoading, setThreadLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
@@ -71,17 +87,32 @@ export default function DataDumpInboxView() {
   const [messagesError, setMessagesError] = useState<string | null>(null);
   const [syncProgress, setSyncProgress] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeQuery, setActiveQuery] = useState("");
   const [mobileShowThread, setMobileShowThread] = useState(false);
   const [selectedOpportunity, setSelectedOpportunity] = useState<SalesIgniterOpportunity | null>(null);
   const [opportunityLoading, setOpportunityLoading] = useState(false);
   const [opportunityError, setOpportunityError] = useState<string | null>(null);
 
-  const loadLocalThreads = useCallback(async () => {
-    const result = await api.listDumpInboxThreads();
-    setThreads(result.threads);
-    setSyncStatus(result.sync);
-    return result.threads;
-  }, []);
+  const loadLocalThreads = useCallback(
+    async (opts: { page: number; query: string; append: boolean }) => {
+      const result = await api.listDumpInboxThreads({
+        page: opts.page,
+        limit: PAGE_SIZE,
+        query: opts.query || undefined,
+      });
+
+      setThreads((prev) => {
+        if (!opts.append) return result.threads;
+        const seen = new Set(prev.map((thread) => thread.id));
+        return [...prev, ...result.threads.filter((thread) => !seen.has(thread.id))];
+      });
+      if (result.sync) setSyncStatus(result.sync);
+      setPage(result.page);
+      setHasMore(result.hasMore);
+      return result.threads;
+    },
+    []
+  );
 
   const runSync = useCallback(
     async (options?: { reloadOnly?: boolean }) => {
@@ -165,31 +196,10 @@ export default function DataDumpInboxView() {
         }
       }
 
-      await loadLocalThreads();
+      await loadLocalThreads({ page: 1, query: activeQuery, append: false });
     },
-    [configured, loadLocalThreads]
+    [activeQuery, configured, loadLocalThreads]
   );
-
-  const initializePage = useCallback(async () => {
-    if (!configured) return;
-
-    setLoading(true);
-    setListError(null);
-
-    try {
-      await loadLocalThreads();
-    } catch (e) {
-      setThreads([]);
-      setSyncStatus(null);
-      setListError(e instanceof Error ? e.message : "Failed to load inbox");
-    } finally {
-      setLoading(false);
-    }
-
-    void runSync().catch(() => {
-      // syncError is set inside runSync
-    });
-  }, [configured, loadLocalThreads, runSync]);
 
   useEffect(() => {
     if (!configured) {
@@ -197,26 +207,63 @@ export default function DataDumpInboxView() {
       return;
     }
 
+    let cancelled = false;
+    setLoading(true);
+    setListError(null);
+
+    void loadLocalThreads({ page: 1, query: activeQuery, append: false })
+      .catch((e) => {
+        if (cancelled) return;
+        setThreads([]);
+        setSyncStatus(null);
+        setHasMore(false);
+        setListError(e instanceof Error ? e.message : "Failed to load inbox");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeQuery, configured, loadLocalThreads]);
+
+  useEffect(() => {
+    if (!configured || !enableSync) return;
     if (autoSyncStarted.current) return;
     autoSyncStarted.current = true;
-    void initializePage();
-  }, [configured, initializePage]);
-
-  const filteredThreads = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return threads;
-    return threads.filter((thread) => {
-      const haystack = [
-        threadDisplayName(thread),
-        thread.email ?? "",
-        thread.phone ?? "",
-        thread.lastMessageBody ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(query);
+    void runSync().catch(() => {
+      // syncError is set inside runSync
     });
-  }, [searchQuery, threads]);
+  }, [configured, enableSync, runSync]);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setActiveQuery(searchQuery.trim());
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [searchQuery]);
+
+  const loadMore = useCallback(() => {
+    if (!hasMore || loading || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    void loadLocalThreads({ page: page + 1, query: activeQuery, append: true })
+      .catch(() => {
+        // keep current list
+      })
+      .finally(() => {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      });
+  }, [activeQuery, hasMore, loadLocalThreads, loading, page]);
+
+  useInfiniteScroll({
+    rootRef: listRef,
+    sentinelRef,
+    enabled: configured && hasMore && !loading,
+    onLoadMore: loadMore,
+  });
 
   useLayoutEffect(() => {
     if (threadLoading || messages.length === 0) return;
@@ -227,20 +274,45 @@ export default function DataDumpInboxView() {
     setSelected(thread);
     setMobileShowThread(true);
     setMessages([]);
+    setMessagesHasMore(false);
     setMessagesError(null);
     setThreadLoading(true);
     setSelectedOpportunity(null);
     setOpportunityError(null);
 
     try {
-      const result = await api.listDumpConversationMessages(thread.id);
+      const result = await api.listDumpConversationMessages(thread.id, { limit: 40 });
       setMessages(result.messages);
+      setMessagesHasMore(result.hasMore);
     } catch (e) {
       setMessagesError(e instanceof Error ? e.message : "Failed to load messages");
     } finally {
       setThreadLoading(false);
     }
   }, []);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (!selected || !messagesHasMore || loadingOlderMessages || messages.length === 0) return;
+    const oldest = messages[0]?.dateAdded;
+    if (!oldest) return;
+
+    setLoadingOlderMessages(true);
+    try {
+      const result = await api.listDumpConversationMessages(selected.id, {
+        limit: 40,
+        before: oldest,
+      });
+      setMessages((prev) => {
+        const seen = new Set(prev.map((message) => message.id));
+        return [...result.messages.filter((message) => !seen.has(message.id)), ...prev];
+      });
+      setMessagesHasMore(result.hasMore);
+    } catch (e) {
+      setMessagesError(e instanceof Error ? e.message : "Failed to load older messages");
+    } finally {
+      setLoadingOlderMessages(false);
+    }
+  }, [loadingOlderMessages, messages, messagesHasMore, selected]);
 
   const openOpportunityFromMessage = useCallback(
     async (message: SalesIgniterMessage) => {
@@ -249,10 +321,21 @@ export default function DataDumpInboxView() {
       setSelectedOpportunity(null);
 
       try {
+        const result = await api.listDumpOpportunities();
         const directId = extractOpportunityIdFromMessage(message);
+
         if (directId) {
-          const result = await api.getSalesIgniterOpportunity(directId);
-          setSelectedOpportunity(result.opportunity);
+          const match = result.opportunities.find((opp) => opp.id === directId);
+          if (match) {
+            setSelectedOpportunity(match);
+            return;
+          }
+          if (enableSync) {
+            const remote = await api.getSalesIgniterOpportunity(directId);
+            setSelectedOpportunity(remote.opportunity);
+            return;
+          }
+          setOpportunityError("Opportunity not found in the local dump.");
           return;
         }
 
@@ -262,7 +345,6 @@ export default function DataDumpInboxView() {
           return;
         }
 
-        const result = await api.listDumpOpportunities();
         const contactOpps = result.opportunities.filter((opp) => opp.contactId === contactId);
         const match = pickOpportunityForMessage(contactOpps, message.dateAdded);
         if (!match) {
@@ -277,7 +359,7 @@ export default function DataDumpInboxView() {
         setOpportunityLoading(false);
       }
     },
-    [selected?.contactId]
+    [enableSync, selected?.contactId]
   );
 
   const handleManualSync = useCallback(async () => {
@@ -291,7 +373,7 @@ export default function DataDumpInboxView() {
   if (!configured) {
     return (
       <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-8">
-        <DataDumpStatusBanner />
+        {enableSync ? <DataDumpStatusBanner /> : null}
       </div>
     );
   }
@@ -301,6 +383,7 @@ export default function DataDumpInboxView() {
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <div
+        ref={listRef}
         className={cn(
           "min-h-0 w-80 max-w-full shrink-0 overflow-y-auto border-r border-(--color-tc-20) bg-white max-md:w-full",
           mobileShowThread && "max-md:hidden"
@@ -309,32 +392,38 @@ export default function DataDumpInboxView() {
         <div className="border-b border-(--color-tc-20) p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h1 className="text-lg font-semibold text-(--color-tc-40)">Inbox</h1>
-            <PrimaryButton
-              type="button"
-              onClick={() => void handleManualSync()}
-              disabled={syncLoading}
-              className="!h-9 !min-w-0 !px-3 inline-flex items-center gap-1.5 text-sm"
-            >
-              <RefreshCw className={`size-3.5 ${syncLoading ? "animate-spin" : ""}`} aria-hidden />
-              {syncLoading ? "…" : "Sync"}
-            </PrimaryButton>
+            {enableSync ? (
+              <PrimaryButton
+                type="button"
+                onClick={() => void handleManualSync()}
+                disabled={syncLoading}
+                className="!h-9 !min-w-0 !px-3 inline-flex items-center gap-1.5 text-sm"
+              >
+                <RefreshCw className={`size-3.5 ${syncLoading ? "animate-spin" : ""}`} aria-hidden />
+                {syncLoading ? "…" : "Sync"}
+              </PrimaryButton>
+            ) : null}
           </div>
           {syncStatus ? (
             <p className="mb-3 text-[10px] leading-relaxed text-(--color-tc-30)">
               {syncStatus.threadTotal.toLocaleString()} threads ·{" "}
               {syncStatus.messageTotal.toLocaleString()} messages
-              {syncStatus.pendingConversations > 0
+              {enableSync && syncStatus.pendingConversations > 0
                 ? ` · ${syncStatus.pendingConversations} pending`
                 : ""}
-              <br />
-              Threads: {formatSyncTime(syncStatus.threads.lastSyncedAt)} · Messages:{" "}
-              {formatSyncTime(syncStatus.messages.lastSyncedAt)}
+              {enableSync ? (
+                <>
+                  <br />
+                  Threads: {formatSyncTime(syncStatus.threads.lastSyncedAt)} · Messages:{" "}
+                  {formatSyncTime(syncStatus.messages.lastSyncedAt)}
+                </>
+              ) : null}
             </p>
           ) : null}
-          {syncProgress ? (
+          {enableSync && syncProgress ? (
             <p className="mb-3 text-xs text-(--color-tc-30)">{syncProgress}</p>
           ) : null}
-          {syncError ? (
+          {enableSync && syncError ? (
             <p className="mb-3 text-xs text-red-700">{syncError}</p>
           ) : null}
           <div className="relative min-w-0">
@@ -364,13 +453,13 @@ export default function DataDumpInboxView() {
           </div>
         )}
 
-        {!showListLoading && filteredThreads.length === 0 && (
+        {!showListLoading && threads.length === 0 && (
           <div className="px-4 py-6 text-sm text-(--color-tc-30)">
-            {threads.length === 0 ? "No conversations found." : "No conversations match your search."}
+            {activeQuery ? "No conversations match your search." : "No conversations found."}
           </div>
         )}
 
-        {filteredThreads.map((thread) => {
+        {threads.map((thread) => {
           const ChannelIcon = channelIcon(thread.lastMessageType);
           const isSelected = selected?.id === thread.id;
 
@@ -380,8 +469,8 @@ export default function DataDumpInboxView() {
               type="button"
               onClick={() => void openThread(thread)}
               className={cn(
-                "w-full border-b border-(--color-tc-20) px-4 py-3 text-left transition hover:bg-(--color-nc-10)",
-                isSelected && "bg-(--color-nc-10)"
+                "w-full border-b border-(--color-tc-20) border-l-2 border-l-transparent px-4 py-3 text-left transition hover:bg-(--color-nc-10)",
+                isSelected && "border-l-brand bg-brand-muted/70 hover:bg-brand-muted/70"
               )}
             >
               <div className="flex items-start justify-between gap-2">
@@ -405,6 +494,13 @@ export default function DataDumpInboxView() {
             </button>
           );
         })}
+
+        {hasMore ? <div ref={sentinelRef} className="h-8" aria-hidden /> : null}
+        {loadingMore ? (
+          <div className="flex h-12 items-center justify-center">
+            <LoadingSpinner />
+          </div>
+        ) : null}
       </div>
 
       <div
@@ -446,12 +542,25 @@ export default function DataDumpInboxView() {
             ) : messages.length > 0 ? (
               <div
                 ref={messagesContainerRef}
-                className="min-h-0 flex-1 space-y-3 overflow-y-auto"
+                className="min-h-0 flex-1 space-y-4 overflow-y-auto"
               >
+                {messagesHasMore ? (
+                  <div className="flex justify-center py-1">
+                    <button
+                      type="button"
+                      onClick={() => void loadOlderMessages()}
+                      disabled={loadingOlderMessages}
+                      className="rounded-full border border-(--color-tc-20) bg-white px-3 py-1 text-xs font-medium text-(--color-tc-40) transition hover:bg-(--color-nc-10) disabled:opacity-60"
+                    >
+                      {loadingOlderMessages ? "Loading…" : "Load earlier messages"}
+                    </button>
+                  </div>
+                ) : null}
                 {messages.map((message) => (
                   <DumpMessageCard
                     key={message.id}
                     message={message}
+                    customerName={threadDisplayName(selected)}
                     onOpenOpportunity={(msg) => void openOpportunityFromMessage(msg)}
                   />
                 ))}

@@ -53,10 +53,16 @@ export function usePhone() {
   return useContext(PhoneContext);
 }
 
-export function PhoneProvider({ children }: { children: ReactNode }) {
+export function PhoneProvider({
+  children,
+  initialUser,
+}: {
+  children: ReactNode;
+  initialUser?: { phone?: string | null } | null;
+}) {
   const [teamConnectEnabled, setTeamConnectEnabled] = useState(false);
   const [teamConnectNumbers, setTeamConnectNumbers] = useState<TeamConnectNumber[]>([]);
-  const [userPhone, setUserPhone] = useState<string | null>(null);
+  const [userPhone, setUserPhone] = useState<string | null>(initialUser?.phone ?? null);
   const [selectedPhoneDocId, setSelectedPhoneDocId] = useState<string | null>(null);
   const [dialpadConfigured, setDialpadConfigured] = useState(false);
   const [dialpadEnabled, setDialpadEnabled] = useState(false);
@@ -105,7 +111,11 @@ export function PhoneProvider({ children }: { children: ReactNode }) {
   }, [refreshTeamConnectNumbers, refreshDialpadConfig]);
 
   useEffect(() => {
-    void refreshPhoneSettings();
+    // Defer phone/telephony boot so first page data isn't competing for bandwidth.
+    const timer = window.setTimeout(() => {
+      void refreshPhoneSettings();
+    }, 400);
+    return () => window.clearTimeout(timer);
   }, [refreshPhoneSettings]);
 
   const registerDialpadIframe = useCallback((ref: RefObject<HTMLIFrameElement | null>) => {

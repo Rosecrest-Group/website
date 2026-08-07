@@ -84,8 +84,13 @@ const CONTACT_COLUMNS: Column<ContactRow>[] = [
   },
 ];
 
-export default function DataDumpContactsView() {
-  const configured = useDataDumpConfigured();
+export default function DataDumpContactsView({
+  enableSync = true,
+}: {
+  enableSync?: boolean;
+} = {}) {
+  const dumpConfigured = useDataDumpConfigured();
+  const configured = enableSync ? dumpConfigured : true;
   const autoSyncStarted = useRef(false);
 
   const [allContacts, setAllContacts] = useState<SalesIgniterContactSummary[]>([]);
@@ -174,10 +179,12 @@ export default function DataDumpContactsView() {
       setListLoading(false);
     }
 
-    void runSync().catch(() => {
-      // syncError is set inside runSync
-    });
-  }, [configured, loadLocalContacts, runSync]);
+    if (enableSync) {
+      void runSync().catch(() => {
+        // syncError is set inside runSync
+      });
+    }
+  }, [configured, enableSync, loadLocalContacts, runSync]);
 
   useEffect(() => {
     if (!configured) {
@@ -223,35 +230,44 @@ export default function DataDumpContactsView() {
     }
   }, [runSync]);
 
-  const openContact = useCallback(async (summary: SalesIgniterContactSummary) => {
-    setSelectedId(summary.id);
-    setSelectedContact(summary);
-    setNotes([]);
-    setContactError(null);
-    setNotesError(null);
-    setDetailLoading(true);
+  const openContact = useCallback(
+    async (summary: SalesIgniterContactSummary) => {
+      setSelectedId(summary.id);
+      setSelectedContact(summary);
+      setNotes([]);
+      setContactError(null);
+      setNotesError(null);
 
-    const [contactSettled, notesSettled] = await Promise.allSettled([
-      api.getSalesIgniterContact(summary.id),
-      api.getSalesIgniterContactNotes(summary.id),
-    ]);
+      if (!enableSync) {
+        setDetailLoading(false);
+        return;
+      }
 
-    if (contactSettled.status === "fulfilled") {
-      setSelectedContact(contactSettled.value.contact);
-    } else {
-      const err = contactSettled.reason;
-      setContactError(err instanceof Error ? err.message : "Failed to load full contact details");
-    }
+      setDetailLoading(true);
 
-    if (notesSettled.status === "fulfilled") {
-      setNotes(notesSettled.value.notes);
-    } else {
-      const err = notesSettled.reason;
-      setNotesError(err instanceof Error ? err.message : "Failed to load notes");
-    }
+      const [contactSettled, notesSettled] = await Promise.allSettled([
+        api.getSalesIgniterContact(summary.id),
+        api.getSalesIgniterContactNotes(summary.id),
+      ]);
 
-    setDetailLoading(false);
-  }, []);
+      if (contactSettled.status === "fulfilled") {
+        setSelectedContact(contactSettled.value.contact);
+      } else {
+        const err = contactSettled.reason;
+        setContactError(err instanceof Error ? err.message : "Failed to load full contact details");
+      }
+
+      if (notesSettled.status === "fulfilled") {
+        setNotes(notesSettled.value.notes);
+      } else {
+        const err = notesSettled.reason;
+        setNotesError(err instanceof Error ? err.message : "Failed to load notes");
+      }
+
+      setDetailLoading(false);
+    },
+    [enableSync]
+  );
 
   const closePanel = () => {
     setSelectedId(null);
@@ -268,7 +284,7 @@ export default function DataDumpContactsView() {
         subtitle="Browse and search legacy Sales Igniter contacts for migration review."
       />
 
-      <DataDumpStatusBanner />
+      {enableSync ? <DataDumpStatusBanner /> : null}
 
       {configured ? (
         <CurvedContainer>
@@ -284,28 +300,32 @@ export default function DataDumpContactsView() {
             <div className="flex flex-wrap items-center gap-3">
               {syncStatus ? (
                 <p className="text-xs text-(--color-tc-30)">
-                  {syncStatus.dbTotal.toLocaleString()} in DB · Last sync{" "}
-                  {formatSyncTime(syncStatus.lastSyncedAt)}
+                  {syncStatus.dbTotal.toLocaleString()} in DB
+                  {enableSync
+                    ? ` · Last sync ${formatSyncTime(syncStatus.lastSyncedAt)}`
+                    : ""}
                 </p>
               ) : null}
-              <PrimaryButton
-                type="button"
-                onClick={() => void handleManualSync()}
-                disabled={syncLoading || listLoading}
-                className="inline-flex items-center gap-2"
-              >
-                <RefreshCw className={`size-4 ${syncLoading ? "animate-spin" : ""}`} aria-hidden />
-                {syncLoading ? "Syncing…" : "Sync now"}
-              </PrimaryButton>
+              {enableSync ? (
+                <PrimaryButton
+                  type="button"
+                  onClick={() => void handleManualSync()}
+                  disabled={syncLoading || listLoading}
+                  className="inline-flex items-center gap-2"
+                >
+                  <RefreshCw className={`size-4 ${syncLoading ? "animate-spin" : ""}`} aria-hidden />
+                  {syncLoading ? "Syncing…" : "Sync now"}
+                </PrimaryButton>
+              ) : null}
             </div>
           </div>
-          {syncProgress ? (
+          {enableSync && syncProgress ? (
             <p className="border-t border-(--color-tc-20) px-6 py-3 text-sm text-(--color-tc-30)">
               Syncing… {syncProgress.checked.toLocaleString()} of{" "}
               {syncProgress.total.toLocaleString()} checked
             </p>
           ) : null}
-          {syncError ? (
+          {enableSync && syncError ? (
             <p className="border-t border-red-200 bg-red-50 px-6 py-3 text-sm text-red-800">
               {syncError}
             </p>
@@ -413,7 +433,12 @@ export default function DataDumpContactsView() {
               <h3 className="text-base font-semibold text-(--color-tc-40)">
                 Notes ({notes.length})
               </h3>
-              {notesError ? (
+              {!enableSync ? (
+                <p className="text-sm text-(--color-tc-30)">
+                  Notes aren’t stored in the local dump — only contact fields from the database are
+                  shown.
+                </p>
+              ) : notesError ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                   {notesError}
                   {scopeHint(notesError)}

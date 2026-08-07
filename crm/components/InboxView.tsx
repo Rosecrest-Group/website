@@ -1,18 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Mail, MessageSquare, Phone, Search } from "lucide-react";
-import { api } from "@/crm/lib/api";
-import { formatChatTime } from "@/crm/lib/formatChatTime";
-import { isHtmlContent } from "@/crm/lib/messageFormatting";
-import type { InboxThread, Message } from "@/crm/types";
-
-const INBOX_THREAD_MESSAGES: Message[] = [];
 import LeadDetailPanel from "@/crm/components/LeadDetailPanel";
 import LeadMessageThread from "@/crm/components/LeadMessageThread";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
+import { api } from "@/crm/lib/api";
+import { formatInboxListTime, messageTimestamp } from "@/crm/lib/formatChatTime";
+import { isHtmlContent } from "@/crm/lib/messageFormatting";
+import { useInfiniteScroll } from "@/crm/lib/useInfiniteScroll";
+import { MESSAGE_FIRST_PAGE_SIZE, prefetchLeadThread } from "@/crm/lib/leadMessageCache";
+import type { InboxThread, Message } from "@/crm/types";
 import { cn } from "@/lib/utils";
+
+const INBOX_THREAD_MESSAGES: Message[] = [];
+const PAGE_SIZE = 10;
+/**
+ * Warmed on idle only. Hover/focus prefetch covers the rest, and every extra thread
+ * fetched up front competes with the one the user actually clicks.
+ */
+const WARM_PREFETCH_COUNT = 3;
 
 function messagePreview(body: string, channel: string): string {
   const text =
@@ -28,51 +36,173 @@ function channelIcon(channel: string) {
   return MessageSquare;
 }
 
-export default function InboxView() {
-  const [threads, setThreads] = useState<InboxThread[]>([]);
+/** Match thread bubble channel colors; stronger for outbound, softer for inbound. */
+function channelBadgeClass(channel: string, direction?: string) {
+  const outbound = direction === "OUTBOUND";
+  if (channel === "WHATSAPP") {
+    return outbound
+      ? "bg-emerald-600 text-white"
+      : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
+  }
+  if (channel === "SMS") {
+    return outbound
+      ? "bg-orange-100 text-orange-800 ring-1 ring-orange-200"
+      : "bg-orange-50/80 text-orange-600 ring-1 ring-orange-100";
+  }
+  if (channel === "EMAIL") {
+    return outbound
+      ? "bg-indigo-100 text-indigo-800 ring-1 ring-indigo-200"
+      : "bg-indigo-50/80 text-indigo-600 ring-1 ring-indigo-100";
+  }
+  return "bg-(--color-nc-10) text-(--color-tc-30)";
+}
+
+export default function InboxView({
+  initialThreads = null,
+  initialHasMore = false,
+  initialCursor = null,
+}: {
+  initialThreads?: InboxThread[] | null;
+  initialHasMore?: boolean;
+  initialCursor?: string | null;
+}) {
+  const [threads, setThreads] = useState<InboxThread[]>(() => initialThreads ?? []);
   const [selected, setSelected] = useState<InboxThread | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !initialThreads);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [cursor, setCursor] = useState<string | null>(initialCursor);
+  const [hasMore, setHasMore] = useState(initialHasMore);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeQuery, setActiveQuery] = useState("");
   const [mobileShowThread, setMobileShowThread] = useState(false);
   const [leadPanelOpen, setLeadPanelOpen] = useState(false);
+  const skipInitialFetch = useRef(Boolean(initialThreads));
+  const listRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadingMoreRef = useRef(false);
 
-  const loadThreads = useCallback(async () => {
-    const result = await api.getInbox();
-    setThreads(result.items);
-    return result.items;
-  }, []);
+  const loadThreads = useCallback(
+    async (opts: { cursor: string | null; query: string; append: boolean }) => {
+      const result = await api.getInbox({
+        cursor: opts.cursor,
+        limit: PAGE_SIZE,
+        query: opts.query || undefined,
+      });
+
+      setThreads((prev) => {
+        if (!opts.append) return result.items;
+        const seen = new Set(prev.map((thread) => thread.threadKey));
+        return [...prev, ...result.items.filter((thread) => !seen.has(thread.threadKey))];
+      });
+      setCursor(result.nextCursor);
+      setHasMore(result.hasMore);
+      return result.items;
+    },
+    []
+  );
 
   useEffect(() => {
-    loadThreads().finally(() => setLoading(false));
-  }, [loadThreads]);
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false;
+      return;
+    }
 
-  const filteredThreads = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return threads;
-    return threads.filter((thread) => {
-      const haystack = [
-        thread.customerName,
-        thread.propertyPostcode ?? "",
-        thread.lastMessage.body,
-        thread.lastMessage.subject ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [searchQuery, threads]);
+    let cancelled = false;
+    setLoading(true);
+    void loadThreads({ cursor: null, query: activeQuery, append: false })
+      .catch(() => {
+        if (!cancelled) {
+          setThreads([]);
+          setHasMore(false);
+          setCursor(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeQuery, loadThreads]);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setActiveQuery(searchQuery.trim());
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [searchQuery]);
+
+  const loadMore = useCallback(() => {
+    if (!hasMore || loading || loadingMoreRef.current || !cursor) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    void loadThreads({ cursor, query: activeQuery, append: true })
+      .catch(() => {
+        // keep current list
+      })
+      .finally(() => {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      });
+  }, [activeQuery, cursor, hasMore, loadThreads, loading]);
+
+  useInfiniteScroll({
+    rootRef: listRef,
+    sentinelRef,
+    enabled: hasMore && !loading,
+    onLoadMore: loadMore,
+  });
 
   useEffect(() => {
     setLeadPanelOpen(false);
   }, [selected?.leadId]);
 
+  function prefetchThread(leadId: string | null | undefined) {
+    if (!leadId) return;
+    void prefetchLeadThread(leadId, async () => {
+      const page = await api.listMessages({
+        leadId,
+        limit: String(MESSAGE_FIRST_PAGE_SIZE),
+        page: "1",
+      });
+      return {
+        messages: page.items,
+        page: page.page,
+        hasMore: page.hasMore ?? page.page * page.limit < page.total,
+      };
+    });
+  }
+
   function openThread(thread: InboxThread) {
+    if (thread.leadId) prefetchThread(thread.leadId);
     setSelected(thread);
     setMobileShowThread(true);
   }
 
+  // Warm the top few threads so the common "click top of inbox" path is instant, but
+  // only once the browser is idle so it never competes with the first paint.
+  useEffect(() => {
+    const leadIds = threads
+      .map((thread) => thread.leadId)
+      .filter((id): id is string => Boolean(id))
+      .slice(0, WARM_PREFETCH_COUNT);
+    if (leadIds.length === 0) return;
+
+    const warm = () => {
+      for (const leadId of leadIds) prefetchThread(leadId);
+    };
+    const idle = window.requestIdleCallback;
+    if (idle) {
+      const handle = idle(warm, { timeout: 2000 });
+      return () => window.cancelIdleCallback?.(handle);
+    }
+    const handle = window.setTimeout(warm, 500);
+    return () => window.clearTimeout(handle);
+  }, [threads]);
+
   async function handleSent() {
-    const items = await loadThreads();
+    const items = await loadThreads({ cursor: null, query: activeQuery, append: false });
     if (selected) {
       const refreshed = items.find((thread) => thread.leadId === selected.leadId);
       if (refreshed) setSelected(refreshed);
@@ -84,10 +214,17 @@ export default function InboxView() {
     ? `${selected.customerName}${selected.propertyPostcode ? ` · ${selected.propertyPostcode}` : ""}`
     : undefined;
 
+  const emptyMessage = useMemo(() => {
+    if (threads.length === 0 && activeQuery) return "No conversations match your search.";
+    if (threads.length === 0) return "No client conversations yet.";
+    return null;
+  }, [activeQuery, threads.length]);
+
   return (
     <>
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <div
+        ref={listRef}
         className={cn(
           "min-h-0 w-80 max-w-full shrink-0 overflow-y-auto border-r border-(--color-tc-20) bg-white max-md:w-full",
           mobileShowThread && "max-md:hidden"
@@ -116,13 +253,11 @@ export default function InboxView() {
           </div>
         )}
 
-        {!showListLoading && filteredThreads.length === 0 && (
-          <div className="px-4 py-6 text-sm text-(--color-tc-30)">
-            {threads.length === 0 ? "No client conversations yet." : "No conversations match your search."}
-          </div>
-        )}
+        {!showListLoading && emptyMessage ? (
+          <div className="px-4 py-6 text-sm text-(--color-tc-30)">{emptyMessage}</div>
+        ) : null}
 
-        {filteredThreads.map((thread) => {
+        {threads.map((thread) => {
           const ChannelIcon = channelIcon(thread.lastMessage.channel);
           const isSelected = selected?.threadKey === thread.threadKey;
 
@@ -131,9 +266,11 @@ export default function InboxView() {
               key={thread.threadKey}
               type="button"
               onClick={() => openThread(thread)}
+              onMouseEnter={() => prefetchThread(thread.leadId)}
+              onFocus={() => prefetchThread(thread.leadId)}
               className={cn(
-                "w-full border-b border-(--color-tc-20) px-4 py-3 text-left transition hover:bg-(--color-nc-10)",
-                isSelected && "bg-(--color-nc-10)"
+                "w-full border-b border-(--color-tc-20) border-l-2 border-l-transparent px-4 py-3 text-left transition hover:bg-(--color-nc-10)",
+                isSelected && "border-l-brand bg-brand-muted/70 hover:bg-brand-muted/70"
               )}
             >
               <div className="flex items-start justify-between gap-2">
@@ -144,14 +281,19 @@ export default function InboxView() {
                   )}
                 </div>
                 <span className="shrink-0 text-[10px] text-(--color-tc-30)">
-                  {formatChatTime(thread.lastMessage.createdAt)}
+                  {formatInboxListTime(messageTimestamp(thread.lastMessage))}
                 </span>
               </div>
               <p className="mt-1 truncate text-xs text-(--color-tc-30)">
                 {messagePreview(thread.lastMessage.body, thread.lastMessage.channel)}
               </p>
               <div className="mt-1.5 flex items-center gap-2 text-[10px] text-(--color-tc-30)">
-                <span className="inline-flex items-center gap-1">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-medium",
+                    channelBadgeClass(thread.lastMessage.channel, thread.lastMessage.direction)
+                  )}
+                >
                   <ChannelIcon className="size-3" aria-hidden />
                   {thread.lastMessage.channel}
                 </span>
@@ -160,6 +302,13 @@ export default function InboxView() {
             </button>
           );
         })}
+
+        {hasMore ? <div ref={sentinelRef} className="h-8" aria-hidden /> : null}
+        {loadingMore ? (
+          <div className="flex h-12 items-center justify-center">
+            <LoadingSpinner />
+          </div>
+        ) : null}
       </div>
 
       <div
@@ -183,7 +332,10 @@ export default function InboxView() {
               key={selected.leadId}
               leadId={selected.leadId}
               customerName={selected.customerName}
+              // No seed: the list's single preview message would paint one bubble and
+              // then get replaced by the real thread. The prefetch cache fills this in.
               messages={INBOX_THREAD_MESSAGES}
+              revalidateSeed
               onSent={handleSent}
               className="min-h-0 flex-1"
               headerActions={
@@ -218,7 +370,7 @@ export default function InboxView() {
       onDeleted={() => {
         setLeadPanelOpen(false);
         setSelected(null);
-        void loadThreads();
+        void loadThreads({ cursor: null, query: activeQuery, append: false });
       }}
     />
     </>

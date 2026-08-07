@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Trash2 } from "lucide-react";
@@ -40,16 +40,21 @@ function formatDueDate(iso: string | null) {
   });
 }
 
-export default function TasksList() {
+export default function TasksList({
+  initialData = null,
+}: {
+  initialData?: { items: Task[]; total: number } | null;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [total, setTotal] = useState(0);
+  const [tasks, setTasks] = useState<Task[]>(() => initialData?.items ?? []);
+  const [total, setTotal] = useState(() => initialData?.total ?? 0);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !initialData);
   const [error, setError] = useState("");
+  const skipInitialFetch = useRef(Boolean(initialData));
 
   const [teamMembers, setTeamMembers] = useState<Array<{ id: string; fullName: string }>>([]);
 
@@ -84,6 +89,10 @@ export default function TasksList() {
   }, [search, status, assigneeFilter]);
 
   useEffect(() => {
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false;
+      return;
+    }
     load();
   }, [load]);
 

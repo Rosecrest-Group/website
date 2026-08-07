@@ -61,8 +61,13 @@ function matchesSearch(opp: SalesIgniterOpportunity, query: string): boolean {
   return haystack.includes(query);
 }
 
-export default function DataDumpOpportunitiesView() {
-  const configured = useDataDumpConfigured();
+export default function DataDumpOpportunitiesView({
+  enableSync = true,
+}: {
+  enableSync?: boolean;
+} = {}) {
+  const dumpConfigured = useDataDumpConfigured();
+  const configured = enableSync ? dumpConfigured : true;
   const autoSyncStarted = useRef(false);
 
   const [allOpportunities, setAllOpportunities] = useState<SalesIgniterOpportunity[]>([]);
@@ -85,16 +90,29 @@ export default function DataDumpOpportunitiesView() {
   const [selected, setSelected] = useState<SalesIgniterOpportunity | null>(null);
 
   const loadLocalOpportunities = useCallback(async () => {
-    const [pipelineResult, localResult] = await Promise.all([
-      api.listSalesIgniterPipelines(),
-      api.listDumpOpportunities(),
-    ]);
-
-    setPipelineStages(pipelineResult.pipelines.flatMap((pipeline) => pipeline.stages ?? []));
+    const localResult = await api.listDumpOpportunities();
     setAllOpportunities(localResult.opportunities);
     setTotalFetched(localResult.total);
     setSyncStatus(localResult.sync);
-  }, []);
+
+    if (enableSync) {
+      const pipelineResult = await api.listSalesIgniterPipelines();
+      setPipelineStages(pipelineResult.pipelines.flatMap((pipeline) => pipeline.stages ?? []));
+      return;
+    }
+
+    const stagesById = new Map<string, SalesIgniterPipelineStage>();
+    for (const opp of localResult.opportunities) {
+      if (!opp.pipelineStageId || stagesById.has(opp.pipelineStageId)) continue;
+      stagesById.set(opp.pipelineStageId, {
+        id: opp.pipelineStageId,
+        name: opp.pipelineStageName ?? opp.pipelineStageId,
+      });
+    }
+    setPipelineStages(
+      [...stagesById.values()].sort((a, b) => a.name.localeCompare(b.name))
+    );
+  }, [enableSync]);
 
   const runSync = useCallback(
     async (options?: { reloadOnly?: boolean }) => {
@@ -189,10 +207,12 @@ export default function DataDumpOpportunitiesView() {
       setListLoading(false);
     }
 
-    void runSync().catch(() => {
-      // syncError is set inside runSync
-    });
-  }, [configured, loadLocalOpportunities, runSync]);
+    if (enableSync) {
+      void runSync().catch(() => {
+        // syncError is set inside runSync
+      });
+    }
+  }, [configured, enableSync, loadLocalOpportunities, runSync]);
 
   useEffect(() => {
     if (!configured) {
@@ -317,9 +337,13 @@ export default function DataDumpOpportunitiesView() {
     <CrmPageContent>
       <CrmPageHeader
         title="Opportunities"
-        subtitle="Syncs from Sales Igniter into the local dump table, then filters locally."
+        subtitle={
+          enableSync
+            ? "Syncs from Sales Igniter into the local dump table, then filters locally."
+            : "Browse legacy Sales Igniter opportunities already stored in the database."
+        }
         actions={
-          configured ? (
+          configured && enableSync ? (
             <PrimaryButton
               type="button"
               className="w-auto gap-2"
@@ -333,7 +357,7 @@ export default function DataDumpOpportunitiesView() {
         }
       />
 
-      <DataDumpStatusBanner />
+      {enableSync ? <DataDumpStatusBanner /> : null}
 
       {configured ? (
         <CurvedContainer>
@@ -394,19 +418,19 @@ export default function DataDumpOpportunitiesView() {
               ) : null}
             </div>
 
-            {syncStatus || lastSyncResult || syncLoading ? (
+            {syncStatus || (enableSync && (lastSyncResult || syncLoading)) ? (
               <p className="text-xs text-(--color-tc-30)">
                 {syncStatus ? (
                   <>
                     <span className="font-medium text-(--color-tc-40)">
                       {totalFetched.toLocaleString()} in database
                     </span>
-                    {syncStatus.lastSyncedAt
+                    {enableSync && syncStatus.lastSyncedAt
                       ? ` · Last synced ${formatSyncTime(syncStatus.lastSyncedAt)}`
                       : ""}
                   </>
                 ) : null}
-                {lastSyncResult ? (
+                {enableSync && lastSyncResult ? (
                   <>
                     {syncStatus ? " · " : ""}
                     Latest sync: {lastSyncResult.inserted.toLocaleString()} new,{" "}
@@ -417,9 +441,9 @@ export default function DataDumpOpportunitiesView() {
                       : ""}
                   </>
                 ) : null}
-                {syncLoading && syncProgress
+                {enableSync && syncLoading && syncProgress
                   ? ` · Syncing… ${syncProgress.checked.toLocaleString()} of ${syncProgress.total.toLocaleString()} checked`
-                  : syncLoading
+                  : enableSync && syncLoading
                     ? " · Checking for new opportunities…"
                     : ""}
               </p>
@@ -428,7 +452,7 @@ export default function DataDumpOpportunitiesView() {
         </CurvedContainer>
       ) : null}
 
-      {syncError ? (
+      {enableSync && syncError ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           {syncError}
           {scopeHint(syncError)}

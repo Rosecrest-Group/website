@@ -19,16 +19,22 @@ import ConversationThread from "@/crm/components/ConversationThread";
 import { prefetchConversationThread } from "@/crm/lib/prefetchConversationThread";
 import { useCollaborationRealtime } from "@/crm/lib/useCollaborationRealtime";
 
-export default function ConversationsView() {
+export default function ConversationsView({
+  initialThreads = null,
+}: {
+  initialThreads?: InternalConversationSummary[] | null;
+}) {
   const searchParams = useSearchParams();
   const initialConversationId = searchParams.get("conversationId");
   const highlightMessageId = searchParams.get("messageId");
 
   const [threads, setThreads] = useState<InternalConversationSummary[]>(
-    () => getCachedConversationList() ?? []
+    () => initialThreads ?? getCachedConversationList() ?? []
   );
   const [selected, setSelected] = useState<InternalConversationSummary | null>(null);
-  const [loading, setLoading] = useState(() => getCachedConversationList() === null);
+  const [loading, setLoading] = useState(
+    () => !(initialThreads || getCachedConversationList()),
+  );
   const [showNew, setShowNew] = useState(false);
   const [newRecipients, setNewRecipients] = useState<RecipientSelection[]>([]);
   const [currentUser, setCurrentUser] = useState<{ id: string; fullName: string } | null>(
@@ -38,6 +44,7 @@ export default function ConversationsView() {
   const [searchResults, setSearchResults] = useState<InternalConversationSummary[] | null>(null);
   const [mobileShowThread, setMobileShowThread] = useState(false);
   const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipInitialFetch = useRef(Boolean(initialThreads));
 
   const schedulePrefetch = useCallback((conversationId: string) => {
     if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
@@ -102,11 +109,21 @@ export default function ConversationsView() {
 
   useEffect(() => {
     let cancelled = false;
-    const cachedThreads = getCachedConversationList();
-    const cachedMe = getCachedCurrentUser();
-    const hasCache = cachedThreads && cachedMe;
+    if (initialThreads) setCachedConversationList(initialThreads);
+
     (async () => {
-      if (!hasCache) setLoading(true);
+      const seeded = skipInitialFetch.current;
+      if (seeded) {
+        skipInitialFetch.current = false;
+        setLoading(false);
+        if (initialConversationId) {
+          const match = (initialThreads ?? []).find((t) => t.id === initialConversationId);
+          if (match) openThread(match);
+        }
+      } else if (!getCachedConversationList()) {
+        setLoading(true);
+      }
+
       try {
         const [items, me] = await Promise.all([loadThreads(), api.getMe()]);
         if (cancelled) return;
@@ -125,7 +142,7 @@ export default function ConversationsView() {
     return () => {
       cancelled = true;
     };
-  }, [initialConversationId, loadThreads, openThread]);
+  }, [initialConversationId, loadThreads, openThread, initialThreads]);
 
   useCollaborationRealtime(
     useCallback(

@@ -24,8 +24,14 @@ export function isCrmAuthRoute(pathname: string) {
 
 export const CRM_DATA_DUMP_PATH = `${CRM_BASE_PATH}/data-dump`;
 
+export const CRM_LEGACY_PATH = `${CRM_BASE_PATH}/legacy`;
+
 export function isCrmDataDumpRoute(pathname: string) {
   return pathname === CRM_DATA_DUMP_PATH || pathname.startsWith(`${CRM_DATA_DUMP_PATH}/`);
+}
+
+export function isCrmLegacyRoute(pathname: string) {
+  return pathname === CRM_LEGACY_PATH || pathname.startsWith(`${CRM_LEGACY_PATH}/`);
 }
 
 export type DataDumpNavItem = {
@@ -86,6 +92,14 @@ export const CRM_NAV_SECTIONS: CrmNavSection[] = [
       { label: "Operations", href: `${CRM_BASE_PATH}/analytics` },
       { label: "Finance", href: `${CRM_BASE_PATH}/revenue` },
       { label: "SLAs", href: `${CRM_BASE_PATH}/slas` },
+    ],
+  },
+  {
+    title: "Legacy",
+    items: [
+      { label: "Contacts", href: `${CRM_LEGACY_PATH}/contacts` },
+      { label: "Opportunities", href: `${CRM_LEGACY_PATH}/opportunities` },
+      { label: "Inbox", href: `${CRM_LEGACY_PATH}/inbox` },
     ],
   },
   {

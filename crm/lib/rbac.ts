@@ -124,7 +124,10 @@ function pathAllowed(role: UserRole, pathname: string): boolean {
   ) {
     return canAccessAdminSettings(role);
   }
-  if (pathname.startsWith(`${CRM_BASE_PATH}/data-dump`)) {
+  if (
+    pathname.startsWith(`${CRM_BASE_PATH}/data-dump`) ||
+    pathname.startsWith(`${CRM_BASE_PATH}/legacy`)
+  ) {
     return canAccessAdminSettings(role);
   }
 

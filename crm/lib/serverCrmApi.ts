@@ -1,5 +1,7 @@
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { crmApiV1Url } from "@/config/api";
+import type { ApiUser } from "@/crm/types";
 
 const ACCESS_TOKEN_COOKIE = "crm_access_token";
 const REFRESH_TOKEN_COOKIE = "crm_refresh_token";
@@ -47,3 +49,6 @@ export async function serverCrmFetch<T>(
     return null;
   }
 }
+
+/** Deduped within a single RSC request (layout + page). */
+export const getServerCrmUser = cache(() => serverCrmFetch<ApiUser>("/auth/me"));

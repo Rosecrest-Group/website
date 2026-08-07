@@ -120,7 +120,6 @@ export default function CrmGlobalSearch() {
     void prefetchCurrentUser().then((me) => {
       if (me?.role) setRole(me.role);
     });
-    api.getMe().then((me) => setRole(me.role)).catch(() => setRole(null));
   }, []);
 
   const runSearch = useCallback(async (search: string, userRole: UserRole | null) => {

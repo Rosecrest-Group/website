@@ -16,6 +16,7 @@ import {
   MessagesSquare,
   PoundSterling,
   Settings,
+  Target,
   User,
   UserCog,
   UserPlus,
@@ -36,9 +37,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CRM_BASE_PATH } from "@/crm/lib/constants";
+import { CRM_BASE_PATH, CRM_LEGACY_PATH } from "@/crm/lib/constants";
 import { api, logout } from "@/crm/lib/api";
-import { prefetchCurrentUser } from "@/crm/lib/currentUserCache";
 import { canAccessAdminSettings, navSectionsForRole } from "@/crm/lib/rbac";
 import { useTeamChatUnreadCount } from "@/crm/lib/useTeamChatUnreadCount";
 import type { ApiUser } from "@/crm/types";
@@ -61,6 +61,9 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   slas: Clock,
   settings: Settings,
   documentation: BookOpen,
+  "legacy-contacts": Users,
+  "legacy-opportunities": Target,
+  "legacy-inbox": Inbox,
 };
 
 const HREF_ICON: Record<string, string> = {
@@ -80,6 +83,9 @@ const HREF_ICON: Record<string, string> = {
   [`${CRM_BASE_PATH}/slas`]: "slas",
   [`${CRM_BASE_PATH}/settings/integrations`]: "settings",
   [`${CRM_BASE_PATH}/documentation`]: "documentation",
+  [`${CRM_LEGACY_PATH}/contacts`]: "legacy-contacts",
+  [`${CRM_LEGACY_PATH}/opportunities`]: "legacy-opportunities",
+  [`${CRM_LEGACY_PATH}/inbox`]: "legacy-inbox",
 };
 
 function isActive(pathname: string, href: string) {
@@ -93,22 +99,27 @@ export default function CrmSidebar({
   footer,
   className,
   "aria-hidden": ariaHidden,
+  initialUser,
 }: {
   onNavigate?: () => void;
   onClose?: () => void;
   footer?: ReactNode;
   className?: string;
   "aria-hidden"?: boolean;
+  initialUser?: ApiUser | null;
 }) {
   const pathname = usePathname();
   const teamChatUnread = useTeamChatUnreadCount();
   const teamChatHref = `${CRM_BASE_PATH}/conversations`;
-  const [user, setUser] = useState<ApiUser | null>(null);
+  const [user, setUser] = useState<ApiUser | null>(initialUser ?? null);
 
   useEffect(() => {
-    void prefetchCurrentUser();
+    if (initialUser) {
+      setUser(initialUser);
+      return;
+    }
     api.getMe().then(setUser).catch(() => setUser(null));
-  }, []);
+  }, [initialUser]);
 
   const navSections = navSectionsForRole(user?.role);
 
@@ -226,7 +237,6 @@ function SidebarFooter({ user: userProp }: { user?: ApiUser | null }) {
       setUser(userProp);
       return;
     }
-    void prefetchCurrentUser();
     api.getMe().then(setUser).catch(() => setUser(null));
   }, [userProp]);
 

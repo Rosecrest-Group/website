@@ -11,6 +11,28 @@ export function formatChatTime(iso: string): string {
   return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
+/** Inbox thread list timestamps: relative day + time, or date + time for older messages. */
+export function formatInboxListTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return `Today ${time}`;
+  if (date.toDateString() === yesterday.toDateString()) return `Yesterday ${time}`;
+
+  const sameYear = date.getFullYear() === today.getFullYear();
+  const day = date.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+  return `${day} ${time}`;
+}
+
 export function formatChatDateSeparator(iso: string): string {
   const date = new Date(iso);
   const today = new Date();

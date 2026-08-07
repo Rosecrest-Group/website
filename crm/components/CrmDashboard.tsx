@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { api } from "@/crm/lib/api";
 import type {
+  DashboardMyTasks,
   DashboardPeriod,
   DashboardSales,
   Job,
@@ -140,22 +141,57 @@ type PeriodCacheEntry = { data: DashboardSales; recentLeads: Lead[] };
 /* page                                                               */
 /* ------------------------------------------------------------------ */
 
-export default function CrmDashboard() {
+export default function CrmDashboard({
+  initialMe = null,
+  initialDashboard = null,
+  initialTasks = null,
+  initialJobs = null,
+}: {
+  initialMe?: { role: UserRole } | null;
+  initialDashboard?: DashboardSales | null;
+  initialTasks?: DashboardMyTasks | null;
+  initialJobs?: Job[] | null;
+}) {
   const router = useRouter();
-  const [role, setRole] = useState<UserRole | null>(null);
+  const [role, setRole] = useState<UserRole | null>(() => initialMe?.role ?? null);
   const [period, setPeriod] = useState<DashboardPeriod>("this_month");
-  const [data, setData] = useState<DashboardSales | null>(null);
-  const [recentLeads, setRecentLeads] = useState<Lead[]>([]);
-  const [myJobs, setMyJobs] = useState<Job[]>([]);
-  const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
-  const [createdTasks, setCreatedTasks] = useState<Task[]>([]);
+  const [data, setData] = useState<DashboardSales | null>(() => initialDashboard);
+  const [recentLeads, setRecentLeads] = useState<Lead[]>(
+    () => initialDashboard?.recentLeads ?? [],
+  );
+  const [myJobs, setMyJobs] = useState<Job[]>(() => initialJobs ?? []);
+  const [assignedTasks, setAssignedTasks] = useState<Task[]>(
+    () => initialTasks?.assignedToMe ?? [],
+  );
+  const [createdTasks, setCreatedTasks] = useState<Task[]>(
+    () => initialTasks?.createdByMe ?? [],
+  );
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const seeded = Boolean(
+    initialMe &&
+      initialTasks &&
+      (canReadLeads(initialMe.role) ? initialDashboard : initialJobs),
+  );
+  const [isLoading, setIsLoading] = useState(() => !seeded);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [, startTransition] = useTransition();
-  const periodCache = useRef(new Map<DashboardPeriod, PeriodCacheEntry>());
-  const prefetchStarted = useRef(false);
+  const periodCache = useRef(
+    new Map<DashboardPeriod, PeriodCacheEntry>(
+      initialDashboard
+        ? [
+            [
+              "this_month",
+              {
+                data: initialDashboard,
+                recentLeads: initialDashboard.recentLeads ?? [],
+              },
+            ],
+          ]
+        : [],
+    ),
+  );
   const fetchGeneration = useRef(0);
+  const skipInitialFetch = useRef(seeded);
 
   function applyDashboard(entry: PeriodCacheEntry) {
     setData(entry.data);
@@ -173,6 +209,11 @@ export default function CrmDashboard() {
   }
 
   useEffect(() => {
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false;
+      return;
+    }
+
     let cancelled = false;
     (async () => {
       try {
@@ -210,20 +251,6 @@ export default function CrmDashboard() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Prefetch other periods in the background after first paint.
-  useEffect(() => {
-    if (!role || !canReadLeads(role) || isLoading || prefetchStarted.current) return;
-    prefetchStarted.current = true;
-    const others = DASHBOARD_PERIODS.map((p) => p.value).filter((p) => p !== period);
-    void Promise.all(
-      others.map((p) =>
-        periodCache.current.has(p)
-          ? Promise.resolve()
-          : fetchPeriod(p).catch(() => undefined),
-      ),
-    );
-  }, [role, isLoading, period]);
 
   function handlePeriodChange(nextPeriod: DashboardPeriod) {
     if (nextPeriod === period) return;

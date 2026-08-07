@@ -67,6 +67,14 @@ export default function LeadsList({
   useEffect(() => {
     if (skipInitialFetch.current) {
       skipInitialFetch.current = false;
+      // Warm first few lead details shortly after paint for snappier row clicks.
+      const ids = (initialData?.items ?? []).slice(0, 3).map((l) => l.id);
+      if (ids.length > 0) {
+        const timer = window.setTimeout(() => {
+          for (const id of ids) void prefetchLead(id);
+        }, 400);
+        return () => window.clearTimeout(timer);
+      }
       return;
     }
     setLoading(true);
@@ -189,7 +197,7 @@ export default function LeadsList({
   ];
 
   return (
-    <CrmPageContent className="!pt-3 sm:!pt-4 lg:!pt-4 space-y-4">
+    <CrmPageContent className="space-y-4 py-3 sm:py-4 lg:py-4">
       <CrmPageHeader
         compact
         title="Leads"
