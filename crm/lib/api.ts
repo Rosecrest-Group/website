@@ -16,6 +16,8 @@ import type {
 
   DashboardOps,
 
+  DashboardPeriod,
+
   DashboardSla,
 
   DashboardSales,
@@ -339,7 +341,8 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
-  getDashboard: () => request<DashboardSales>("/dashboards/sales"),
+  getDashboard: (period: DashboardPeriod = "this_month") =>
+    request<DashboardSales>(`/dashboards/sales?period=${period}`),
 
   getDashboardOps: () => request<DashboardOps>("/dashboards/ops"),
 

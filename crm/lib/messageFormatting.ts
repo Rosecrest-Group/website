@@ -44,21 +44,137 @@ const THREAD_EMAIL_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
 };
 
 export function isHtmlContent(body: string): boolean {
-  return /<\/?[a-z][\s\S]*>/i.test(body.trim());
+  // Require a real HTML tag — plain-text emails often include <https://...> angle brackets.
+  return /<\/?(?:p|div|br|span|strong|b|em|i|u|s|ul|ol|li|a|h[1-6]|table|thead|tbody|tr|td|th|blockquote|img|html|body|font|center)\b/i.test(
+    body.trim()
+  );
 }
 
 export function sanitizeEmailHtml(html: string): string {
   return sanitizeHtml(html, EMAIL_SANITIZE_OPTIONS);
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function linkifyEscaped(text: string): string {
+  return text.replace(
+    /(https?:\/\/[^\s<]+[^\s<.,;:!?)}\]'"])/g,
+    '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+  );
+}
+
+function quoteDepth(line: string): { depth: number; rest: string } {
+  let depth = 0;
+  let rest = line;
+  while (/^\s*>/.test(rest)) {
+    rest = rest.replace(/^\s*>\s?/, "");
+    depth += 1;
+  }
+  return { depth, rest };
+}
+
+/**
+ * Recover plain-text email replies whose newlines were collapsed to spaces
+ * (common after HTML→text stripping), so `> quoted` lines become real lines again.
+ */
+function recoverCollapsedPlainTextEmail(text: string): string {
+  if (/\n/.test(text)) return text;
+  if (!/(?:^|\s)>{1,2}\s/.test(text)) return text;
+  // Only re-break on quote markers — do not split `> • item` apart.
+  return text.replace(/\s+(>{1,2})(?=\s|$)/g, "\n$1");
+}
+
+/** Format plain-text / quoted email replies for readable thread bubbles. */
+export function plainTextEmailToHtml(text: string): string {
+  let normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  normalized = recoverCollapsedPlainTextEmail(normalized);
+
+  const lines = normalized.split("\n");
+  const blocks: string[] = [];
+  let paragraph: string[] = [];
+  let listItems: string[] = [];
+  let quoteBuffer: { depth: number; lines: string[] } | null = null;
+
+  const flushParagraph = () => {
+    if (!paragraph.length) return;
+    blocks.push(`<p>${paragraph.map(linkifyEscaped).join("<br>")}</p>`);
+    paragraph = [];
+  };
+
+  const flushList = () => {
+    if (!listItems.length) return;
+    blocks.push(`<ul>${listItems.map((item) => `<li>${linkifyEscaped(item)}</li>`).join("")}</ul>`);
+    listItems = [];
+  };
+
+  const flushQuote = () => {
+    if (!quoteBuffer) return;
+    const inner = quoteBuffer.lines.map(linkifyEscaped).join("<br>");
+    let html = `<p>${inner || "<br>"}</p>`;
+    for (let d = 0; d < quoteBuffer.depth; d++) {
+      html = `<blockquote>${html}</blockquote>`;
+    }
+    blocks.push(html);
+    quoteBuffer = null;
+  };
+
+  for (const rawLine of lines) {
+    const { depth, rest } = quoteDepth(rawLine);
+    const trimmed = rest.trim();
+
+    if (depth > 0) {
+      flushParagraph();
+      flushList();
+      if (quoteBuffer && quoteBuffer.depth === depth) {
+        quoteBuffer.lines.push(escapeHtml(rest));
+      } else {
+        flushQuote();
+        quoteBuffer = { depth, lines: [escapeHtml(rest)] };
+      }
+      continue;
+    }
+
+    flushQuote();
+
+    if (!trimmed) {
+      flushList();
+      flushParagraph();
+      continue;
+    }
+
+    const bullet = trimmed.match(/^[•·\-*]\s+(.*)$/);
+    if (bullet) {
+      flushParagraph();
+      listItems.push(escapeHtml(bullet[1] ?? ""));
+      continue;
+    }
+
+    flushList();
+    paragraph.push(escapeHtml(rest));
+  }
+
+  flushQuote();
+  flushList();
+  flushParagraph();
+
+  return blocks.join("") || "<p></p>";
+}
+
 /**
  * Normalize email HTML for chat-thread bubbles.
- * Contenteditable often emits <div> lines; inbound/templates carry layout styles that
- * look scattered in a narrow bubble. Pure string transform so SSR and client match.
+ * Contenteditable often emits <div> lines; inbound plain-text replies need quote/list formatting.
  */
 export function prepareEmailHtmlForThread(body: string): string {
-  const raw = isHtmlContent(body) ? body : plainTextToHtml(body);
-  let html = sanitizeHtml(raw, THREAD_EMAIL_SANITIZE_OPTIONS);
+  if (!isHtmlContent(body)) {
+    return plainTextEmailToHtml(body);
+  }
+
+  let html = sanitizeHtml(body, THREAD_EMAIL_SANITIZE_OPTIONS);
 
   // Contenteditable / marketing wrappers → paragraphs
   html = html.replace(/<div(\s[^>]*)?>/gi, "<p>").replace(/<\/div>/gi, "</p>");

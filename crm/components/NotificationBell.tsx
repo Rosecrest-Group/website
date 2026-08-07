@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Bell } from "lucide-react";
 import {
   DropdownMenu,
@@ -15,7 +15,6 @@ import { CRM_BASE_PATH } from "@/crm/lib/constants";
 import { api } from "@/crm/lib/api";
 import { notificationHref } from "@/crm/lib/notificationLinks";
 import { useNotificationCount } from "@/crm/lib/useNotificationCount";
-import type { UserNotificationItem } from "@/crm/types";
 
 function formatWhen(iso: string) {
   const d = new Date(iso);
@@ -29,27 +28,29 @@ function formatWhen(iso: string) {
 }
 
 export default function NotificationBell() {
-  const unreadCount = useNotificationCount();
-  const [items, setItems] = useState<UserNotificationItem[]>([]);
+  const { unreadCount, items, setItems, refresh } = useNotificationCount();
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    void api.listNotifications(true).then((r) => setItems(r.items.slice(0, 8)));
-  }, [open, unreadCount]);
 
   async function markRead(id: string) {
     await api.markNotificationRead(id);
     setItems((prev) => prev.filter((n) => n.id !== id));
+    void refresh();
   }
 
   async function markAllRead() {
     await api.markAllNotificationsRead();
     setItems([]);
+    void refresh();
   }
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) void refresh();
+      }}
+    >
       <DropdownMenuTrigger asChild>
         <button
           type="button"

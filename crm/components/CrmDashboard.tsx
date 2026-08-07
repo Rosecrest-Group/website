@@ -1,18 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { api } from "@/crm/lib/api";
-import type { DashboardSales, Job, Lead, Task, TaskStatus, UserRole } from "@/crm/types";
+import type {
+  DashboardPeriod,
+  DashboardSales,
+  Job,
+  Lead,
+  Task,
+  TaskStatus,
+  UserRole,
+} from "@/crm/types";
 import { CRM_BASE_PATH, LEAD_STAGE_LABELS, TASK_STATUS_LABELS } from "@/crm/lib/constants";
 import { canReadLeads } from "@/crm/lib/rbac";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
+import FilterDropdown from "@/crm/components/ui/FilterDropdown";
 import StatsCard from "@/crm/components/admin/StatsCard";
 import Table, { type Column } from "@/crm/components/ui/Table";
 import StatusPill, { leadStageToPillVariant } from "@/crm/components/ui/StatusPill";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
+import { cn } from "@/lib/utils";
 
 import { useRouter } from "next/navigation";
 import { Users, CheckCircle, TrendingUp, Globe, MapPin, Tag } from "lucide-react";
@@ -116,6 +126,16 @@ function SourceIcon({ source }: { source?: string }) {
   return <Tag className={cls} aria-hidden />;
 }
 
+const DASHBOARD_PERIODS: { value: DashboardPeriod; label: string; short: string }[] = [
+  { value: "today", label: "Today", short: "today" },
+  { value: "7d", label: "Last 7 days", short: "7d" },
+  { value: "30d", label: "Last 30 days", short: "30d" },
+  { value: "this_month", label: "This month", short: "this month" },
+  { value: "90d", label: "Last 90 days", short: "90d" },
+];
+
+type PeriodCacheEntry = { data: DashboardSales; recentLeads: Lead[] };
+
 /* ------------------------------------------------------------------ */
 /* page                                                               */
 /* ------------------------------------------------------------------ */
@@ -123,6 +143,7 @@ function SourceIcon({ source }: { source?: string }) {
 export default function CrmDashboard() {
   const router = useRouter();
   const [role, setRole] = useState<UserRole | null>(null);
+  const [period, setPeriod] = useState<DashboardPeriod>("this_month");
   const [data, setData] = useState<DashboardSales | null>(null);
   const [recentLeads, setRecentLeads] = useState<Lead[]>([]);
   const [myJobs, setMyJobs] = useState<Job[]>([]);
@@ -130,6 +151,26 @@ export default function CrmDashboard() {
   const [createdTasks, setCreatedTasks] = useState<Task[]>([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [, startTransition] = useTransition();
+  const periodCache = useRef(new Map<DashboardPeriod, PeriodCacheEntry>());
+  const prefetchStarted = useRef(false);
+  const fetchGeneration = useRef(0);
+
+  function applyDashboard(entry: PeriodCacheEntry) {
+    setData(entry.data);
+    setRecentLeads(entry.recentLeads);
+  }
+
+  async function fetchPeriod(nextPeriod: DashboardPeriod): Promise<PeriodCacheEntry> {
+    const dashboard = await api.getDashboard(nextPeriod);
+    const entry: PeriodCacheEntry = {
+      data: dashboard,
+      recentLeads: dashboard.recentLeads ?? [],
+    };
+    periodCache.current.set(nextPeriod, entry);
+    return entry;
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -140,14 +181,12 @@ export default function CrmDashboard() {
         setRole(me.role);
 
         if (canReadLeads(me.role)) {
-          const [dashboard, leadsRes, tasksRes] = await Promise.all([
-            api.getDashboard(),
-            api.listLeads({ limit: "5", page: "1" }),
+          const [entry, tasksRes] = await Promise.all([
+            fetchPeriod(period),
             api.getMyTasks(),
           ]);
           if (cancelled) return;
-          setData(dashboard);
-          setRecentLeads(leadsRes.items);
+          applyDashboard(entry);
           setAssignedTasks(tasksRes.assignedToMe);
           setCreatedTasks(tasksRes.createdByMe);
         } else {
@@ -169,9 +208,62 @@ export default function CrmDashboard() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Prefetch other periods in the background after first paint.
+  useEffect(() => {
+    if (!role || !canReadLeads(role) || isLoading || prefetchStarted.current) return;
+    prefetchStarted.current = true;
+    const others = DASHBOARD_PERIODS.map((p) => p.value).filter((p) => p !== period);
+    void Promise.all(
+      others.map((p) =>
+        periodCache.current.has(p)
+          ? Promise.resolve()
+          : fetchPeriod(p).catch(() => undefined),
+      ),
+    );
+  }, [role, isLoading, period]);
+
+  function handlePeriodChange(nextPeriod: DashboardPeriod) {
+    if (nextPeriod === period) return;
+    const generation = ++fetchGeneration.current;
+    startTransition(() => setPeriod(nextPeriod));
+
+    const cached = periodCache.current.get(nextPeriod);
+    if (cached) {
+      applyDashboard(cached);
+      setIsRefreshing(false);
+      return;
+    }
+
+    setIsRefreshing(true);
+    void fetchPeriod(nextPeriod)
+      .then((entry) => {
+        if (generation !== fetchGeneration.current) return;
+        applyDashboard(entry);
+      })
+      .catch((e) => {
+        if (generation !== fetchGeneration.current) return;
+        setError(e instanceof Error ? e.message : "Failed to load");
+      })
+      .finally(() => {
+        if (generation === fetchGeneration.current) setIsRefreshing(false);
+      });
+  }
+
   const showOpsDashboard = role ? canReadLeads(role) : true;
+  const periodShort =
+    DASHBOARD_PERIODS.find((p) => p.value === period)?.short ?? "this month";
+
+  const periodFilter = (
+    <FilterDropdown
+      aria-label="Period"
+      value={period}
+      options={DASHBOARD_PERIODS.map((p) => ({ value: p.value, label: p.label }))}
+      onChange={handlePeriodChange}
+    />
+  );
 
   const stageColumns: Column<{ stage: string; count: number }>[] = [
     {
@@ -453,20 +545,34 @@ export default function CrmDashboard() {
       <CrmPageHeader
         title="Dashboard"
         subtitle="Sales & operations overview"
-        actions={<PrimaryButton href="/crm/leads/new">New lead</PrimaryButton>}
+        actions={
+          <>
+            {periodFilter}
+            <PrimaryButton href="/crm/leads/new" className="h-10 px-5 py-2.5">
+              New lead
+            </PrimaryButton>
+          </>
+        }
       />
 
+      <div
+        aria-busy={isRefreshing}
+        className={cn(
+          "space-y-6 transition-opacity duration-150",
+          isRefreshing && "pointer-events-none opacity-55",
+        )}
+      >
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <StatsCard
           title="Active leads"
           value={data?.activeLeads ?? 0}
           icon={<Users />}
           iconTint="primary"
-          subtitle={data ? `+${data.leadsLast30d} this month` : undefined}
+          subtitle={data ? `+${data.leadsLast30d} ${periodShort}` : undefined}
           action={{ label: "View all", href: "/crm/leads" }}
         />
         <StatsCard
-          title="Conversion · 30d"
+          title={`Conversion · ${periodShort}`}
           value={data ? `${data.conversionRate30d}%` : "0%"}
           icon={<CheckCircle />}
           iconTint="success"
@@ -481,7 +587,7 @@ export default function CrmDashboard() {
         />
         {data?.totalAcquisitionCost30d !== undefined && (
           <StatsCard
-            title="Lead cost · 30d"
+            title={`Lead cost · ${periodShort}`}
             value={`£${data.totalAcquisitionCost30d.toFixed(0)}`}
             icon={<Tag />}
             iconTint="warning"
@@ -494,7 +600,7 @@ export default function CrmDashboard() {
         )}
         {data?.revenueLast30d !== undefined && (
           <StatsCard
-            title="Revenue · 30d"
+            title={`Revenue · ${periodShort}`}
             value={`£${data.revenueLast30d.toFixed(0)}`}
             icon={<TrendingUp />}
             iconTint="success"
@@ -503,119 +609,108 @@ export default function CrmDashboard() {
         )}
       </div>
 
-      {(data?.funnelBySource?.length ?? 0) > 0 && (
-        <Table
-          title="Funnel by source · 30d"
-          columns={[
-            {
-              key: "source",
-              header: "Source",
-              render: (v) => (
-                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
-                  <SourceIcon source={v as string} />
-                  {prettifySource(v as string)}
-                </span>
-              ),
-            },
-            {
-              key: "leads",
-              header: "Leads",
-              align: "right",
-              render: (v) => (
-                <span className="text-sm font-medium text-ink tabular-nums">{v as number}</span>
-              ),
-            },
-            {
-              key: "converted",
-              header: "Won",
-              align: "right",
-              render: (v) => (
-                <span className="text-sm font-medium text-ink tabular-nums">{v as number}</span>
-              ),
-            },
-            {
-              key: "conversionRate",
-              header: "Conv %",
-              align: "right",
-              render: (v) => (
-                <span className="text-sm font-medium text-ink tabular-nums">{v as number}%</span>
-              ),
-            },
-            {
-              key: "acquisitionCost",
-              header: "Lead cost",
-              align: "right",
-              render: (v) => (
-                <span className="text-sm font-medium text-ink tabular-nums">
-                  £{(v as number).toFixed(0)}
-                </span>
-              ),
-            },
-          ]}
-          data={data!.funnelBySource! as unknown as Record<string, unknown>[]}
-        />
-      )}
+      <Table
+        title={`Funnel by source · ${periodShort}`}
+        columns={[
+          {
+            key: "source",
+            header: "Source",
+            render: (v) => (
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
+                <SourceIcon source={v as string} />
+                {prettifySource(v as string)}
+              </span>
+            ),
+          },
+          {
+            key: "leads",
+            header: "Leads",
+            align: "right",
+            render: (v) => (
+              <span className="text-sm font-medium text-ink tabular-nums">{v as number}</span>
+            ),
+          },
+          {
+            key: "converted",
+            header: "Won",
+            align: "right",
+            render: (v) => (
+              <span className="text-sm font-medium text-ink tabular-nums">{v as number}</span>
+            ),
+          },
+          {
+            key: "conversionRate",
+            header: "Conv %",
+            align: "right",
+            render: (v) => (
+              <span className="text-sm font-medium text-ink tabular-nums">{v as number}%</span>
+            ),
+          },
+          {
+            key: "acquisitionCost",
+            header: "Lead cost",
+            align: "right",
+            render: (v) => (
+              <span className="text-sm font-medium text-ink tabular-nums">
+                £{(v as number).toFixed(0)}
+              </span>
+            ),
+          },
+        ]}
+        data={(data?.funnelBySource ?? []) as unknown as Record<string, unknown>[]}
+        emptyMessage="No leads in this period"
+      />
 
-      {(data?.jobsByStage?.length ?? 0) > 0 && (
-        <Table
-          title="Job touchpoints (RICS)"
-          columns={[
-            {
-              key: "stage",
-              header: "Stage",
-              render: (v) => (
-                <span className="text-sm text-ink">{(v as string).replace(/_/g, " ")}</span>
-              ),
-            },
-            {
-              key: "count",
-              header: "Jobs",
-              align: "right",
-              render: (v) => (
-                <span className="text-sm font-medium text-ink tabular-nums">{v as number}</span>
-              ),
-            },
-          ]}
-          data={(data!.jobsByStage ?? []).map((row) => ({
-            stage: row.stage,
-            count: row._count.id,
-          }))}
-        />
-      )}
+      <Table
+        title={`Job touchpoints (RICS) · ${periodShort}`}
+        columns={[
+          {
+            key: "stage",
+            header: "Stage",
+            render: (v) => (
+              <span className="text-sm text-ink">{(v as string).replace(/_/g, " ")}</span>
+            ),
+          },
+          {
+            key: "count",
+            header: "Jobs",
+            align: "right",
+            render: (v) => (
+              <span className="text-sm font-medium text-ink tabular-nums">{v as number}</span>
+            ),
+          },
+        ]}
+        data={(data?.jobsByStage ?? []).map((row) => ({
+          stage: row.stage,
+          count: row._count.id,
+        }))}
+        emptyMessage="No jobs in this period"
+      />
 
-      {stageRows.length > 0 && (
-        <Table
-          title="Leads by stage"
-          columns={stageColumns}
-          data={stageRows}
-          getRowKey={(row) => row.stage}
-        />
-      )}
+      <Table
+        title={`Leads by stage · ${periodShort}`}
+        columns={stageColumns}
+        data={stageRows}
+        getRowKey={(row) => row.stage}
+        emptyMessage="No leads in this period"
+      />
 
       <section>
-        {recentLeads.length > 0 ? (
-          <Table<Lead & Record<string, unknown>>
-            title="Recent leads"
-            columns={leadColumns}
-            data={recentLeads as (Lead & Record<string, unknown>)[]}
-            getRowKey={(row) => row.id}
-            toolbarExtra={
-              <Link
-                href="/crm/leads"
-                className="text-sm font-medium text-brand hover:underline"
-              >
-                View all →
-              </Link>
-            }
-          />
-        ) : (
-          <Table
-            title="Recent leads"
-            columns={leadColumns}
-            data={[]}
-            emptyMessage="No leads yet"
-          />
-        )}
+        <Table<Lead & Record<string, unknown>>
+          title={`Recent leads · ${periodShort}`}
+          columns={leadColumns}
+          data={recentLeads as (Lead & Record<string, unknown>)[]}
+          getRowKey={(row) => row.id}
+          emptyMessage="No leads in this period"
+          toolbarExtra={
+            <Link
+              href="/crm/leads"
+              className="text-sm font-medium text-brand hover:underline"
+            >
+              View all →
+            </Link>
+          }
+        />
       </section>
 
       <section className="w-full max-w-2xl">
@@ -656,6 +751,7 @@ export default function CrmDashboard() {
           />
         )}
       </section>
+      </div>
     </CrmPageContent>
   );
 }

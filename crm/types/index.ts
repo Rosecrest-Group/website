@@ -675,7 +675,11 @@ export interface JobDocument {
   createdAt: string;
 }
 
+export type DashboardPeriod = "today" | "7d" | "30d" | "this_month" | "90d";
+
 export interface DashboardSales {
+  period?: DashboardPeriod;
+  since?: string;
   activeLeads: number;
   conversionRate30d: number;
   leadsLast30d: number;
@@ -694,6 +698,7 @@ export interface DashboardSales {
     quotedPipeline: number;
     conversionRate: number;
   }[];
+  recentLeads?: Lead[];
   totalAcquisitionCost30d?: number;
   revenueLast30d?: number;
   costPerLead30d?: number;
