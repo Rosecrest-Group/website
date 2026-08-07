@@ -598,11 +598,18 @@ export default function LeadMessageThread({
 
       const [result, lead] = await Promise.all([
         api.listMessages({ leadId, limit: "100" }),
-        dialpadEnabled ? api.getLead(leadId).catch(() => null) : Promise.resolve(null),
+        api.getLead(leadId).catch(() => null),
       ]);
       setMessages(result.items);
       if (lead) {
-        setCallActivities(lead.activities.filter((a) => a.type.includes("call")));
+        setThreadActivities(
+          lead.activities.filter(
+            (a) =>
+              a.type.includes("call") ||
+              a.type === "cadence.stopped" ||
+              a.type === "payment.received"
+          )
+        );
       }
       setLoading(false);
 
