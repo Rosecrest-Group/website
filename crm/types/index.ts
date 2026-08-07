@@ -563,6 +563,9 @@ export interface InboxThread {
   lastMessage: Message;
   messageCount: number;
   leadId?: string | null;
+  /** Shared across the team: true until someone opens the thread. */
+  unread?: boolean;
+  unreadCount?: number;
 }
 
 export interface WorkflowSummary {

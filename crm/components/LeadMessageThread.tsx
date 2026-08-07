@@ -45,6 +45,7 @@ import { parseTrailingMediaUrls } from "@/crm/lib/messageMediaAttachments";
 import { cadenceStopTooltip } from "@/crm/lib/cadenceStopReason";
 import SelectField from "@/crm/components/ui/SelectField";
 import { usePhone } from "@/crm/lib/phoneContext";
+import { refreshInboxUnreadCount } from "@/crm/lib/useInboxUnreadCount";
 import {
   MESSAGE_FIRST_PAGE_SIZE,
   getCachedLeadThread,
@@ -492,6 +493,7 @@ export default function LeadMessageThread({
   messages: initialMessages,
   threadActivities: initialThreadActivities = [],
   onSent,
+  onRead,
   className,
   headerActions,
   /** When true, paint seed immediately but still fetch fresh messages (inbox preview). */
@@ -503,6 +505,8 @@ export default function LeadMessageThread({
   /** Calls + cadence-stop system events, sorted into the chat by time */
   threadActivities?: Activity[];
   onSent?: () => void;
+  /** Fired as the thread is marked read so the inbox can drop its unread styling. */
+  onRead?: (leadId: string) => void;
   className?: string;
   headerActions?: ReactNode;
   revalidateSeed?: boolean;
@@ -543,6 +547,8 @@ export default function LeadMessageThread({
   const hasScrolledToBottomRef = useRef(false);
   const composeRef = useRef<MessageRichComposeHandle>(null);
   const expandedComposeRef = useRef<MessageRichComposeHandle>(null);
+  const onReadRef = useRef(onRead);
+  onReadRef.current = onRead;
 
   const sortedMessages = useMemo(
     () =>
@@ -704,6 +710,17 @@ export default function LeadMessageThread({
 
   useEffect(() => {
     hasScrolledToBottomRef.current = false;
+  }, [leadId]);
+
+  // Opening the thread clears it for the whole team and drops the matching bell items.
+  useEffect(() => {
+    onReadRef.current?.(leadId);
+    void api
+      .markInboxThreadRead(leadId)
+      .then(() => refreshInboxUnreadCount())
+      .catch(() => {
+        // best-effort: the row just stays highlighted until the next refresh
+      });
   }, [leadId]);
 
   useLayoutEffect(() => {

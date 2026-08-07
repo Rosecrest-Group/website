@@ -11,6 +11,7 @@ import NotificationBell from "@/crm/components/NotificationBell";
 import { CrmTopBarProvider, useCrmTopBar } from "@/crm/lib/crmTopBarContext";
 import { seedCurrentUser } from "@/crm/lib/currentUserCache";
 import { PhoneProvider } from "@/crm/lib/phoneContext";
+import { ensurePushRegistered } from "@/crm/lib/pushNotifications";
 import DialpadSidebar from "@/crm/components/DialpadSidebar";
 import { inter } from "@/lib/fonts";
 import type { ApiUser } from "@/crm/types";
@@ -45,6 +46,11 @@ function CrmShellInner({
   useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname]);
+
+  // Anywhere in the CRM, not just Team Chat — client messages notify too now.
+  useEffect(() => {
+    void ensurePushRegistered().catch(() => false);
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = mobileNavOpen ? "hidden" : "";

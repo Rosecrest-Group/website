@@ -874,11 +874,17 @@ export const api = {
 
   },
 
-  getInbox: (params?: { cursor?: string | null; limit?: number; query?: string }) => {
+  getInbox: (params?: {
+    cursor?: string | null;
+    limit?: number;
+    query?: string;
+    leadId?: string;
+  }) => {
     const qs = new URLSearchParams();
     if (params?.cursor) qs.set("cursor", params.cursor);
     if (params?.limit) qs.set("limit", String(params.limit));
     if (params?.query) qs.set("query", params.query);
+    if (params?.leadId) qs.set("leadId", params.leadId);
     const q = qs.toString();
     return request<{
       items: InboxThread[];
@@ -887,6 +893,14 @@ export const api = {
       nextCursor: string | null;
     }>(`/messages/inbox${q ? `?${q}` : ""}`);
   },
+
+  getInboxUnreadCount: () =>
+    request<{ threadCount: number; messageCount: number }>("/messages/inbox/unread-count"),
+
+  markInboxThreadRead: (leadId: string) =>
+    request<{ leadId: string; readAt: string }>(`/messages/inbox/${leadId}/read`, {
+      method: "POST",
+    }),
 
   sendMessage: (payload: {
 
@@ -1191,10 +1205,15 @@ export const api = {
     return request<MentionSuggestion>(`/conversations/mention-suggestions${qs}`);
   },
 
-  listNotifications: (unreadOnly = false) =>
-    request<{ items: UserNotificationItem[]; unreadCount: number }>(
-      `/notifications${unreadOnly ? "?unreadOnly=true" : ""}`
-    ),
+  listNotifications: (unreadOnly = false, limit?: number) => {
+    const qs = new URLSearchParams();
+    if (unreadOnly) qs.set("unreadOnly", "true");
+    if (limit) qs.set("limit", String(limit));
+    const q = qs.toString();
+    return request<{ items: UserNotificationItem[]; unreadCount: number }>(
+      `/notifications${q ? `?${q}` : ""}`
+    );
+  },
 
   getUnreadNotificationCount: () => request<{ unreadCount: number }>("/notifications/unread-count"),
 

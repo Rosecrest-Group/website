@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Mail, MessageSquare, Phone, Search } from "lucide-react";
 import LeadDetailPanel from "@/crm/components/LeadDetailPanel";
 import LeadMessageThread from "@/crm/components/LeadMessageThread";
@@ -16,6 +17,8 @@ import { cn } from "@/lib/utils";
 
 const INBOX_THREAD_MESSAGES: Message[] = [];
 const PAGE_SIZE = 10;
+/** Keeps the list honest about new arrivals without a realtime channel for client messages. */
+const REFRESH_MS = 20_000;
 /**
  * Warmed on idle only. Hover/focus prefetch covers the rest, and every extra thread
  * fetched up front competes with the one the user actually clicks.
@@ -66,6 +69,8 @@ export default function InboxView({
   initialHasMore?: boolean;
   initialCursor?: string | null;
 }) {
+  const searchParams = useSearchParams();
+  const deepLinkLeadId = searchParams.get("leadId");
   const [threads, setThreads] = useState<InboxThread[]>(() => initialThreads ?? []);
   const [selected, setSelected] = useState<InboxThread | null>(null);
   const [loading, setLoading] = useState(() => !initialThreads);
@@ -80,6 +85,7 @@ export default function InboxView({
   const listRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
+  const handledDeepLinkRef = useRef<string | null>(null);
 
   const loadThreads = useCallback(
     async (opts: { cursor: string | null; query: string; append: boolean }) => {
@@ -158,6 +164,39 @@ export default function InboxView({
     setLeadPanelOpen(false);
   }, [selected?.leadId]);
 
+  // Page one holds the newest threads, so refetching it is enough to surface new arrivals
+  // and reordering; anything already scrolled past keeps its place below.
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      if (loadingMoreRef.current) return;
+      void api
+        .getInbox({ limit: PAGE_SIZE, query: activeQuery || undefined })
+        .then((result) => {
+          setThreads((prev) => {
+            const refreshedKeys = new Set(result.items.map((thread) => thread.threadKey));
+            return [...result.items, ...prev.filter((t) => !refreshedKeys.has(t.threadKey))];
+          });
+        })
+        .catch(() => {
+          // keep current list
+        });
+    };
+    const timer = window.setInterval(tick, REFRESH_MS);
+    return () => window.clearInterval(timer);
+  }, [activeQuery]);
+
+  const clearUnread = useCallback((leadId: string) => {
+    setThreads((prev) =>
+      prev.map((thread) =>
+        thread.leadId === leadId ? { ...thread, unread: false, unreadCount: 0 } : thread
+      )
+    );
+    setSelected((prev) =>
+      prev?.leadId === leadId ? { ...prev, unread: false, unreadCount: 0 } : prev
+    );
+  }, []);
+
   function prefetchThread(leadId: string | null | undefined) {
     if (!leadId) return;
     void prefetchLeadThread(leadId, async () => {
@@ -179,6 +218,42 @@ export default function InboxView({
     setSelected(thread);
     setMobileShowThread(true);
   }
+
+  // Notification deep link. The thread is normally already on page one, but fall back to
+  // fetching it directly so an older conversation still opens. Handled once per link so a
+  // background refresh never yanks the user back to it.
+  useEffect(() => {
+    if (!deepLinkLeadId || handledDeepLinkRef.current === deepLinkLeadId) return;
+
+    const known = threads.find((thread) => thread.leadId === deepLinkLeadId);
+    if (known) {
+      handledDeepLinkRef.current = deepLinkLeadId;
+      openThread(known);
+      return;
+    }
+    if (loading) return;
+    handledDeepLinkRef.current = deepLinkLeadId;
+
+    let cancelled = false;
+    void api
+      .getInbox({ leadId: deepLinkLeadId, limit: 1 })
+      .then((result) => {
+        const thread = result.items[0];
+        if (cancelled || !thread) return;
+        setThreads((prev) =>
+          prev.some((t) => t.threadKey === thread.threadKey) ? prev : [thread, ...prev]
+        );
+        openThread(thread);
+      })
+      .catch(() => {
+        // deep link points at a thread we can't resolve; leave the inbox as-is
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-runs when the link or list changes
+  }, [deepLinkLeadId, threads, loading]);
 
   // Warm the top few threads so the common "click top of inbox" path is instant, but
   // only once the browser is idle so it never competes with the first paint.
@@ -260,6 +335,8 @@ export default function InboxView({
         {threads.map((thread) => {
           const ChannelIcon = channelIcon(thread.lastMessage.channel);
           const isSelected = selected?.threadKey === thread.threadKey;
+          const isUnread = Boolean(thread.unread) && !isSelected;
+          const unreadCount = thread.unreadCount ?? 0;
 
           return (
             <button
@@ -270,21 +347,46 @@ export default function InboxView({
               onFocus={() => prefetchThread(thread.leadId)}
               className={cn(
                 "w-full border-b border-(--color-tc-20) border-l-2 border-l-transparent px-4 py-3 text-left transition hover:bg-(--color-nc-10)",
+                isUnread && "border-l-brand bg-brand-muted/25",
                 isSelected && "border-l-brand bg-brand-muted/70 hover:bg-brand-muted/70"
               )}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-(--color-tc-40)">{thread.customerName}</p>
+                  <p
+                    className={cn(
+                      "truncate font-medium text-(--color-tc-40)",
+                      isUnread && "font-semibold"
+                    )}
+                  >
+                    {thread.customerName}
+                  </p>
                   {thread.propertyPostcode && (
                     <p className="mt-0.5 truncate text-xs text-(--color-tc-30)">{thread.propertyPostcode}</p>
                   )}
                 </div>
-                <span className="shrink-0 text-[10px] text-(--color-tc-30)">
-                  {formatInboxListTime(messageTimestamp(thread.lastMessage))}
-                </span>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <span
+                    className={cn(
+                      "text-[10px] text-(--color-tc-30)",
+                      isUnread && "font-semibold text-brand"
+                    )}
+                  >
+                    {formatInboxListTime(messageTimestamp(thread.lastMessage))}
+                  </span>
+                  {isUnread && unreadCount > 0 ? (
+                    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-[10px] font-medium leading-none text-white">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  ) : null}
+                </div>
               </div>
-              <p className="mt-1 truncate text-xs text-(--color-tc-30)">
+              <p
+                className={cn(
+                  "mt-1 truncate text-xs text-(--color-tc-30)",
+                  isUnread && "font-medium text-(--color-tc-40)"
+                )}
+              >
                 {messagePreview(thread.lastMessage.body, thread.lastMessage.channel)}
               </p>
               <div className="mt-1.5 flex items-center gap-2 text-[10px] text-(--color-tc-30)">
@@ -337,6 +439,7 @@ export default function InboxView({
               messages={INBOX_THREAD_MESSAGES}
               revalidateSeed
               onSent={handleSent}
+              onRead={clearUnread}
               className="min-h-0 flex-1"
               headerActions={
                 <SecondaryButton

@@ -13,9 +13,28 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
-export async function registerPushNotifications(): Promise<boolean> {
+export function pushNotificationsSupported(): boolean {
   if (typeof window === "undefined") return false;
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+  return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+}
+
+export function notificationPermission(): NotificationPermission | null {
+  if (typeof window === "undefined" || !("Notification" in window)) return null;
+  return Notification.permission;
+}
+
+/**
+ * Re-attach the push subscription without ever prompting. Safe to run on every CRM page
+ * load; asking for permission is left to an explicit user action.
+ */
+export async function ensurePushRegistered(): Promise<boolean> {
+  if (!pushNotificationsSupported()) return false;
+  if (Notification.permission !== "granted") return false;
+  return registerPushNotifications();
+}
+
+export async function registerPushNotifications(): Promise<boolean> {
+  if (!pushNotificationsSupported()) return false;
   if (Notification.permission === "denied") return false;
 
   const { publicKey } = await api.getVapidPublicKey();

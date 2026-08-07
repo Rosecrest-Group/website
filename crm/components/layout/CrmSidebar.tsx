@@ -40,6 +40,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { CRM_BASE_PATH, CRM_LEGACY_PATH } from "@/crm/lib/constants";
 import { api, logout } from "@/crm/lib/api";
 import { canAccessAdminSettings, navSectionsForRole } from "@/crm/lib/rbac";
+import { useInboxUnreadCount } from "@/crm/lib/useInboxUnreadCount";
 import { useTeamChatUnreadCount } from "@/crm/lib/useTeamChatUnreadCount";
 import type { ApiUser } from "@/crm/types";
 import { cn } from "@/lib/utils";
@@ -111,6 +112,8 @@ export default function CrmSidebar({
   const pathname = usePathname();
   const teamChatUnread = useTeamChatUnreadCount();
   const teamChatHref = `${CRM_BASE_PATH}/conversations`;
+  const inboxUnread = useInboxUnreadCount();
+  const inboxHref = `${CRM_BASE_PATH}/inbox`;
   const [user, setUser] = useState<ApiUser | null>(initialUser ?? null);
 
   useEffect(() => {
@@ -167,10 +170,13 @@ export default function CrmSidebar({
                   const active = isActive(pathname, item.href);
                   const iconName = HREF_ICON[item.href] ?? "dashboard";
                   const Icon = NAV_ICONS[iconName] ?? LayoutDashboard;
-                  const badge =
-                    item.href === teamChatHref && teamChatUnread > 0
+                  const liveUnread =
+                    item.href === teamChatHref
                       ? teamChatUnread
-                      : item.badge;
+                      : item.href === inboxHref
+                        ? inboxUnread
+                        : 0;
+                  const badge = liveUnread > 0 ? liveUnread : item.badge;
 
                   return (
                     <Link

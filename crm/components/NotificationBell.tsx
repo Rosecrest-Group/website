@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Bell } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, BellRing } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +14,11 @@ import {
 import { CRM_BASE_PATH } from "@/crm/lib/constants";
 import { api } from "@/crm/lib/api";
 import { notificationHref } from "@/crm/lib/notificationLinks";
+import {
+  notificationPermission,
+  pushNotificationsSupported,
+  registerPushNotifications,
+} from "@/crm/lib/pushNotifications";
 import { useNotificationCount } from "@/crm/lib/useNotificationCount";
 
 function formatWhen(iso: string) {
@@ -30,6 +35,16 @@ function formatWhen(iso: string) {
 export default function NotificationBell() {
   const { unreadCount, items, setItems, refresh } = useNotificationCount();
   const [open, setOpen] = useState(false);
+  const [permission, setPermission] = useState<NotificationPermission | null>(null);
+
+  useEffect(() => {
+    if (pushNotificationsSupported()) setPermission(notificationPermission());
+  }, []);
+
+  async function enableBrowserNotifications() {
+    await registerPushNotifications().catch(() => false);
+    setPermission(notificationPermission());
+  }
 
   async function markRead(id: string) {
     await api.markNotificationRead(id);
@@ -88,6 +103,26 @@ export default function NotificationBell() {
             </button>
           )}
         </div>
+
+        {permission === "default" ? (
+          <button
+            type="button"
+            onClick={() => void enableBrowserNotifications()}
+            className="flex w-full items-start gap-3 border-b border-line bg-brand-muted/40 px-4 py-3 text-left transition-colors hover:bg-brand-muted"
+          >
+            <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md bg-brand-muted text-brand">
+              <BellRing className="size-3.5" strokeWidth={1.75} aria-hidden />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-ink">
+                Turn on browser notifications
+              </span>
+              <span className="block text-xs text-ink-muted">
+                Get alerted about new client messages even when the CRM isn&apos;t in front of you.
+              </span>
+            </span>
+          </button>
+        ) : null}
 
         {items.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">

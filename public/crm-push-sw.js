@@ -1,5 +1,5 @@
 self.addEventListener("push", (event) => {
-  let payload = { title: "Rosecrest CRM", body: "New notification", url: "/crm/conversations" };
+  let payload = { title: "Rosecrest CRM", body: "New notification", url: "/crm/notifications" };
   try {
     if (event.data) payload = { ...payload, ...event.data.json() };
   } catch {
@@ -18,7 +18,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/crm/conversations";
+  const url = event.notification.data?.url || "/crm/notifications";
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
       for (const client of windowClients) {
