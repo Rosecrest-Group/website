@@ -492,10 +492,12 @@ export interface Message {
   body: string;
   subject?: string | null;
   status: string;
+  failureReason?: string | null;
   createdAt: string;
   readAt?: string | null;
   deliveredAt?: string | null;
   sentAt?: string | null;
+  failedAt?: string | null;
   toAddress?: string;
   fromAddress?: string;
   teamConnectPhoneDocId?: string | null;

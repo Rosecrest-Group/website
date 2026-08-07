@@ -540,13 +540,6 @@ const MessageRichCompose = forwardRef<MessageRichComposeHandle, MessageRichCompo
     !disabled &&
     !uploadingImages;
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey && channel !== "EMAIL" && onSend) {
-      event.preventDefault();
-      if (canSend) onSend();
-    }
-  };
-
   const attachedImageCount = mediaItems.length;
 
   async function handleImageSelection(files: FileList | null) {
@@ -716,7 +709,6 @@ const MessageRichCompose = forwardRef<MessageRichComposeHandle, MessageRichCompo
               }}
               value={plainValue}
               onChange={(e) => onPlainChange(e.target.value)}
-              onKeyDown={handleKeyDown}
               disabled={disabled || sending || uploadingImages}
               placeholder={placeholder}
               rows={fillHeight ? undefined : 3}

@@ -505,7 +505,9 @@ export default function LeadDetail({
                   customer ? `${customer.firstName} ${customer.lastName}` : "Customer"
                 }
                 messages={lead.messages}
-                callActivities={lead.activities.filter((a) => a.type.includes("call"))}
+                threadActivities={lead.activities.filter(
+                  (a) => a.type.includes("call") || a.type === "cadence.stopped"
+                )}
                 onSent={() => reload({ silent: true })}
                 className="h-full min-h-0 flex-1"
               />
@@ -723,7 +725,9 @@ export default function LeadDetail({
             customer ? `${customer.firstName} ${customer.lastName}` : "Customer"
           }
           messages={lead.messages}
-          callActivities={lead.activities.filter((a) => a.type.includes("call"))}
+          threadActivities={lead.activities.filter(
+            (a) => a.type.includes("call") || a.type === "cadence.stopped"
+          )}
           onSent={() => reload({ silent: true })}
           className="h-full min-h-0 max-h-none flex-1 rounded-none border-0"
         />

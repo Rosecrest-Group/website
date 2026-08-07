@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlertCircle,
+  Ban,
   Check,
   CheckCheck,
   ChevronDown,
@@ -12,6 +13,7 @@ import {
   Maximize2,
   MessageSquare,
   Minus,
+  OctagonPause,
   Phone,
 } from "lucide-react";
 import { api } from "@/crm/lib/api";
@@ -40,6 +42,7 @@ import {
 } from "@/crm/lib/messageFormatting";
 import { scrollChatContainerToBottom } from "@/crm/lib/scrollChatThread";
 import { parseTrailingMediaUrls } from "@/crm/lib/messageMediaAttachments";
+import { cadenceStopTooltip } from "@/crm/lib/cadenceStopReason";
 import SelectField from "@/crm/components/ui/SelectField";
 import { usePhone } from "@/crm/lib/phoneContext";
 import { cn } from "@/lib/utils";
@@ -52,13 +55,41 @@ function channelLabel(channel: string) {
   return "SMS";
 }
 
+function isPolicySkipFailure(reason?: string | null): boolean {
+  if (!reason) return false;
+  const r = reason.toLowerCase();
+  return (
+    r.includes("cadence stopped") ||
+    r.includes("marketing message blocked") ||
+    r.includes("opted out") ||
+    r.includes("opt-out")
+  );
+}
+
+function deliveryStatusTooltip(status: string, failureReason?: string | null): string | undefined {
+  const reason = failureReason?.trim();
+  if (!reason) {
+    if (status === "FAILED") return "Message failed to send";
+    if (status === "BOUNCED") return "Message bounced";
+    return undefined;
+  }
+  if (/opted out|opt-out/i.test(reason)) {
+    return "Not sent — customer opted out of marketing";
+  }
+  if (/cadence stopped|marketing message blocked/i.test(reason)) {
+    return "Not sent — nurture stopped (customer paid or lead closed)";
+  }
+  return reason;
+}
+
 function messageStatusMeta(
   status: string,
-  channel: string
+  channel: string,
+  failureReason?: string | null
 ): {
   label: string;
   icon: typeof Check;
-  tone: "success" | "neutral" | "pending" | "error" | "read";
+  tone: "success" | "neutral" | "pending" | "error" | "read" | "skipped";
 } {
   switch (status) {
     case "READ":
@@ -74,6 +105,9 @@ function messageStatusMeta(
     case "QUEUED":
       return { label: "Sending", icon: Clock3, tone: "pending" };
     case "FAILED":
+      if (isPolicySkipFailure(failureReason)) {
+        return { label: "Skipped", icon: Ban, tone: "skipped" };
+      }
       return { label: "Failed", icon: AlertCircle, tone: "error" };
     case "BOUNCED":
       return { label: "Bounced", icon: AlertCircle, tone: "error" };
@@ -82,18 +116,31 @@ function messageStatusMeta(
   }
 }
 
-function MessageDeliveryStatus({ status, channel }: { status: string; channel: string }) {
-  const meta = messageStatusMeta(status, channel);
+function MessageDeliveryStatus({
+  status,
+  channel,
+  failureReason,
+}: {
+  status: string;
+  channel: string;
+  failureReason?: string | null;
+}) {
+  const meta = messageStatusMeta(status, channel, failureReason);
   const Icon = meta.icon;
+  const tooltip = deliveryStatusTooltip(status, failureReason);
 
   return (
     <span
+      title={tooltip}
+      aria-label={tooltip ? `${meta.label}: ${tooltip}` : meta.label}
       className={cn(
         "inline-flex items-center gap-1 text-[11px] font-medium",
+        tooltip && "cursor-help",
         meta.tone === "read" && "text-sky-600",
         meta.tone === "success" && "text-emerald-600",
         meta.tone === "neutral" && "text-(--color-tc-30)",
         meta.tone === "pending" && "text-amber-600",
+        meta.tone === "skipped" && "text-(--color-tc-30)",
         meta.tone === "error" && "text-red-600"
       )}
     >
@@ -199,6 +246,25 @@ function MessageBody({
   return (
     <div className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed">
       {linkifyText(body, linkClass)}
+    </div>
+  );
+}
+
+function CadenceStopThreadBanner({ activity }: { activity: Activity }) {
+  const tooltip = cadenceStopTooltip(activity);
+  const time = formatChatTime(activity.createdAt);
+
+  return (
+    <div className="flex justify-center py-1">
+      <div
+        title={tooltip}
+        aria-label={`Cadence stopped at ${time}: ${tooltip}`}
+        className="inline-flex max-w-full cursor-help items-center gap-2 rounded-full border border-amber-300/80 bg-amber-50 px-3.5 py-1.5 text-amber-950 shadow-sm"
+      >
+        <OctagonPause className="size-3.5 shrink-0 text-amber-700" aria-hidden />
+        <span className="text-xs font-semibold tracking-wide">Cadence stopped</span>
+        <span className="text-[11px] font-medium text-amber-800/80">{time}</span>
+      </div>
     </div>
   );
 }
@@ -328,7 +394,13 @@ function ThreadBubble({
             )}
           </span>
           <span>{formatChatTime(messageTimestamp(message))}</span>
-          {isOutbound && <MessageDeliveryStatus status={message.status} channel={message.channel} />}
+          {isOutbound && (
+            <MessageDeliveryStatus
+              status={message.status}
+              channel={message.channel}
+              failureReason={message.failureReason}
+            />
+          )}
         </div>
 
         <CurvedContainer
@@ -371,7 +443,7 @@ export default function LeadMessageThread({
   leadId,
   customerName,
   messages: initialMessages,
-  callActivities: initialCallActivities = [],
+  threadActivities: initialThreadActivities = [],
   onSent,
   className,
   headerActions,
@@ -379,13 +451,14 @@ export default function LeadMessageThread({
   leadId: string;
   customerName: string;
   messages: Message[];
-  callActivities?: Activity[];
+  /** Calls + cadence-stop system events, sorted into the chat by time */
+  threadActivities?: Activity[];
   onSent?: () => void;
   className?: string;
   headerActions?: ReactNode;
 }) {
   const [messages, setMessages] = useState(initialMessages);
-  const [callActivities, setCallActivities] = useState(initialCallActivities);
+  const [threadActivities, setThreadActivities] = useState(initialThreadActivities);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [channel, setChannel] = useState<Channel>("EMAIL");
@@ -419,10 +492,10 @@ export default function LeadMessageThread({
   }, [initialMessages]);
 
   useEffect(() => {
-    if (initialCallActivities.length > 0) {
-      setCallActivities(initialCallActivities);
+    if (initialThreadActivities.length > 0) {
+      setThreadActivities(initialThreadActivities);
     }
-  }, [initialCallActivities]);
+  }, [initialThreadActivities]);
 
   useEffect(() => {
     let cancelled = false;
@@ -610,6 +683,7 @@ export default function LeadMessageThread({
     const entries: Array<
       | { kind: "message"; id: string; createdAt: string; message: Message }
       | { kind: "call"; id: string; createdAt: string; activity: Activity }
+      | { kind: "cadence_stop"; id: string; createdAt: string; activity: Activity }
     > = [
       ...sortedMessages.map((message) => ({
         kind: "message" as const,
@@ -617,22 +691,33 @@ export default function LeadMessageThread({
         createdAt: messageTimestamp(message),
         message,
       })),
-      ...callActivities.map((activity) => ({
-        kind: "call" as const,
-        id: activity.id,
-        createdAt: activity.createdAt,
-        activity,
-      })),
+      ...threadActivities.map((activity) => {
+        if (activity.type === "cadence.stopped") {
+          return {
+            kind: "cadence_stop" as const,
+            id: activity.id,
+            createdAt: activity.createdAt,
+            activity,
+          };
+        }
+        return {
+          kind: "call" as const,
+          id: activity.id,
+          createdAt: activity.createdAt,
+          activity,
+        };
+      }),
     ];
     return entries.sort(
       (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
-  }, [sortedMessages, callActivities]);
+  }, [sortedMessages, threadActivities]);
 
   const threadItems: Array<
     | { kind: "date"; key: string; label: string }
     | { kind: "message"; key: string; message: Message }
     | { kind: "call"; key: string; activity: Activity }
+    | { kind: "cadence_stop"; key: string; activity: Activity }
   > = [];
   let lastDate = "";
 
@@ -644,6 +729,8 @@ export default function LeadMessageThread({
     }
     if (entry.kind === "message") {
       threadItems.push({ kind: "message", key: entry.id, message: entry.message });
+    } else if (entry.kind === "cadence_stop") {
+      threadItems.push({ kind: "cadence_stop", key: entry.id, activity: entry.activity });
     } else {
       threadItems.push({ kind: "call", key: entry.id, activity: entry.activity });
     }
@@ -683,6 +770,8 @@ export default function LeadMessageThread({
                   {item.label}
                 </span>
               </div>
+            ) : item.kind === "cadence_stop" ? (
+              <CadenceStopThreadBanner key={item.key} activity={item.activity} />
             ) : item.kind === "call" ? (
               <CallThreadBubble key={item.key} activity={item.activity} customerName={customerName} />
             ) : (

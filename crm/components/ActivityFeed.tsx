@@ -298,6 +298,28 @@ function parseActorAction(
     return { actor: "Payment", action: "received" };
   }
 
+  if (activity.type === "cadence.stopped") {
+    const reason =
+      typeof activity.metadata?.reasonLabel === "string"
+        ? activity.metadata.reasonLabel
+        : typeof activity.metadata?.reason === "string"
+          ? String(activity.metadata.reason).replace(/_/g, " ")
+          : undefined;
+    return {
+      actor: "Cadence",
+      action: reason ? `stopped — ${reason}` : "stopped",
+    };
+  }
+
+  if (activity.type === "customer.opt_out") {
+    return {
+      actor: "Customer",
+      action: desc.toLowerCase().includes("opted out")
+        ? desc.replace(/^Customer\s+/i, "").trim() || "opted out — cadence stopped"
+        : "opted out — cadence stopped",
+    };
+  }
+
   if (activity.type.includes("call")) {
     const meta = activity.metadata ?? {};
     const extras: string[] = [];
