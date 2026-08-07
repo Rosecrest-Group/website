@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import {
   AlertCircle,
   Ban,
+  Banknote,
   Check,
   CheckCheck,
   ChevronDown,
@@ -264,6 +265,36 @@ function CadenceStopThreadBanner({ activity }: { activity: Activity }) {
         <OctagonPause className="size-3.5 shrink-0 text-amber-700" aria-hidden />
         <span className="text-xs font-semibold tracking-wide">Cadence stopped</span>
         <span className="text-[11px] font-medium text-amber-800/80">{time}</span>
+      </div>
+    </div>
+  );
+}
+
+function PaymentReceivedThreadBanner({ activity }: { activity: Activity }) {
+  const meta = activity.metadata ?? {};
+  const amount = typeof meta.amount === "number" ? meta.amount : null;
+  const method = typeof meta.method === "string" ? meta.method.replace(/_/g, " ") : null;
+  const tooltipParts = [
+    amount != null ? `£${amount.toFixed(2)}` : null,
+    method,
+    activity.description,
+  ].filter(Boolean);
+  const tooltip = tooltipParts.join(" · ") || "Payment received";
+  const time = formatChatTime(activity.createdAt);
+
+  return (
+    <div className="flex justify-center py-1">
+      <div
+        title={tooltip}
+        aria-label={`Payment received at ${time}: ${tooltip}`}
+        className="inline-flex max-w-full cursor-help items-center gap-2 rounded-full border border-emerald-300/80 bg-emerald-50 px-3.5 py-1.5 text-emerald-950 shadow-sm"
+      >
+        <Banknote className="size-3.5 shrink-0 text-emerald-700" aria-hidden />
+        <span className="text-xs font-semibold tracking-wide">Payment received</span>
+        {amount != null && (
+          <span className="text-[11px] font-medium text-emerald-800/90">£{amount.toFixed(2)}</span>
+        )}
+        <span className="text-[11px] font-medium text-emerald-800/80">{time}</span>
       </div>
     </div>
   );
@@ -684,6 +715,7 @@ export default function LeadMessageThread({
       | { kind: "message"; id: string; createdAt: string; message: Message }
       | { kind: "call"; id: string; createdAt: string; activity: Activity }
       | { kind: "cadence_stop"; id: string; createdAt: string; activity: Activity }
+      | { kind: "payment"; id: string; createdAt: string; activity: Activity }
     > = [
       ...sortedMessages.map((message) => ({
         kind: "message" as const,
@@ -691,21 +723,40 @@ export default function LeadMessageThread({
         createdAt: messageTimestamp(message),
         message,
       })),
-      ...threadActivities.map((activity) => {
-        if (activity.type === "cadence.stopped") {
-          return {
-            kind: "cadence_stop" as const,
-            id: activity.id,
-            createdAt: activity.createdAt,
-            activity,
-          };
+      ...threadActivities.flatMap((activity) => {
+        if (activity.type === "payment.received") {
+          return [
+            {
+              kind: "payment" as const,
+              id: activity.id,
+              createdAt: activity.createdAt,
+              activity,
+            },
+          ];
         }
-        return {
-          kind: "call" as const,
-          id: activity.id,
-          createdAt: activity.createdAt,
-          activity,
-        };
+        if (activity.type === "cadence.stopped") {
+          // Payment banner already covers the paid case — skip duplicate stop chip
+          if (activity.metadata?.reason === "payment_received") return [];
+          return [
+            {
+              kind: "cadence_stop" as const,
+              id: activity.id,
+              createdAt: activity.createdAt,
+              activity,
+            },
+          ];
+        }
+        if (activity.type.includes("call")) {
+          return [
+            {
+              kind: "call" as const,
+              id: activity.id,
+              createdAt: activity.createdAt,
+              activity,
+            },
+          ];
+        }
+        return [];
       }),
     ];
     return entries.sort(
@@ -718,6 +769,7 @@ export default function LeadMessageThread({
     | { kind: "message"; key: string; message: Message }
     | { kind: "call"; key: string; activity: Activity }
     | { kind: "cadence_stop"; key: string; activity: Activity }
+    | { kind: "payment"; key: string; activity: Activity }
   > = [];
   let lastDate = "";
 
@@ -731,6 +783,8 @@ export default function LeadMessageThread({
       threadItems.push({ kind: "message", key: entry.id, message: entry.message });
     } else if (entry.kind === "cadence_stop") {
       threadItems.push({ kind: "cadence_stop", key: entry.id, activity: entry.activity });
+    } else if (entry.kind === "payment") {
+      threadItems.push({ kind: "payment", key: entry.id, activity: entry.activity });
     } else {
       threadItems.push({ kind: "call", key: entry.id, activity: entry.activity });
     }
@@ -772,6 +826,8 @@ export default function LeadMessageThread({
               </div>
             ) : item.kind === "cadence_stop" ? (
               <CadenceStopThreadBanner key={item.key} activity={item.activity} />
+            ) : item.kind === "payment" ? (
+              <PaymentReceivedThreadBanner key={item.key} activity={item.activity} />
             ) : item.kind === "call" ? (
               <CallThreadBubble key={item.key} activity={item.activity} customerName={customerName} />
             ) : (

@@ -506,7 +506,10 @@ export default function LeadDetail({
                 }
                 messages={lead.messages}
                 threadActivities={lead.activities.filter(
-                  (a) => a.type.includes("call") || a.type === "cadence.stopped"
+                  (a) =>
+                    a.type.includes("call") ||
+                    a.type === "cadence.stopped" ||
+                    a.type === "payment.received"
                 )}
                 onSent={() => reload({ silent: true })}
                 className="h-full min-h-0 flex-1"
@@ -726,7 +729,10 @@ export default function LeadDetail({
           }
           messages={lead.messages}
           threadActivities={lead.activities.filter(
-            (a) => a.type.includes("call") || a.type === "cadence.stopped"
+            (a) =>
+              a.type.includes("call") ||
+              a.type === "cadence.stopped" ||
+              a.type === "payment.received"
           )}
           onSent={() => reload({ silent: true })}
           className="h-full min-h-0 max-h-none flex-1 rounded-none border-0"
