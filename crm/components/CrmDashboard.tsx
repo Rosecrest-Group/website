@@ -377,7 +377,7 @@ export default function CrmDashboard({
             label={LEAD_STAGE_LABELS[row.stage] ?? row.stage}
           />
           <span className="shrink-0 text-xs text-(--color-tc-30) tabular-nums">
-            {formatTimeAgo(row.updatedAt)}
+            {formatTimeAgo(row.createdAt)}
           </span>
         </div>
       ),
