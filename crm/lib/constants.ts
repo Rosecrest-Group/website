@@ -199,6 +199,22 @@ export const SURVEY_LEVEL_LABELS: Record<string, string> = Object.fromEntries(
   SURVEY_LEVELS.map((level) => [level.value, level.label])
 );
 
+export const BEDROOM_BANDS = [
+  "STUDIO",
+  "1_BED",
+  "2_BED",
+  "3_BED",
+  "4_BED",
+  "5_BED",
+  "6_BED",
+  "7_BED",
+  "8_BED",
+  "9_BED",
+  "ABOVE_9",
+] as const;
+
+export type BedroomBand = (typeof BEDROOM_BANDS)[number];
+
 export const BEDROOM_BAND_LABELS: Record<string, string> = {
   STUDIO: "Studio",
   "1_BED": "1 bed",
@@ -212,3 +228,30 @@ export const BEDROOM_BAND_LABELS: Record<string, string> = {
   "9_BED": "9 bed",
   ABOVE_9: "9+ bed",
 };
+
+/** Flexi-Fee inc-VAT (£) — keep in sync with api/src/config/stripePaymentCatalog.ts */
+export const FLEXI_FEE_INC_VAT: Record<BedroomBand, { l1: number; l2: number; l3: number }> = {
+  STUDIO: { l1: 280.99, l2: 330.99, l3: 550.99 },
+  "1_BED": { l1: 313.99, l2: 363.99, l3: 611.49 },
+  "2_BED": { l1: 368.99, l2: 418.99, l3: 666.49 },
+  "3_BED": { l1: 396.49, l2: 446.49, l3: 693.99 },
+  "4_BED": { l1: 440.49, l2: 490.49, l3: 737.99 },
+  "5_BED": { l1: 478.99, l2: 528.99, l3: 776.49 },
+  "6_BED": { l1: 511.99, l2: 561.99, l3: 809.49 },
+  "7_BED": { l1: 566.99, l2: 616.99, l3: 864.49 },
+  "8_BED": { l1: 621.99, l2: 671.99, l3: 919.49 },
+  "9_BED": { l1: 676.99, l2: 726.99, l3: 974.49 },
+  ABOVE_9: { l1: 731.99, l2: 781.99, l3: 1029.49 },
+};
+
+export function flexiFeeIncVat(
+  surveyLevel: string | null | undefined,
+  bedroomBand: string | null | undefined
+): number | null {
+  if (!bedroomBand || !(bedroomBand in FLEXI_FEE_INC_VAT)) return null;
+  const fees = FLEXI_FEE_INC_VAT[bedroomBand as BedroomBand];
+  if (surveyLevel === "LEVEL_1") return fees.l1;
+  if (surveyLevel === "LEVEL_2") return fees.l2;
+  if (surveyLevel === "LEVEL_3") return fees.l3;
+  return null;
+}

@@ -901,6 +901,8 @@ export interface CreateLeadPayload {
   propertyAddress: string;
   propertyPostcode: string;
   propertyValueBand?: string;
+  /** Bedroom band key (e.g. "2_BED") — used to resolve Flexi-Fee when quotedAmount is omitted. */
+  bedrooms?: string;
   quotedAmount?: number;
   marketingOptIn: boolean;
   consent: {

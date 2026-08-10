@@ -4,8 +4,14 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/crm/lib/api";
-import type { CreateLeadPayload, LeadDuplicateMatch } from "@/crm/types";
-import { LEAD_SOURCES, LEAD_STAGE_LABELS } from "@/crm/lib/constants";
+import type { CreateLeadPayload, LeadDuplicateMatch, SurveyLevel } from "@/crm/types";
+import {
+  BEDROOM_BANDS,
+  BEDROOM_BAND_LABELS,
+  LEAD_SOURCES,
+  LEAD_STAGE_LABELS,
+  flexiFeeIncVat,
+} from "@/crm/lib/constants";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import CurvedContainer from "@/crm/components/ui/CurvedContainer";
@@ -59,10 +65,20 @@ export default function NewLeadForm() {
   const [phone, setPhone] = useState(phoneFromCall);
   const [postcode, setPostcode] = useState("");
   const [address, setAddress] = useState("");
+  const [surveyLevel, setSurveyLevel] = useState<SurveyLevel>("LEVEL_2");
+  const [bedrooms, setBedrooms] = useState("");
+  const [quotedAmount, setQuotedAmount] = useState("");
+  const [quoteTouched, setQuoteTouched] = useState(false);
   const [matches, setMatches] = useState<LeadDuplicateMatch[]>([]);
   const [forceCreate, setForceCreate] = useState(false);
 
   const blockingMatches = matches.filter((match) => match.confidence === "duplicate");
+
+  useEffect(() => {
+    if (quoteTouched) return;
+    const fee = flexiFeeIncVat(surveyLevel, bedrooms);
+    setQuotedAmount(fee != null ? String(fee) : "");
+  }, [surveyLevel, bedrooms, quoteTouched]);
 
   useEffect(() => {
     const normalizedPhone = normalizeUkPhone(phone);
@@ -109,6 +125,8 @@ export default function NewLeadForm() {
     setLoading(true);
 
     const fd = new FormData(e.currentTarget);
+    const quoteRaw = String(fd.get("quotedAmount") ?? "").trim();
+    const quoteValue = quoteRaw ? Number(quoteRaw) : undefined;
 
     const payload: CreateLeadPayload = {
       customer: {
@@ -122,7 +140,11 @@ export default function NewLeadForm() {
       surveyLevel: (fd.get("surveyLevel") as CreateLeadPayload["surveyLevel"]) || "LEVEL_2",
       propertyAddress: String(fd.get("propertyAddress")),
       propertyPostcode: String(fd.get("propertyPostcode")),
-      quotedAmount: fd.get("quotedAmount") ? Number(fd.get("quotedAmount")) : undefined,
+      bedrooms: String(fd.get("bedrooms") || "") || undefined,
+      quotedAmount:
+        quoteValue != null && !Number.isNaN(quoteValue) && quoteValue > 0
+          ? quoteValue
+          : undefined,
       marketingOptIn: true,
       consent: {
         timestamp: new Date().toISOString(),
@@ -236,12 +258,42 @@ export default function NewLeadForm() {
               onChange={(e) => setPostcode(e.target.value)}
               required
             />
-            <SelectField label="Survey level" name="surveyLevel" defaultValue="LEVEL_2">
+            <SelectField
+              label="Survey level"
+              name="surveyLevel"
+              value={surveyLevel}
+              onChange={(e) => setSurveyLevel(e.target.value as SurveyLevel)}
+            >
               <option value="LEVEL_1">Level 1</option>
               <option value="LEVEL_2">Level 2</option>
               <option value="LEVEL_3">Level 3</option>
             </SelectField>
-            <TextField label="Quoted amount (£)" name="quotedAmount" type="number" step="0.01" />
+            <SelectField
+              label="Bedrooms"
+              name="bedrooms"
+              value={bedrooms}
+              onChange={(e) => setBedrooms(e.target.value)}
+              required
+            >
+              <option value="">Select…</option>
+              {BEDROOM_BANDS.map((band) => (
+                <option key={band} value={band}>
+                  {BEDROOM_BAND_LABELS[band]}
+                </option>
+              ))}
+            </SelectField>
+            <TextField
+              label="Quoted amount (£)"
+              name="quotedAmount"
+              type="number"
+              step="0.01"
+              value={quotedAmount}
+              onChange={(e) => {
+                setQuoteTouched(true);
+                setQuotedAmount(e.target.value);
+              }}
+              placeholder={bedrooms ? "Auto from Flexi-Fee" : "Select bedrooms"}
+            />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex flex-wrap gap-3">
