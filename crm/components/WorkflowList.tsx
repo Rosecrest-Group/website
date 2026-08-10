@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { api } from "@/crm/lib/api";
 import type { WorkflowSummary } from "@/crm/types";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
@@ -12,6 +13,7 @@ import CrmModal from "@/crm/components/ui/CrmModal";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import TextField from "@/crm/components/ui/TextField";
+import SelectField from "@/crm/components/ui/SelectField";
 import StatusPill from "@/crm/components/ui/StatusPill";
 import ConfirmModal from "@/crm/components/ui/ConfirmModal";
 
@@ -28,17 +30,26 @@ function defaultTriggerNode(trigger: string) {
 
 function WorkflowRow({
   wf,
+  canManagePublish,
+  publishBusy,
+  onPublishChange,
   onDelete,
   onRestore,
   onPurge,
   restoring,
 }: {
   wf: WorkflowSummary;
+  canManagePublish?: boolean;
+  publishBusy?: boolean;
+  onPublishChange?: (wf: WorkflowSummary, next: "published" | "unpublished") => void;
   onDelete?: (wf: WorkflowSummary) => void;
   onRestore?: (wf: WorkflowSummary) => void;
   onPurge?: (wf: WorkflowSummary) => void;
   restoring?: boolean;
 }) {
+  const isPublished = Boolean(wf.isActive && wf.activeVersion);
+  const canTogglePublish = Boolean(canManagePublish && !wf.deletedAt && wf.activeVersion && onPublishChange);
+
   return (
     <div
       className={`flex items-center gap-2 rounded-xl border border-(--color-tc-20) px-4 py-3 transition hover:bg-(--color-nc-10) ${
@@ -52,13 +63,31 @@ function WorkflowRow({
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <StatusPill variant="in-review" label={wf.trigger} />
-          {wf.activeVersion && (
-            <StatusPill variant="completed" label={`v${wf.activeVersion.versionNumber}`} />
+          {isPublished && <StatusPill variant="completed" label="Published" />}
+          {!wf.deletedAt && !isPublished && (
+            <StatusPill variant="paused" label={wf.activeVersion ? "Unpublished" : "Draft"} />
           )}
-          {!wf.isActive && <StatusPill variant="pending" label="Inactive" />}
           {wf.deletedAt && <StatusPill variant="failed" label="Deleted" />}
         </div>
       </Link>
+      {canTogglePublish && (
+        <SelectField
+          id={`wf-publish-${wf.id}`}
+          aria-label={`Publish status for ${wf.name}`}
+          variant="filter"
+          disabled={publishBusy}
+          className="min-w-[8.5rem]"
+          value={isPublished ? "published" : "unpublished"}
+          onChange={(e) => {
+            const next = e.target.value as "published" | "unpublished";
+            if (next === (isPublished ? "published" : "unpublished")) return;
+            onPublishChange?.(wf, next);
+          }}
+        >
+          <option value="published">Published</option>
+          <option value="unpublished">Unpublished</option>
+        </SelectField>
+      )}
       {onRestore && (
         <button
           type="button"
@@ -103,6 +132,7 @@ export default function WorkflowList() {
   const [deletedItems, setDeletedItems] = useState<WorkflowSummary[]>([]);
   const [deletedExpanded, setDeletedExpanded] = useState(false);
   const [canPurge, setCanPurge] = useState(false);
+  const [canManagePublish, setCanManagePublish] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createDescription, setCreateDescription] = useState("");
@@ -116,6 +146,10 @@ export default function WorkflowList() {
   const [purgeError, setPurgeError] = useState("");
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [restoreError, setRestoreError] = useState("");
+  const [unpublishTarget, setUnpublishTarget] = useState<WorkflowSummary | null>(null);
+  const [unpublishing, setUnpublishing] = useState(false);
+  const [unpublishError, setUnpublishError] = useState("");
+  const [publishingId, setPublishingId] = useState<string | null>(null);
 
   function load() {
     api.listWorkflows(true).then((r) => {
@@ -126,7 +160,13 @@ export default function WorkflowList() {
 
   useEffect(() => {
     load();
-    api.getMe().then((me) => setCanPurge(me.role === "SUPER_ADMIN")).catch(() => {});
+    api
+      .getMe()
+      .then((me) => {
+        setCanPurge(me.role === "SUPER_ADMIN");
+        setCanManagePublish(me.role === "ADMIN" || me.role === "SUPER_ADMIN");
+      })
+      .catch(() => {});
   }, []);
 
   function closeCreate() {
@@ -211,6 +251,49 @@ export default function WorkflowList() {
     }
   }
 
+  async function handlePublish(workflow: WorkflowSummary) {
+    setPublishingId(workflow.id);
+    try {
+      if (workflow.activeVersion) {
+        await api.activateWorkflow(workflow.id);
+        toast.success(`${workflow.name} is published`);
+      } else {
+        await api.publishWorkflow(workflow.id);
+        toast.success(`${workflow.name} is published`);
+      }
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to publish workflow");
+    } finally {
+      setPublishingId(null);
+    }
+  }
+
+  async function handleUnpublish() {
+    if (!unpublishTarget) return;
+    setUnpublishError("");
+    setUnpublishing(true);
+    try {
+      await api.unpublishWorkflow(unpublishTarget.id);
+      toast.success(`${unpublishTarget.name} unpublished — new runs are paused`);
+      setUnpublishTarget(null);
+      load();
+    } catch (err) {
+      setUnpublishError(err instanceof Error ? err.message : "Failed to unpublish workflow");
+    } finally {
+      setUnpublishing(false);
+    }
+  }
+
+  function handlePublishChange(workflow: WorkflowSummary, next: "published" | "unpublished") {
+    if (next === "unpublished") {
+      setUnpublishError("");
+      setUnpublishTarget(workflow);
+      return;
+    }
+    void handlePublish(workflow);
+  }
+
   return (
     <CrmPageContent>
       <CrmPageHeader
@@ -281,6 +364,9 @@ export default function WorkflowList() {
             <WorkflowRow
               key={wf.id}
               wf={wf}
+              canManagePublish={canManagePublish}
+              publishBusy={publishingId === wf.id || (unpublishing && unpublishTarget?.id === wf.id)}
+              onPublishChange={handlePublishChange}
               onDelete={(target) => {
                 setDeleteError("");
                 setDeleteTarget(target);
@@ -352,6 +438,20 @@ export default function WorkflowList() {
         }}
         error={deleteError || undefined}
         onConfirm={handleDelete}
+      />
+
+      <ConfirmModal
+        isOpen={unpublishTarget != null}
+        title={`Unpublish ${unpublishTarget?.name ?? "workflow"}?`}
+        description="New triggers will stop starting this workflow. Published versions are kept. In-flight runs continue. Publish again when you want it live."
+        confirmLabel="Unpublish"
+        loading={unpublishing}
+        danger
+        onCancel={() => {
+          if (!unpublishing) setUnpublishTarget(null);
+        }}
+        error={unpublishError || undefined}
+        onConfirm={handleUnpublish}
       />
 
       <ConfirmModal

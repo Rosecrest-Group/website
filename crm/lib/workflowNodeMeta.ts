@@ -33,6 +33,7 @@ export function defaultNodeData(type: string): Record<string, unknown> {
     case "trigger":
       return { triggerType: "lead.created", filter: "" };
     case "sendEmail":
+      return { templateId: "", templateName: "", transactional: false, attachmentDocumentTypes: [] };
     case "sendSms":
     case "sendWhatsapp":
       return { templateId: "", templateName: "", transactional: false };
@@ -131,7 +132,20 @@ export function nodeDisplayDetail(node: Node): string {
       if (parts.length > 0) return parts.join(" · ");
       return `filter: ${filter}`;
     }
-    case "sendEmail":
+    case "sendEmail": {
+      const template =
+        data.templateName ? String(data.templateName) : data.templateId ? String(data.templateId) : "";
+      const attachments = Array.isArray(data.attachmentDocumentTypes)
+        ? data.attachmentDocumentTypes.map(String).filter(Boolean)
+        : [];
+      if (attachments.length === 0) return template;
+      const attachmentLabel = `Attach ${attachments
+        .map((type) =>
+          type === "REPORT" ? "report" : type === "ACTION_PLAN" ? "action plan" : type === "COSTING" ? "costing" : type.toLowerCase()
+        )
+        .join(", ")}`;
+      return template ? `${template} · ${attachmentLabel}` : attachmentLabel;
+    }
     case "sendSms":
     case "sendWhatsapp":
       return data.templateName ? String(data.templateName) : data.templateId ? String(data.templateId) : "";

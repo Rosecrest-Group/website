@@ -12,6 +12,12 @@ import WorkflowTagSelect, {
   type WorkflowTagSelectOption,
 } from "@/crm/components/workflow/WorkflowTagSelect";
 
+const EMAIL_ATTACHMENT_DOCUMENT_TYPES = [
+  { value: "REPORT", label: "Report" },
+  { value: "ACTION_PLAN", label: "Action plan" },
+  { value: "COSTING", label: "Costing" },
+] as const;
+
 const LEAD_SOURCE_TAG_OPTIONS: WorkflowTagSelectOption[] = LEAD_SOURCES.map((source, index) => ({
   ...source,
   color: WF_TAG_COLORS[index % WF_TAG_COLORS.length],
@@ -141,6 +147,15 @@ export default function WorkflowNodeConfig({
       : [];
   const setLeadCreatedFilter = (sources: string[], surveyLevels: string[]) =>
     update({ filter: buildLeadCreatedFilter(sources, surveyLevels) });
+  const attachmentDocumentTypes = Array.isArray(data.attachmentDocumentTypes)
+    ? data.attachmentDocumentTypes.map(String)
+    : [];
+  const toggleAttachmentDocumentType = (docType: string) => {
+    const next = attachmentDocumentTypes.includes(docType)
+      ? attachmentDocumentTypes.filter((value) => value !== docType)
+      : [...attachmentDocumentTypes, docType];
+    update({ attachmentDocumentTypes: next });
+  };
 
   useEffect(() => {
     setPositionExpanded(false);
@@ -354,6 +369,43 @@ export default function WorkflowNodeConfig({
               />
               <span className="wf-checkbox-label">Transactional (ignore marketing opt-out)</span>
             </label>
+            {nodeType === "sendEmail" && (
+              <div className="wf-field">
+                <div className="wf-field-label">
+                  Attachments{" "}
+                  <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--wf-text-3)" }}>
+                    optional
+                  </span>
+                </div>
+                <div className="wf-source-checklist" role="group" aria-label="Email attachments">
+                  {EMAIL_ATTACHMENT_DOCUMENT_TYPES.map((docType) => {
+                    const checked = attachmentDocumentTypes.includes(docType.value);
+                    return (
+                      <label key={docType.value} className="wf-checkbox-row">
+                        <div
+                          className={`wf-checkbox ${checked ? "checked" : ""}`}
+                          onClick={() => toggleAttachmentDocumentType(docType.value)}
+                          role="checkbox"
+                          aria-checked={checked}
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === " " || e.key === "Enter") {
+                              e.preventDefault();
+                              toggleAttachmentDocumentType(docType.value);
+                            }
+                          }}
+                        />
+                        <span className="wf-checkbox-label">{docType.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="wf-field-help">
+                  Attach matching job documents when this email sends. Leave unchecked for a normal
+                  email with no files.
+                </div>
+              </div>
+            )}
           </>
         )}
 
