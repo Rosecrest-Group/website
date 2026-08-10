@@ -9,6 +9,7 @@ import TextField from "@/crm/components/ui/TextField";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import BodyHeading from "@/crm/components/ui/BodyHeading";
 import BodySubtext from "@/crm/components/ui/BodySubtext";
+import CrmAuthBrand from "@/crm/components/CrmAuthBrand";
 
 function parseRecoveryTokens(hash: string) {
   const params = new URLSearchParams(hash.replace(/^#/, ""));
@@ -67,6 +68,7 @@ export default function CrmResetPasswordForm() {
     <div className="flex min-h-dvh items-center justify-center p-6">
       <CurvedContainer className="w-full max-w-md">
         <div className="p-8">
+          <CrmAuthBrand />
           <BodyHeading className="text-xl">Choose a new password</BodyHeading>
           <BodySubtext className="mt-1">
             {done

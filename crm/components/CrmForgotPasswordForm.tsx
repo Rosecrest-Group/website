@@ -8,6 +8,7 @@ import TextField from "@/crm/components/ui/TextField";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import BodyHeading from "@/crm/components/ui/BodyHeading";
 import BodySubtext from "@/crm/components/ui/BodySubtext";
+import CrmAuthBrand from "@/crm/components/CrmAuthBrand";
 
 export default function CrmForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -33,6 +34,7 @@ export default function CrmForgotPasswordForm() {
     <div className="flex min-h-dvh items-center justify-center p-6">
       <CurvedContainer className="w-full max-w-md">
         <div className="p-8">
+          <CrmAuthBrand />
           <BodyHeading className="text-xl">Reset your password</BodyHeading>
           <BodySubtext className="mt-1">
             {sent

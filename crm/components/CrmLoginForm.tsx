@@ -10,6 +10,7 @@ import TextField from "@/crm/components/ui/TextField";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import BodyHeading from "@/crm/components/ui/BodyHeading";
 import BodySubtext from "@/crm/components/ui/BodySubtext";
+import CrmAuthBrand from "@/crm/components/CrmAuthBrand";
 
 export default function CrmLoginForm() {
   const router = useRouter();
@@ -41,8 +42,9 @@ export default function CrmLoginForm() {
     <div className="flex min-h-dvh items-center justify-center p-6">
       <CurvedContainer className="w-full max-w-md">
         <div className="p-8">
-          <BodyHeading className="text-xl">Rosecrest CRM</BodyHeading>
-          <BodySubtext className="mt-1">Sign in to the operations platform</BodySubtext>
+          <CrmAuthBrand />
+          <BodyHeading className="text-xl">Sign in</BodyHeading>
+          <BodySubtext className="mt-1">Access the Rosecrest operations platform</BodySubtext>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <TextField
