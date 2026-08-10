@@ -53,6 +53,7 @@ import type {
   WorkflowVersion,
 
   AdminUserSummary,
+  AuditLogEntry,
 
   DialpadIntegrationStatus,
   DialpadConfig,
@@ -644,7 +645,32 @@ export const api = {
     }),
 
   removeTeamUser: (id: string) =>
-    request<{ removed: boolean }>(`/admin/users/${id}`, { method: "DELETE" }),
+    request<{
+      removed: boolean;
+      unassigned: {
+        leads: number;
+        jobs: number;
+        openTasks: number;
+        conversationMemberships: number;
+        notifications: number;
+        pushSubscriptions: number;
+      };
+    }>(`/admin/users/${id}`, { method: "DELETE" }),
+
+  listAuditLogs: (params?: { action?: string; entityType?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.action) qs.set("action", params.action);
+    if (params?.entityType) qs.set("entityType", params.entityType);
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const q = qs.toString();
+    return request<{
+      items: AuditLogEntry[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(`/admin/audit-logs${q ? `?${q}` : ""}`);
+  },
 
   updateUserPhone: (
     id: string,

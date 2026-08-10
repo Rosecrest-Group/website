@@ -59,6 +59,17 @@ export interface ApiUser {
   twoFAEnabled?: boolean;
 }
 
+export interface AuditLogEntry {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  changes?: unknown;
+  ipAddress?: string | null;
+  createdAt: string;
+  actor?: { id: string; fullName: string; email: string } | null;
+}
+
 export interface AdminUserSummary {
   id: string;
   email: string;

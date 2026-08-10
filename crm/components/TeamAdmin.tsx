@@ -142,9 +142,12 @@ export default function TeamAdmin() {
     setRemoveError("");
     setSavingId(removeTarget.id);
     try {
-      await api.removeTeamUser(removeTarget.id);
+      const result = await api.removeTeamUser(removeTarget.id);
       setUsers((list) => list.filter((u) => u.id !== removeTarget.id));
-      toast.success(`Removed ${removeTarget.fullName}`);
+      const { leads, jobs, openTasks } = result.unassigned;
+      toast.success(
+        `Removed ${removeTarget.fullName}. ${leads} leads and ${jobs} jobs unassigned, ${openTasks} open tasks moved to you.`
+      );
       setRemoveTarget(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Remove failed";
@@ -333,7 +336,7 @@ export default function TeamAdmin() {
       <ConfirmModal
         isOpen={removeTarget != null}
         title={`Remove ${removeTarget?.fullName ?? "team member"}?`}
-        description="This permanently removes them from the CRM team. If they have linked records, deactivate them instead."
+        description="Their login is deleted and their email is freed up. Assigned leads and jobs become unassigned, open tasks move to you, and their past messages stay in the record. This is logged in the audit log."
         confirmLabel="Remove member"
         cancelLabel="Cancel"
         loading={removing}

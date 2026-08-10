@@ -69,6 +69,10 @@ export function canAccessAdminSettings(role: UserRole): boolean {
   return hasExactRole(role, ADMIN_SETTINGS_ROLES);
 }
 
+export function canViewAuditLog(role: UserRole): boolean {
+  return role === "SUPER_ADMIN";
+}
+
 export function isJobScopedRole(role: UserRole): boolean {
   return role === "SURVEYOR" || role === "TRADE_OPERATIVE" || role === "QC";
 }
@@ -116,6 +120,9 @@ function pathAllowed(role: UserRole, pathname: string): boolean {
   }
   if (pathname.startsWith(`${CRM_BASE_PATH}/revenue`)) {
     return hasExactRole(role, FINANCE_DASHBOARD_ROLES);
+  }
+  if (pathname.startsWith(`${CRM_BASE_PATH}/settings/audit-log`)) {
+    return canViewAuditLog(role);
   }
   if (
     pathname.startsWith(`${CRM_BASE_PATH}/settings/team`) ||

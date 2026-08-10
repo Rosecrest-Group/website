@@ -107,6 +107,7 @@ export const CRM_NAV_SECTIONS: CrmNavSection[] = [
     title: "Settings",
     items: [
       { label: "Team", href: `${CRM_BASE_PATH}/settings/team` },
+      { label: "Audit log", href: `${CRM_BASE_PATH}/settings/audit-log` },
       { label: "Integrations", href: `${CRM_BASE_PATH}/settings/integrations` },
       { label: "API Partners", href: `${CRM_BASE_PATH}/settings/partners` },
       { label: "API Docs", href: `${CRM_BASE_PATH}/documentation` },
