@@ -6,6 +6,7 @@ export const CRM_PUBLIC_ROUTES = [
   `${CRM_BASE_PATH}/login`,
   `${CRM_BASE_PATH}/forgot-password`,
   `${CRM_BASE_PATH}/reset-password`,
+  `${CRM_BASE_PATH}/accept-invite`,
   `${CRM_BASE_PATH}/documentation`,
 ] as const;
 

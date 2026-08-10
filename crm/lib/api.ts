@@ -623,7 +623,12 @@ export const api = {
       `/admin/users${includeInactive ? "?includeInactive=true" : ""}`
     ),
 
-  inviteTeamUser: (payload: { email: string; fullName: string; role: string }) =>
+  inviteTeamUser: (payload: {
+    email: string;
+    fullName: string;
+    role: string;
+    credentials?: string | null;
+  }) =>
     request<AdminUserSummary>("/admin/users/invite", {
       method: "POST",
       body: JSON.stringify(payload),
@@ -637,6 +642,9 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
+
+  removeTeamUser: (id: string) =>
+    request<{ removed: boolean }>(`/admin/users/${id}`, { method: "DELETE" }),
 
   updateUserPhone: (
     id: string,

@@ -9,7 +9,6 @@ import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import CrmPanel from "@/crm/components/ui/CrmPanel";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
-import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import TextField from "@/crm/components/ui/TextField";
 import SelectField from "@/crm/components/ui/SelectField";
 import Table, { type Column } from "@/crm/components/ui/Table";
@@ -36,7 +35,12 @@ export default function TeamAdmin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [invite, setInvite] = useState({ email: "", fullName: "", role: "OPS" as UserRole });
+  const [invite, setInvite] = useState({
+    email: "",
+    fullName: "",
+    role: "OPS" as UserRole,
+    credentials: "",
+  });
   const [inviting, setInviting] = useState(false);
 
   const isManager = currentUser ? canManageTeam(currentUser.role) : false;
@@ -78,9 +82,15 @@ export default function TeamAdmin() {
 
     setInviting(true);
     try {
-      const user = await api.inviteTeamUser(invite);
-      toast.success(`Invited ${user.fullName}`);
-      setInvite({ email: "", fullName: "", role: "OPS" });
+      const credentials = invite.credentials.trim();
+      const user = await api.inviteTeamUser({
+        email: invite.email,
+        fullName: invite.fullName,
+        role: invite.role,
+        ...(credentials ? { credentials } : {}),
+      });
+      toast.success(`Invite sent to ${user.fullName}. They’ll stay inactive until they set a password.`);
+      setInvite({ email: "", fullName: "", role: "OPS", credentials: "" });
       await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Invite failed");
@@ -91,7 +101,7 @@ export default function TeamAdmin() {
 
   async function updateUser(
     id: string,
-    payload: { role?: string; isActive?: boolean; credentials?: string | null }
+    payload: { role?: string; isActive?: boolean }
   ) {
     if (!isManager) {
       toast.error("Only Super Admins can update team members");
@@ -110,38 +120,50 @@ export default function TeamAdmin() {
     }
   }
 
+  async function removeUser(id: string, fullName: string) {
+    if (!isManager) {
+      toast.error("Only Super Admins can remove team members");
+      return;
+    }
+    if (!window.confirm(`Remove ${fullName} from the CRM team? This cannot be undone.`)) {
+      return;
+    }
+
+    setSavingId(id);
+    try {
+      await api.removeTeamUser(id);
+      setUsers((list) => list.filter((u) => u.id !== id));
+      toast.success(`Removed ${fullName}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Remove failed");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function handleAction(row: TeamRow, action: string) {
+    if (!action) return;
+    if (action === "deactivate") {
+      await updateUser(row.id, { isActive: false });
+      return;
+    }
+    if (action === "reactivate") {
+      await updateUser(row.id, { isActive: true });
+      return;
+    }
+    if (action === "remove") {
+      await removeUser(row.id, row.fullName);
+    }
+  }
+
   const columns: Column<TeamRow>[] = [
     { key: "fullName", header: "Name" },
     { key: "email", header: "Email" },
     {
-      key: "credentials",
-      header: "Credentials",
-      render: (value, row) =>
-        isManager ? (
-          <input
-            type="text"
-            defaultValue={typeof value === "string" ? value : ""}
-            placeholder="e.g. MRICS, BSc"
-            disabled={savingId === row.id}
-            className="h-10 w-full min-w-[160px] rounded-xl border border-(--color-tc-20) bg-white px-3 text-sm text-(--color-tc-40) outline-none focus:ring-2 focus:ring-(--color-primary)/20"
-            onBlur={(e) => {
-              const next = e.target.value.trim();
-              const current = (row.credentials ?? "").trim();
-              if (next === current) return;
-              void updateUser(row.id, { credentials: next || null });
-            }}
-          />
-        ) : (
-          <span className="text-sm text-(--color-tc-30)">
-            {typeof value === "string" && value ? value : "—"}
-          </span>
-        ),
-    },
-    {
       key: "role",
       header: "Role",
       render: (value, row) =>
-        isManager ? (
+        isManager && row.id !== currentUser?.id ? (
           <SelectField
             value={String(value)}
             onChange={(e) => updateUser(row.id, { role: e.target.value })}
@@ -162,7 +184,7 @@ export default function TeamAdmin() {
       header: "Status",
       render: (value) => (
         <StatusPill
-          variant={value !== false ? "completed" : "failed"}
+          variant={value !== false ? "completed" : "pending"}
           label={value !== false ? "Active" : "Inactive"}
         />
       ),
@@ -172,17 +194,31 @@ export default function TeamAdmin() {
           {
             key: "id",
             header: "Actions",
-            render: (_value: unknown, row: TeamRow) => (
-              <SecondaryButton
-                type="button"
-                size="small"
-                className="w-auto"
-                disabled={savingId === row.id || row.id === currentUser?.id}
-                onClick={() => updateUser(row.id, { isActive: row.isActive === false })}
-              >
-                {row.isActive === false ? "Reactivate" : "Deactivate"}
-              </SecondaryButton>
-            ),
+            render: (_value: unknown, row: TeamRow) => {
+              const isSelf = row.id === currentUser?.id;
+              return (
+                <SelectField
+                  aria-label={`Actions for ${row.fullName}`}
+                  value=""
+                  disabled={savingId === row.id || isSelf}
+                  onChange={(e) => {
+                    const action = e.target.value;
+                    e.target.value = "";
+                    void handleAction(row, action);
+                  }}
+                >
+                  <option value="" disabled>
+                    {isSelf ? "—" : "Actions"}
+                  </option>
+                  {row.isActive === false ? (
+                    <option value="reactivate">Reactivate</option>
+                  ) : (
+                    <option value="deactivate">Deactivate</option>
+                  )}
+                  <option value="remove">Remove</option>
+                </SelectField>
+              );
+            },
           } satisfies Column<TeamRow>,
         ]
       : []),
@@ -220,7 +256,7 @@ export default function TeamAdmin() {
 
       {isManager ? (
         <CrmPanel title="Invite teammate">
-          <form className="grid gap-4 md:grid-cols-3" onSubmit={submitInvite}>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={submitInvite}>
             <TextField
               label="Full name"
               value={invite.fullName}
@@ -245,7 +281,13 @@ export default function TeamAdmin() {
                 </option>
               ))}
             </SelectField>
-            <div className="md:col-span-3">
+            <TextField
+              label="Credentials (optional)"
+              value={invite.credentials}
+              onChange={(e) => setInvite({ ...invite, credentials: e.target.value })}
+              placeholder="e.g. MRICS, BSc"
+            />
+            <div className="md:col-span-2">
               <PrimaryButton type="submit" className="w-auto" disabled={inviting}>
                 {inviting ? "Sending invite…" : "Send invite"}
               </PrimaryButton>
