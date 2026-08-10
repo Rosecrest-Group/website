@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import NextTopLoader from "nextjs-toploader";
 import "./globals.css";
 import { manrope } from "@/lib/fonts";
 import { siteConfig } from "@/lib/page-metadata";
@@ -29,6 +30,7 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${manrope.className} ${manrope.variable} relative no-scrollbar scroll-smooth`}
       >
+        <NextTopLoader color="#6d28d9" height={3} showSpinner={false} />
         {children}
       </body>
     </html>
