@@ -358,17 +358,6 @@ export default function WorkflowNodeConfig({
                 }}
               />
             )}
-            <label className="wf-checkbox-row">
-              <div
-                className={`wf-checkbox ${data.transactional ? "checked" : ""}`}
-                onClick={() => update({ transactional: !data.transactional })}
-                onKeyDown={() => {}}
-                role="checkbox"
-                aria-checked={Boolean(data.transactional)}
-                tabIndex={0}
-              />
-              <span className="wf-checkbox-label">Transactional (ignore marketing opt-out)</span>
-            </label>
             {nodeType === "sendEmail" && (
               <div className="wf-field">
                 <div className="wf-field-label">

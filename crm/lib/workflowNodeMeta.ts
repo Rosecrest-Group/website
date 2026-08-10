@@ -33,10 +33,10 @@ export function defaultNodeData(type: string): Record<string, unknown> {
     case "trigger":
       return { triggerType: "lead.created", filter: "" };
     case "sendEmail":
-      return { templateId: "", templateName: "", transactional: false, attachmentDocumentTypes: [] };
+      return { templateId: "", templateName: "", attachmentDocumentTypes: [] };
     case "sendSms":
     case "sendWhatsapp":
-      return { templateId: "", templateName: "", transactional: false };
+      return { templateId: "", templateName: "" };
     case "wait":
       return { durationHours: 48, durationDays: 0, durationMinutes: 0, workingHoursOnly: false };
     case "branch":

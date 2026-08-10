@@ -883,7 +883,6 @@ export default function LeadMessageThread({
         htmlBody: channel === "EMAIL" ? emailPayload?.html : undefined,
         mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
         subject: channel === "EMAIL" ? subject.trim() : undefined,
-        isTransactional: true,
         teamConnectPhoneDocId:
           channel === "SMS" && teamConnectEnabled
             ? selectedPhoneDocId ?? smsNumbers[0]?.phoneDocId

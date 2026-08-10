@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
-import type { Job } from "@/crm/types";
+import { canViewJobMoney } from "@/crm/lib/rbac";
+import type { Job, UserRole } from "@/crm/types";
 import { BEDROOM_BAND_LABELS } from "@/crm/lib/constants";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
@@ -20,8 +21,10 @@ export default function CrmJobsList({
   const [jobs, setJobs] = useState<Job[]>(() => initialData?.items ?? []);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(() => !initialData);
+  const [role, setRole] = useState<UserRole | null>(null);
 
   useEffect(() => {
+    api.getMe().then((me) => setRole(me.role)).catch(() => setRole(null));
     if (initialData) return;
     api
       .listJobs({ limit: "50", page: "1" })
@@ -50,6 +53,8 @@ export default function CrmJobsList({
         );
       })
     : jobs;
+
+  const showMoney = role ? canViewJobMoney(role) : false;
 
   const columns: Column<Job & Record<string, unknown>>[] = [
     {
@@ -91,16 +96,20 @@ export default function CrmJobsList({
         <StatusPill variant="in-review" label={(value as string).replace(/_/g, " ")} />
       ),
     },
-    {
-      key: "agreedAmount",
-      header: "Amount",
-      align: "right",
-      render: (value) => (
-        <span className="text-sm font-medium text-ink tabular-nums">
-          £{value as number}
-        </span>
-      ),
-    },
+    ...(showMoney
+      ? [
+          {
+            key: "agreedAmount",
+            header: "Amount",
+            align: "right" as const,
+            render: (value: unknown) => (
+              <span className="text-sm font-medium text-ink tabular-nums">
+                £{value as number}
+              </span>
+            ),
+          } satisfies Column<Job & Record<string, unknown>>,
+        ]
+      : []),
   ];
 
   return (

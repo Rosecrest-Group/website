@@ -965,8 +965,6 @@ export const api = {
 
     mediaUrls?: string[];
 
-    isTransactional?: boolean;
-
     teamConnectPhoneDocId?: string;
 
   }) => request<Message>("/messages/send", { method: "POST", body: JSON.stringify(payload) }),

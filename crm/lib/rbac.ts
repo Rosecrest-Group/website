@@ -77,6 +77,21 @@ export function isJobScopedRole(role: UserRole): boolean {
   return role === "SURVEYOR" || role === "TRADE_OPERATIVE" || role === "QC";
 }
 
+/** Surveyors must not see fees, payment links, or payment history. */
+export function canViewJobMoney(role: UserRole): boolean {
+  return role !== "SURVEYOR";
+}
+
+/** Confirm / request access is ops-owned; surveyors only view confirmed details. */
+export function canManageJobAccessDetails(role: UserRole): boolean {
+  return hasExactRole(role, LEAD_ACCESS_ROLES);
+}
+
+/** Inspection date is set by ops/admin; surveyors see it read-only. */
+export function canEditInspectionDate(role: UserRole): boolean {
+  return hasExactRole(role, LEAD_ACCESS_ROLES);
+}
+
 /** Default home when a role hits a forbidden path. */
 export function defaultLandingPath(role: UserRole): string {
   if (role === "SURVEYOR" || role === "TRADE_OPERATIVE" || role === "QC") {
@@ -92,7 +107,9 @@ function pathAllowed(role: UserRole, pathname: string): boolean {
   if (pathname === CRM_BASE_PATH || pathname === `${CRM_BASE_PATH}/`) return true;
   if (pathname.startsWith(`${CRM_BASE_PATH}/settings/profile`)) return true;
   if (pathname.startsWith(`${CRM_BASE_PATH}/conversations`)) return true;
-  if (pathname.startsWith(`${CRM_BASE_PATH}/documentation`)) return true;
+  if (pathname.startsWith(`${CRM_BASE_PATH}/documentation`)) {
+    return canAccessAdminSettings(role);
+  }
 
   if (pathname.startsWith(`${CRM_BASE_PATH}/leads`) || pathname.startsWith(`${CRM_BASE_PATH}/inbox`)) {
     return canReadLeads(role);

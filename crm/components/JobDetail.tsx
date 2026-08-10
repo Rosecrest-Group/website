@@ -3,7 +3,12 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { api } from "@/crm/lib/api";
-import { canMutateLeads } from "@/crm/lib/rbac";
+import {
+  canEditInspectionDate,
+  canManageJobAccessDetails,
+  canMutateLeads,
+  canViewJobMoney,
+} from "@/crm/lib/rbac";
 import type { Job, JobDocument, SnaggingItem, UserRole } from "@/crm/types";
 import PhoneButton from "@/crm/components/PhoneButton";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
@@ -52,6 +57,8 @@ export default function JobDetail({ id }: { id: string }) {
     accessNotes: "",
   });
   const [inspectionDate, setInspectionDate] = useState("");
+  const [inspectionError, setInspectionError] = useState<string | null>(null);
+  const [savingInspection, setSavingInspection] = useState(false);
   const [stageError, setStageError] = useState<string | null>(null);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [accessSaved, setAccessSaved] = useState(false);
@@ -90,6 +97,9 @@ export default function JobDetail({ id }: { id: string }) {
   }, [id]);
 
   const canAssignSurveyor = role ? canMutateLeads(role) : false;
+  const showMoney = role ? canViewJobMoney(role) : false;
+  const canManageAccess = role ? canManageJobAccessDetails(role) : false;
+  const canSetInspectionDate = role ? canEditInspectionDate(role) : false;
 
   async function createLink() {
     const r = await api.createPaymentLink(id);
@@ -266,10 +276,21 @@ export default function JobDetail({ id }: { id: string }) {
   }
 
   async function saveInspectionDetails() {
-    await api.updateJob(id, {
-      ...(inspectionDate ? { inspectionDate: new Date(inspectionDate).toISOString() } : {}),
-    });
-    reload();
+    if (!canSetInspectionDate) return;
+    setInspectionError(null);
+    setSavingInspection(true);
+    try {
+      // Noon UTC keeps the calendar day stable across UK timezones.
+      const iso = inspectionDate
+        ? new Date(`${inspectionDate}T12:00:00.000Z`).toISOString()
+        : null;
+      await api.updateJob(id, { inspectionDate: iso });
+      await reload();
+    } catch (e) {
+      setInspectionError(e instanceof Error ? e.message : "Could not save inspection date");
+    } finally {
+      setSavingInspection(false);
+    }
   }
 
   async function toggleDataCapture() {
@@ -317,7 +338,9 @@ export default function JobDetail({ id }: { id: string }) {
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <StatusPill variant={paymentStatusVariant(job.paymentStatus)} label={job.paymentStatus} />
+          {showMoney && (
+            <StatusPill variant={paymentStatusVariant(job.paymentStatus)} label={job.paymentStatus} />
+          )}
           {job.customer?.phone && (
             <PhoneButton
               number={job.customer.phone}
@@ -379,40 +402,42 @@ export default function JobDetail({ id }: { id: string }) {
         )}
 
         {/* Setup: Payment (+ Surveyor for survey jobs) */}
-        <div className={`grid gap-6 ${isTrade ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
-          <CrmPanel title="Payment">
-            <div className="space-y-3">
-              <p className="text-sm text-(--color-tc-40)">
-                Agreed amount: <strong>£{job.agreedAmount}</strong>
-              </p>
-              {(job.stripePaymentLinkUrl || paymentLink) && (
-                <div className="rounded-lg bg-(--color-nc-10) p-3 text-xs break-all text-(--color-tc-30)">
-                  {job.stripePaymentLinkUrl ?? paymentLink}
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {job.paymentStatus !== "PAID" && (
-                  <>
-                    <PrimaryButton type="button" className="w-auto px-6" onClick={createLink}>
-                      Get payment link
-                    </PrimaryButton>
-                    <SecondaryButton
-                      type="button"
-                      size="small"
-                      className="w-auto"
-                      onClick={() => {
-                        setMarkPaidError(null);
-                        setMarkPaidConfirmOpen(true);
-                      }}
-                      disabled={markingPaid}
-                    >
-                      Mark paid (bank transfer)
-                    </SecondaryButton>
-                  </>
+        <div className={`grid gap-6 ${isTrade ? "lg:grid-cols-3" : showMoney ? "lg:grid-cols-2" : "lg:grid-cols-1"}`}>
+          {showMoney && (
+            <CrmPanel title="Payment">
+              <div className="space-y-3">
+                <p className="text-sm text-(--color-tc-40)">
+                  Agreed amount: <strong>£{job.agreedAmount}</strong>
+                </p>
+                {(job.stripePaymentLinkUrl || paymentLink) && (
+                  <div className="rounded-lg bg-(--color-nc-10) p-3 text-xs break-all text-(--color-tc-30)">
+                    {job.stripePaymentLinkUrl ?? paymentLink}
+                  </div>
                 )}
+                <div className="flex flex-wrap gap-2">
+                  {job.paymentStatus !== "PAID" && (
+                    <>
+                      <PrimaryButton type="button" className="w-auto px-6" onClick={createLink}>
+                        Get payment link
+                      </PrimaryButton>
+                      <SecondaryButton
+                        type="button"
+                        size="small"
+                        className="w-auto"
+                        onClick={() => {
+                          setMarkPaidError(null);
+                          setMarkPaidConfirmOpen(true);
+                        }}
+                        disabled={markingPaid}
+                      >
+                        Mark paid (bank transfer)
+                      </SecondaryButton>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          </CrmPanel>
+            </CrmPanel>
+          )}
 
           {!isTrade && (
             <CrmPanel title="Surveyor assignment">
@@ -442,69 +467,69 @@ export default function JobDetail({ id }: { id: string }) {
             </CrmPanel>
           )}
 
-          {isTrade && (
-            <>
-              <CrmPanel title="Payments history">
-                {(job.payments ?? []).length === 0 ? (
-                  <p className="text-sm text-(--color-tc-30)">No payments recorded</p>
-                ) : (
-                  <div className="space-y-0">
-                    {job.payments!.map((p) => (
-                      <div
-                        key={p.id}
-                        className="flex items-center justify-between border-b border-(--color-tc-20) py-2 text-sm last:border-0"
-                      >
-                        <span className="text-(--color-tc-40)">£{p.amount}</span>
-                        <StatusPill variant={paymentStatusVariant(p.status)} label={p.status} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CrmPanel>
-
-              <CrmPanel title="Documents (RAMS)">
-                <div className="space-y-3">
-                  {documents.map((d) => (
-                    <a
-                      key={d.id}
-                      href={d.storageUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block text-sm text-(--color-primary) hover:underline"
+          {isTrade && showMoney && (
+            <CrmPanel title="Payments history">
+              {(job.payments ?? []).length === 0 ? (
+                <p className="text-sm text-(--color-tc-30)">No payments recorded</p>
+              ) : (
+                <div className="space-y-0">
+                  {job.payments!.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between border-b border-(--color-tc-20) py-2 text-sm last:border-0"
                     >
-                      {d.filename} ({d.type})
-                    </a>
+                      <span className="text-(--color-tc-40)">£{p.amount}</span>
+                      <StatusPill variant={paymentStatusVariant(p.status)} label={p.status} />
+                    </div>
                   ))}
-                  <div className="space-y-2 border-t border-(--color-tc-20) pt-3">
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.gif"
-                      onChange={(e) => {
-                        setDocError(null);
-                        setDocFile(e.target.files?.[0] ?? null);
-                      }}
-                      className="block w-full text-sm text-(--color-tc-40) file:mr-3 file:rounded-xl file:border file:border-(--color-tc-20) file:bg-(--color-primary) file:px-4 file:py-2 file:text-white hover:file:opacity-90"
-                    />
-                    {docError && <p className="text-sm text-red-600">{docError}</p>}
-                    <SecondaryButton
-                      type="button"
-                      size="small"
-                      className="w-auto"
-                      onClick={uploadDocument}
-                      disabled={!docFile || uploadingDoc}
-                    >
-                      {uploadingDoc ? "Uploading…" : "Upload document"}
-                    </SecondaryButton>
-                  </div>
                 </div>
-              </CrmPanel>
-            </>
+              )}
+            </CrmPanel>
+          )}
+
+          {isTrade && (
+            <CrmPanel title="Documents (RAMS)">
+              <div className="space-y-3">
+                {documents.map((d) => (
+                  <a
+                    key={d.id}
+                    href={d.storageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block text-sm text-(--color-primary) hover:underline"
+                  >
+                    {d.filename} ({d.type})
+                  </a>
+                ))}
+                <div className="space-y-2 border-t border-(--color-tc-20) pt-3">
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.gif"
+                    onChange={(e) => {
+                      setDocError(null);
+                      setDocFile(e.target.files?.[0] ?? null);
+                    }}
+                    className="block w-full text-sm text-(--color-tc-40) file:mr-3 file:rounded-xl file:border file:border-(--color-tc-20) file:bg-(--color-primary) file:px-4 file:py-2 file:text-white hover:file:opacity-90"
+                  />
+                  {docError && <p className="text-sm text-red-600">{docError}</p>}
+                  <SecondaryButton
+                    type="button"
+                    size="small"
+                    className="w-auto"
+                    onClick={uploadDocument}
+                    disabled={!docFile || uploadingDoc}
+                  >
+                    {uploadingDoc ? "Uploading…" : "Upload document"}
+                  </SecondaryButton>
+                </div>
+              </div>
+            </CrmPanel>
           )}
         </div>
 
         {!isTrade && (
           <>
-            {job.accessDetailsPendingReview && (
+            {canManageAccess && job.accessDetailsPendingReview && (
               <CrmPanel title="Access details — review required" className="border-amber-300 bg-amber-50/50">
                 <p className="mb-3 text-sm text-amber-900">
                   Client reply was parsed into the fields below. Verify and confirm to request access from the estate agent.
@@ -521,6 +546,7 @@ export default function JobDetail({ id }: { id: string }) {
               </CrmPanel>
             )}
 
+            {canManageAccess ? (
             <CrmPanel title="Access details">
               <div className="space-y-6">
                 <div className="grid gap-6 lg:grid-cols-2">
@@ -645,6 +671,77 @@ export default function JobDetail({ id }: { id: string }) {
                 </div>
               </div>
             </CrmPanel>
+            ) : (
+              (job.agentName ||
+                job.agentEmail ||
+                job.agentPhone ||
+                job.vendorName ||
+                job.vendorEmail ||
+                job.vendorPhone ||
+                job.accessNotes) && (
+                <CrmPanel title="Access details">
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <section className="space-y-2 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
+                          <Building2 className="size-4" aria-hidden />
+                        </div>
+                        <h3 className="text-sm font-medium text-ink">Estate agent</h3>
+                      </div>
+                      <dl className="space-y-1.5 text-sm">
+                        <div>
+                          <dt className="text-xs text-ink-muted">Name</dt>
+                          <dd className="text-ink">{job.agentName || "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-ink-muted">Email</dt>
+                          <dd className="text-ink">{job.agentEmail || "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-ink-muted">Phone</dt>
+                          <dd className="text-ink">{job.agentPhone || "—"}</dd>
+                        </div>
+                      </dl>
+                    </section>
+                    <section className="space-y-2 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
+                          <UserRound className="size-4" aria-hidden />
+                        </div>
+                        <h3 className="text-sm font-medium text-ink">Vendor / occupant</h3>
+                      </div>
+                      <dl className="space-y-1.5 text-sm">
+                        <div>
+                          <dt className="text-xs text-ink-muted">Name</dt>
+                          <dd className="text-ink">{job.vendorName || "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-ink-muted">Email</dt>
+                          <dd className="text-ink">{job.vendorEmail || "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-ink-muted">Phone</dt>
+                          <dd className="text-ink">{job.vendorPhone || "—"}</dd>
+                        </div>
+                      </dl>
+                    </section>
+                    {job.accessNotes && (
+                      <section className="space-y-2 lg:col-span-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
+                            <KeyRound className="size-4" aria-hidden />
+                          </div>
+                          <h3 className="text-sm font-medium text-ink">Access notes</h3>
+                        </div>
+                        <p className="whitespace-pre-wrap rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink">
+                          {job.accessNotes}
+                        </p>
+                      </section>
+                    )}
+                  </div>
+                </CrmPanel>
+              )
+            )}
 
             <CrmPanel title="Survey workflow">
               <div className="space-y-6">
@@ -653,7 +750,11 @@ export default function JobDetail({ id }: { id: string }) {
                 <section className="space-y-3">
                   <div>
                     <h3 className="text-sm font-medium text-ink">Stage</h3>
-                    <p className="text-xs text-ink-muted">Click a step to move the job forward</p>
+                    <p className="text-xs text-ink-muted">
+                      {canManageAccess
+                        ? "Click a step to move the job forward"
+                        : "Current job stage"}
+                    </p>
                   </div>
                   <div className="overflow-x-auto pb-1">
                     <ol className="flex min-w-max items-stretch gap-1.5">
@@ -667,14 +768,19 @@ export default function JobDetail({ id }: { id: string }) {
                           <li key={s} className="flex items-center gap-1.5">
                             <button
                               type="button"
-                              onClick={() => updateSurveyStage(s)}
+                              onClick={() => canManageAccess && updateSurveyStage(s)}
+                              disabled={!canManageAccess}
                               className={[
                                 "rounded-lg border px-3 py-2 text-left text-xs font-medium transition-colors",
                                 isCurrent
                                   ? "border-brand bg-brand text-white shadow-sm"
                                   : isDone
                                     ? "border-brand-light/40 bg-brand-muted text-brand"
-                                    : "border-line bg-surface text-ink-muted hover:border-brand-light hover:text-ink",
+                                    : "border-line bg-surface text-ink-muted",
+                                canManageAccess && !isCurrent
+                                  ? "hover:border-brand-light hover:text-ink"
+                                  : "",
+                                !canManageAccess ? "cursor-default" : "",
                               ].join(" ")}
                             >
                               <span className="block tabular-nums text-[10px] opacity-70">
@@ -746,25 +852,48 @@ export default function JobDetail({ id }: { id: string }) {
                       </div>
                       <div>
                         <h3 className="text-sm font-medium text-ink">Inspection</h3>
-                        <p className="text-xs text-ink-muted">Booked date for the site visit</p>
+                        <p className="text-xs text-ink-muted">
+                          {canSetInspectionDate
+                            ? "Booked date for the site visit"
+                            : "Set by ops — shown for your diary"}
+                        </p>
                       </div>
                     </div>
-                    <TextField
-                      label="Inspection date"
-                      type="date"
-                      value={inspectionDate}
-                      onChange={(e) => setInspectionDate(e.target.value)}
-                    />
-                    <div className="mt-auto flex justify-end border-t border-line pt-3">
-                      <SecondaryButton
-                        type="button"
-                        size="small"
-                        className="w-auto"
-                        onClick={saveInspectionDetails}
-                      >
-                        Save date
-                      </SecondaryButton>
-                    </div>
+                    {canSetInspectionDate ? (
+                      <>
+                        <TextField
+                          label="Inspection date"
+                          type="date"
+                          value={inspectionDate}
+                          onChange={(e) => setInspectionDate(e.target.value)}
+                        />
+                        {inspectionError && (
+                          <p className="text-sm text-red-600">{inspectionError}</p>
+                        )}
+                        <div className="mt-auto flex justify-end border-t border-line pt-3">
+                          <SecondaryButton
+                            type="button"
+                            size="small"
+                            className="w-auto"
+                            onClick={saveInspectionDetails}
+                            disabled={savingInspection}
+                          >
+                            {savingInspection ? "Saving…" : "Save date"}
+                          </SecondaryButton>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-ink">
+                        {inspectionDate
+                          ? new Date(`${inspectionDate}T12:00:00`).toLocaleDateString("en-GB", {
+                              weekday: "long",
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                            })
+                          : "Not set yet"}
+                      </p>
+                    )}
                   </section>
                 </div>
 
@@ -789,7 +918,8 @@ export default function JobDetail({ id }: { id: string }) {
                   </label>
                 </section>
 
-                {(job.stage === "COMPLETED" || job.stage === "REPORT_DELIVERED") && (
+                {canManageAccess &&
+                  (job.stage === "COMPLETED" || job.stage === "REPORT_DELIVERED") && (
                   <div className="flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-ink">Review request</p>
@@ -812,7 +942,8 @@ export default function JobDetail({ id }: { id: string }) {
               </div>
             </CrmPanel>
 
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className={`grid gap-6 ${showMoney ? "lg:grid-cols-2" : "lg:grid-cols-1"}`}>
+              {showMoney && (
               <CrmPanel title="Payments history">
                 {(job.payments ?? []).length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-sidebar/40 px-4 py-8 text-center">
@@ -833,6 +964,7 @@ export default function JobDetail({ id }: { id: string }) {
                   </div>
                 )}
               </CrmPanel>
+              )}
 
               <CrmPanel title="Documents">
                 <div className="space-y-4">
@@ -957,7 +1089,7 @@ export default function JobDetail({ id }: { id: string }) {
         }
       />
       <ConfirmModal
-        isOpen={markPaidConfirmOpen}
+        isOpen={showMoney && markPaidConfirmOpen}
         title="Mark as paid?"
         description={
           job
