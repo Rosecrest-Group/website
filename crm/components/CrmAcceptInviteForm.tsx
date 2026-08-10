@@ -3,28 +3,39 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { resetPassword } from "@/crm/lib/api";
+import { acceptInvite, resetPassword } from "@/crm/lib/api";
 import CurvedContainer from "@/crm/components/ui/CurvedContainer";
 import TextField from "@/crm/components/ui/TextField";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import BodyHeading from "@/crm/components/ui/BodyHeading";
 import BodySubtext from "@/crm/components/ui/BodySubtext";
 
-function parseInviteTokens(hash: string) {
-  const params = new URLSearchParams(hash.replace(/^#/, ""));
-  const type = params.get("type");
-  const accessToken = params.get("access_token");
-  const refreshToken = params.get("refresh_token");
-  // invite = first-time invite; recovery = re-invite / existing Auth user
-  if ((type !== "invite" && type !== "recovery") || !accessToken || !refreshToken) {
-    return null;
+type InviteSession =
+  | { kind: "tokenHash"; tokenHash: string; type: "invite" | "recovery" }
+  | { kind: "session"; accessToken: string; refreshToken: string };
+
+function parseInviteSession(): InviteSession | null {
+  const query = new URLSearchParams(window.location.search);
+  const tokenHash = query.get("token_hash");
+  const queryType = query.get("type");
+  if (tokenHash && (queryType === "invite" || queryType === "recovery")) {
+    return { kind: "tokenHash", tokenHash, type: queryType };
   }
-  return { accessToken, refreshToken };
+
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const type = hash.get("type");
+  const accessToken = hash.get("access_token");
+  const refreshToken = hash.get("refresh_token");
+  if ((type === "invite" || type === "recovery") && accessToken && refreshToken) {
+    return { kind: "session", accessToken, refreshToken };
+  }
+
+  return null;
 }
 
 export default function CrmAcceptInviteForm() {
   const router = useRouter();
-  const [tokens, setTokens] = useState<{ accessToken: string; refreshToken: string } | null>(null);
+  const [session, setSession] = useState<InviteSession | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -32,8 +43,8 @@ export default function CrmAcceptInviteForm() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    const parsed = parseInviteTokens(window.location.hash);
-    setTokens(parsed);
+    const parsed = parseInviteSession();
+    setSession(parsed);
     if (!parsed) {
       setError("This invite link is invalid or has expired. Ask a Super Admin to send a new invite.");
     }
@@ -41,7 +52,7 @@ export default function CrmAcceptInviteForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!tokens) return;
+    if (!session) return;
 
     if (password.length < 8) {
       setError("Password must be at least 8 characters");
@@ -55,7 +66,11 @@ export default function CrmAcceptInviteForm() {
     setError("");
     setLoading(true);
     try {
-      await resetPassword(tokens.accessToken, tokens.refreshToken, password);
+      if (session.kind === "tokenHash") {
+        await acceptInvite(session.tokenHash, session.type, password);
+      } else {
+        await resetPassword(session.accessToken, session.refreshToken, password);
+      }
       setDone(true);
       window.history.replaceState(null, "", window.location.pathname);
       setTimeout(() => router.push("/crm/login"), 3000);
@@ -86,7 +101,7 @@ export default function CrmAcceptInviteForm() {
                 Sign in now
               </Link>
             </div>
-          ) : tokens ? (
+          ) : session ? (
             <form onSubmit={handleSubmit} className="mt-6 space-y-4">
               <TextField
                 label="Password"

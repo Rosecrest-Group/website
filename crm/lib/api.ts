@@ -260,6 +260,17 @@ export async function resetPassword(accessToken: string, refreshToken: string, p
 
 }
 
+export async function acceptInvite(tokenHash: string, type: "invite" | "recovery", password: string) {
+  const res = await fetch(`${API_BASE}/auth/accept-invite`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tokenHash, type, password }),
+  });
+  const json = (await res.json()) as ApiResult<{ accepted: boolean }>;
+  if (!json.ok) throw new Error(json.error.message);
+  return json.data;
+}
+
 
 
 export async function refreshSession(): Promise<boolean> {
