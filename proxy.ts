@@ -31,7 +31,8 @@ export function proxy(request: NextRequest) {
   const isPublicCrmAuthRoute =
     pathname.startsWith("/crm/login") ||
     pathname.startsWith("/crm/forgot-password") ||
-    pathname.startsWith("/crm/reset-password");
+    pathname.startsWith("/crm/reset-password") ||
+    pathname.startsWith("/crm/accept-invite");
 
   const isPublicCrmDocsRoute = pathname.startsWith("/crm/documentation");
 
