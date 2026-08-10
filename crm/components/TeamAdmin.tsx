@@ -14,6 +14,7 @@ import SelectField from "@/crm/components/ui/SelectField";
 import Table, { type Column } from "@/crm/components/ui/Table";
 import StatusPill from "@/crm/components/ui/StatusPill";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
+import ConfirmModal from "@/crm/components/ui/ConfirmModal";
 
 function roleLabel(role: UserRole) {
   return USER_ROLE_OPTIONS.find((opt) => opt.value === role)?.label ?? role;
@@ -25,6 +26,13 @@ function canAccessTeam(role: UserRole) {
 
 function canManageTeam(role: UserRole) {
   return role === "SUPER_ADMIN";
+}
+
+/** Name + post-nominals, e.g. "Barisuka, BSc, MRICS" */
+function formatNameWithCredentials(fullName: string, credentials?: string | null) {
+  const creds = credentials?.trim();
+  if (!creds) return fullName;
+  return `${fullName}, ${creds}`;
 }
 
 type TeamRow = AdminUserSummary & Record<string, unknown>;
@@ -42,6 +50,9 @@ export default function TeamAdmin() {
     credentials: "",
   });
   const [inviting, setInviting] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<TeamRow | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState("");
 
   const isManager = currentUser ? canManageTeam(currentUser.role) : false;
 
@@ -120,23 +131,27 @@ export default function TeamAdmin() {
     }
   }
 
-  async function removeUser(id: string, fullName: string) {
+  async function confirmRemoveUser() {
+    if (!removeTarget) return;
     if (!isManager) {
       toast.error("Only Super Admins can remove team members");
       return;
     }
-    if (!window.confirm(`Remove ${fullName} from the CRM team? This cannot be undone.`)) {
-      return;
-    }
 
-    setSavingId(id);
+    setRemoving(true);
+    setRemoveError("");
+    setSavingId(removeTarget.id);
     try {
-      await api.removeTeamUser(id);
-      setUsers((list) => list.filter((u) => u.id !== id));
-      toast.success(`Removed ${fullName}`);
+      await api.removeTeamUser(removeTarget.id);
+      setUsers((list) => list.filter((u) => u.id !== removeTarget.id));
+      toast.success(`Removed ${removeTarget.fullName}`);
+      setRemoveTarget(null);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Remove failed");
+      const message = err instanceof Error ? err.message : "Remove failed";
+      setRemoveError(message);
+      toast.error(message);
     } finally {
+      setRemoving(false);
       setSavingId(null);
     }
   }
@@ -152,22 +167,29 @@ export default function TeamAdmin() {
       return;
     }
     if (action === "remove") {
-      await removeUser(row.id, row.fullName);
+      setRemoveError("");
+      setRemoveTarget(row);
     }
   }
 
   const columns: Column<TeamRow>[] = [
-    { key: "fullName", header: "Name" },
+    {
+      key: "fullName",
+      header: "Name",
+      render: (_value, row) => (
+        <span>{formatNameWithCredentials(row.fullName, row.credentials)}</span>
+      ),
+    },
     { key: "email", header: "Email" },
     {
       key: "role",
       header: "Role",
       render: (value, row) =>
-        isManager && row.id !== currentUser?.id ? (
+        isManager ? (
           <SelectField
             value={String(value)}
             onChange={(e) => updateUser(row.id, { role: e.target.value })}
-            disabled={savingId === row.id}
+            disabled={savingId === row.id || row.id === currentUser?.id}
           >
             {USER_ROLE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -176,7 +198,9 @@ export default function TeamAdmin() {
             ))}
           </SelectField>
         ) : (
-          <span>{roleLabel(String(value) as UserRole)}</span>
+          <span className="inline-flex min-h-[42px] min-w-[140px] items-center rounded-lg border border-transparent py-2.5 pl-3 pr-10 text-sm text-ink">
+            {roleLabel(String(value) as UserRole)}
+          </span>
         ),
     },
     {
@@ -304,6 +328,24 @@ export default function TeamAdmin() {
         getRowKey={(row) => row.id}
         emptyMessage="No team members yet"
         totalCount={users.length}
+      />
+
+      <ConfirmModal
+        isOpen={removeTarget != null}
+        title={`Remove ${removeTarget?.fullName ?? "team member"}?`}
+        description="This permanently removes them from the CRM team. If they have linked records, deactivate them instead."
+        confirmLabel="Remove member"
+        cancelLabel="Cancel"
+        loading={removing}
+        danger
+        error={removeError || undefined}
+        onCancel={() => {
+          if (!removing) {
+            setRemoveTarget(null);
+            setRemoveError("");
+          }
+        }}
+        onConfirm={() => void confirmRemoveUser()}
       />
     </CrmPageContent>
   );
