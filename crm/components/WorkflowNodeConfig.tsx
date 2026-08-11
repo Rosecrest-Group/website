@@ -18,6 +18,13 @@ const EMAIL_ATTACHMENT_DOCUMENT_TYPES = [
   { value: "COSTING", label: "Costing" },
 ] as const;
 
+/** Preset CC targets for sendEmail nodes (stored as merge/context path in `ccPath`). */
+const EMAIL_CC_PRESETS = [
+  { value: "", label: "None" },
+  { value: "job.surveyorEmail", label: "Assigned surveyor" },
+  { value: "job.agentEmail", label: "Estate agent" },
+] as const;
+
 const LEAD_SOURCE_TAG_OPTIONS: WorkflowTagSelectOption[] = LEAD_SOURCES.map((source, index) => ({
   ...source,
   color: WF_TAG_COLORS[index % WF_TAG_COLORS.length],
@@ -359,41 +366,85 @@ export default function WorkflowNodeConfig({
               />
             )}
             {nodeType === "sendEmail" && (
-              <div className="wf-field">
-                <div className="wf-field-label">
-                  Attachments{" "}
-                  <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--wf-text-3)" }}>
-                    optional
-                  </span>
+              <>
+                <div className="wf-field">
+                  <div className="wf-field-label">
+                    CC{" "}
+                    <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--wf-text-3)" }}>
+                      optional
+                    </span>
+                  </div>
+                  <select
+                    className="wf-select"
+                    value={String(data.ccPath ?? "")}
+                    onChange={(e) => {
+                      const ccPath = e.target.value.trim();
+                      if (ccPath) {
+                        update({ ccPath });
+                      } else {
+                        const { ccPath: _removed, ...rest } = data;
+                        onChange(node.id, rest);
+                      }
+                    }}
+                  >
+                    {EMAIL_CC_PRESETS.map((preset) => (
+                      <option key={preset.value || "none"} value={preset.value}>
+                        {preset.label}
+                      </option>
+                    ))}
+                    {/* Preserve unknown paths from seeds/scripts until edited */}
+                    {(() => {
+                      const current = String(data.ccPath ?? "").trim();
+                      const known = EMAIL_CC_PRESETS.some((p) => p.value === current);
+                      if (!current || known) return null;
+                      return (
+                        <option value={current}>
+                          Custom: {current}
+                        </option>
+                      );
+                    })()}
+                  </select>
+                  <div className="wf-field-help">
+                    Carbon-copy this address when the email sends. Use for templates that say the
+                    surveyor (or agent) has been copied.
+                  </div>
                 </div>
-                <div className="wf-source-checklist" role="group" aria-label="Email attachments">
-                  {EMAIL_ATTACHMENT_DOCUMENT_TYPES.map((docType) => {
-                    const checked = attachmentDocumentTypes.includes(docType.value);
-                    return (
-                      <label key={docType.value} className="wf-checkbox-row">
-                        <div
-                          className={`wf-checkbox ${checked ? "checked" : ""}`}
-                          onClick={() => toggleAttachmentDocumentType(docType.value)}
-                          role="checkbox"
-                          aria-checked={checked}
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === " " || e.key === "Enter") {
-                              e.preventDefault();
-                              toggleAttachmentDocumentType(docType.value);
-                            }
-                          }}
-                        />
-                        <span className="wf-checkbox-label">{docType.label}</span>
-                      </label>
-                    );
-                  })}
+                <div className="wf-field">
+                  <div className="wf-field-label">
+                    Attachments{" "}
+                    <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--wf-text-3)" }}>
+                      optional
+                    </span>
+                  </div>
+                  <div className="wf-source-checklist" role="group" aria-label="Email attachments">
+                    {EMAIL_ATTACHMENT_DOCUMENT_TYPES.map((docType) => {
+                      const checked = attachmentDocumentTypes.includes(docType.value);
+                      return (
+                        <label key={docType.value} className="wf-checkbox-row">
+                          <div
+                            className={`wf-checkbox ${checked ? "checked" : ""}`}
+                            onClick={() => toggleAttachmentDocumentType(docType.value)}
+                            role="checkbox"
+                            aria-checked={checked}
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === " " || e.key === "Enter") {
+                                e.preventDefault();
+                                toggleAttachmentDocumentType(docType.value);
+                              }
+                            }}
+                          />
+                          <span className="wf-checkbox-label">{docType.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <div className="wf-field-help">
+                    Attach matching job documents when this email sends. Leave unchecked for a normal
+                    email with no files.
+                  </div>
                 </div>
-                <div className="wf-field-help">
-                  Attach matching job documents when this email sends. Leave unchecked for a normal
-                  email with no files.
-                </div>
-              </div>
+              </>
             )}
           </>
         )}

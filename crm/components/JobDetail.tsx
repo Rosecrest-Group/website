@@ -29,6 +29,64 @@ function paymentStatusVariant(status: string): "completed" | "pending" | "in-rev
   return "pending";
 }
 
+const SURVEY_STAGES = [
+  "PAID",
+  "ACCESS_REQUESTED",
+  "ACCESS_CONFIRMED",
+  "INSPECTION_BOOKED",
+  "INSPECTION_COMPLETE",
+  "REPORT_DRAFTING",
+  "REPORT_QC",
+  "REPORT_DELIVERED",
+  "COMPLETED",
+] as const;
+
+type SurveyStage = (typeof SURVEY_STAGES)[number];
+
+function surveyStageIndex(stage: string): number {
+  if (stage === "PENDING_PAYMENT") return -1;
+  return SURVEY_STAGES.indexOf(stage as SurveyStage);
+}
+
+/** Which Job Detail panels to show for the current survey stage. */
+function surveyStagePanels(stage: string, opts: { hasSurveyor: boolean; accessPendingReview: boolean }) {
+  const idx = surveyStageIndex(stage);
+  const is = (...stages: string[]) => stages.includes(stage);
+  const atOrAfter = (s: SurveyStage) => {
+    const target = SURVEY_STAGES.indexOf(s);
+    return target >= 0 && idx >= target;
+  };
+  const beforeSite =
+    opts.hasSurveyor &&
+    (is("PENDING_PAYMENT", "PAID", "ACCESS_REQUESTED", "ACCESS_CONFIRMED", "INSPECTION_BOOKED") ||
+      (idx >= 0 && idx < SURVEY_STAGES.indexOf("INSPECTION_COMPLETE")));
+
+  const accessPhase = is("PENDING_PAYMENT", "PAID", "ACCESS_REQUESTED") || opts.accessPendingReview;
+  const bookingPhase = is("ACCESS_CONFIRMED", "INSPECTION_BOOKED");
+  const reportPhase = is("REPORT_DRAFTING", "REPORT_QC", "REPORT_DELIVERED", "COMPLETED");
+  const inspectionDetails =
+    stage === "PENDING_PAYMENT" ||
+    (idx >= 0 && idx <= SURVEY_STAGES.indexOf("INSPECTION_BOOKED"));
+
+  return {
+    /** Unpaid payment actions stay available until paid regardless of stage. */
+    surveyor: accessPhase || !opts.hasSurveyor,
+    accessEditor: accessPhase,
+    accessReadOnly: !accessPhase && atOrAfter("ACCESS_CONFIRMED"),
+    /** Torera: checkpoints once assigned, before attending site. */
+    preSiteCheckpoints: beforeSite,
+    /** Proposed / booked date + arrival window — needed before Access Request email. */
+    inspectionDetails,
+    inspectionDetailsProposed: accessPhase && !bookingPhase,
+    dataCapture: is("INSPECTION_COMPLETE"),
+    documents: reportPhase,
+    documentsUpload: is("REPORT_DRAFTING", "REPORT_QC"),
+    reviewRequest: is("REPORT_DELIVERED", "COMPLETED"),
+    paymentsHistory: is("REPORT_DELIVERED", "COMPLETED"),
+    earlierDetails: atOrAfter("ACCESS_CONFIRMED"),
+  };
+}
+
 export default function JobDetail({ id }: { id: string }) {
   const [job, setJob] = useState<
     (Job & { payments?: { id: string; amount: number; status: string; paidAt?: string | null }[] }) | null
@@ -57,6 +115,7 @@ export default function JobDetail({ id }: { id: string }) {
     accessNotes: "",
   });
   const [inspectionDate, setInspectionDate] = useState("");
+  const [inspectionWindow, setInspectionWindow] = useState("");
   const [inspectionError, setInspectionError] = useState<string | null>(null);
   const [savingInspection, setSavingInspection] = useState(false);
   const [stageError, setStageError] = useState<string | null>(null);
@@ -74,6 +133,7 @@ export default function JobDetail({ id }: { id: string }) {
         setWorkStart(j.workStartDate?.slice(0, 10) ?? "");
         setWorkEnd(j.workEndDate?.slice(0, 10) ?? "");
         setInspectionDate(j.inspectionDate?.slice(0, 10) ?? "");
+        setInspectionWindow(j.inspectionWindow ?? "");
         setAccessForm({
           agentName: j.agentName ?? "",
           agentEmail: j.agentEmail ?? "",
@@ -182,6 +242,11 @@ export default function JobDetail({ id }: { id: string }) {
 
   const isTrade = job.jobType === "TRADE_WORK";
   const documents = (job.documents ?? []) as JobDocument[];
+  const hasReportDocument = documents.some((d) => d.type === "REPORT");
+  const panels = surveyStagePanels(job.stage, {
+    hasSurveyor: Boolean(job.assignedTo),
+    accessPendingReview: Boolean(job.accessDetailsPendingReview),
+  });
   const activeStageStyle: CSSProperties = {
     backgroundColor: "var(--color-primary)",
     borderColor: "var(--color-primary)",
@@ -192,18 +257,6 @@ export default function JobDetail({ id }: { id: string }) {
     "WORK_IN_PROGRESS",
     "WORK_COMPLETE",
     "SNAGGING",
-    "COMPLETED",
-  ] as const;
-
-  const SURVEY_STAGES = [
-    "PAID",
-    "ACCESS_REQUESTED",
-    "ACCESS_CONFIRMED",
-    "INSPECTION_BOOKED",
-    "INSPECTION_COMPLETE",
-    "REPORT_DRAFTING",
-    "REPORT_QC",
-    "REPORT_DELIVERED",
     "COMPLETED",
   ] as const;
 
@@ -244,9 +297,19 @@ export default function JobDetail({ id }: { id: string }) {
   async function confirmAccessDetails() {
     setAccessError(null);
     setAccessSaved(false);
+    if (!inspectionDate.trim() || !inspectionWindow.trim()) {
+      setAccessError(
+        "Set and save proposed inspection date and arrival window first — they go in the agent email"
+      );
+      return;
+    }
     setConfirmingAccess(true);
     try {
-      await api.updateJob(id, accessForm);
+      await api.updateJob(id, {
+        ...accessForm,
+        inspectionDate: new Date(`${inspectionDate}T12:00:00.000Z`).toISOString(),
+        inspectionWindow: inspectionWindow.trim(),
+      });
       await api.confirmJobAccessDetails(id);
       await reload();
     } catch (e) {
@@ -263,6 +326,24 @@ export default function JobDetail({ id }: { id: string }) {
 
   async function updateSurveyStage(stage: string) {
     setStageError(null);
+    if (stage === "ACCESS_REQUESTED") {
+      if (!job?.assignedTo) {
+        setStageError("Assign a surveyor before moving to Access Requested");
+        return;
+      }
+      if (!job.inspectionDate || !job.inspectionWindow?.trim()) {
+        setStageError(
+          "Set proposed inspection date and arrival window before Access Requested — they go in the agent email"
+        );
+        return;
+      }
+    }
+    if (stage === "REPORT_DELIVERED" && !hasReportDocument) {
+      setStageError(
+        "Upload a Report document before moving to Report Delivered — it is attached to the client email"
+      );
+      return;
+    }
     const previous = job;
     setJob((j) => (j ? { ...j, stage } : j));
     try {
@@ -284,10 +365,13 @@ export default function JobDetail({ id }: { id: string }) {
       const iso = inspectionDate
         ? new Date(`${inspectionDate}T12:00:00.000Z`).toISOString()
         : null;
-      await api.updateJob(id, { inspectionDate: iso });
+      await api.updateJob(id, {
+        inspectionDate: iso,
+        inspectionWindow: inspectionWindow.trim() || null,
+      });
       await reload();
     } catch (e) {
-      setInspectionError(e instanceof Error ? e.message : "Could not save inspection date");
+      setInspectionError(e instanceof Error ? e.message : "Could not save inspection details");
     } finally {
       setSavingInspection(false);
     }
@@ -336,6 +420,11 @@ export default function JobDetail({ id }: { id: string }) {
           <p className="mt-1 text-sm text-(--color-tc-30)">
             {job.propertyAddress}, {job.propertyPostcode}
           </p>
+          {showMoney && (
+            <p className="mt-1 text-sm text-ink-muted">
+              Agreed amount: <span className="font-medium text-ink">£{job.agreedAmount}</span>
+            </p>
+          )}
         </div>
         <div className="flex flex-col items-end gap-2">
           {showMoney && (
@@ -401,14 +490,24 @@ export default function JobDetail({ id }: { id: string }) {
           </CrmPanel>
         )}
 
-        {/* Setup: Payment (+ Surveyor for survey jobs) */}
-        <div className={`grid gap-6 ${isTrade ? "lg:grid-cols-3" : showMoney ? "lg:grid-cols-2" : "lg:grid-cols-1"}`}>
-          {showMoney && (
+        {/* Setup: Payment (+ Surveyor for survey jobs in access phase) */}
+        <div
+          className={`grid gap-6 ${
+            isTrade
+              ? "lg:grid-cols-3"
+              : showMoney && job.paymentStatus !== "PAID" && panels.surveyor
+                ? "lg:grid-cols-2"
+                : "lg:grid-cols-1"
+          }`}
+        >
+          {showMoney && (isTrade || job.paymentStatus !== "PAID") && (
             <CrmPanel title="Payment">
               <div className="space-y-3">
-                <p className="text-sm text-(--color-tc-40)">
-                  Agreed amount: <strong>£{job.agreedAmount}</strong>
-                </p>
+                {isTrade && (
+                  <p className="text-sm text-(--color-tc-40)">
+                    Agreed amount: <strong>£{job.agreedAmount}</strong>
+                  </p>
+                )}
                 {(job.stripePaymentLinkUrl || paymentLink) && (
                   <div className="rounded-lg bg-(--color-nc-10) p-3 text-xs break-all text-(--color-tc-30)">
                     {job.stripePaymentLinkUrl ?? paymentLink}
@@ -439,7 +538,7 @@ export default function JobDetail({ id }: { id: string }) {
             </CrmPanel>
           )}
 
-          {!isTrade && (
+          {!isTrade && panels.surveyor && (
             <CrmPanel title="Surveyor assignment">
               {canAssignSurveyor ? (
                 <>
@@ -546,7 +645,7 @@ export default function JobDetail({ id }: { id: string }) {
               </CrmPanel>
             )}
 
-            {canManageAccess ? (
+            {panels.accessEditor && canManageAccess && (
             <CrmPanel title="Access details">
               <div className="space-y-6">
                 <div className="grid gap-6 lg:grid-cols-2">
@@ -671,7 +770,10 @@ export default function JobDetail({ id }: { id: string }) {
                 </div>
               </div>
             </CrmPanel>
-            ) : (
+            )}
+
+            {!canManageAccess &&
+              panels.accessReadOnly &&
               (job.agentName ||
                 job.agentEmail ||
                 job.agentPhone ||
@@ -740,8 +842,7 @@ export default function JobDetail({ id }: { id: string }) {
                     )}
                   </div>
                 </CrmPanel>
-              )
-            )}
+              )}
 
             <CrmPanel title="Survey workflow">
               <div className="space-y-6">
@@ -752,24 +853,33 @@ export default function JobDetail({ id }: { id: string }) {
                     <h3 className="text-sm font-medium text-ink">Stage</h3>
                     <p className="text-xs text-ink-muted">
                       {canManageAccess
-                        ? "Click a step to move the job forward"
+                        ? "Click a step to move the job forward — only that stage’s tasks show below"
                         : "Current job stage"}
                     </p>
                   </div>
                   <div className="overflow-x-auto pb-1">
                     <ol className="flex min-w-max items-stretch gap-1.5">
                       {SURVEY_STAGES.map((s, i) => {
-                        const currentIndex = SURVEY_STAGES.indexOf(
-                          job.stage as (typeof SURVEY_STAGES)[number]
-                        );
+                        const currentIndex = surveyStageIndex(job.stage);
                         const isCurrent = job.stage === s;
                         const isDone = currentIndex > i;
+                        const needsReportFirst = s === "REPORT_DELIVERED" && !hasReportDocument;
+                        const needsInspectionFirst =
+                          s === "ACCESS_REQUESTED" &&
+                          (!job.inspectionDate || !job.inspectionWindow?.trim());
                         return (
                           <li key={s} className="flex items-center gap-1.5">
                             <button
                               type="button"
                               onClick={() => canManageAccess && updateSurveyStage(s)}
                               disabled={!canManageAccess}
+                              title={
+                                needsReportFirst
+                                  ? "Upload a Report document first — it is attached to the client email"
+                                  : needsInspectionFirst
+                                    ? "Set proposed inspection date and arrival window first"
+                                  : undefined
+                              }
                               className={[
                                 "rounded-lg border px-3 py-2 text-left text-xs font-medium transition-colors",
                                 isCurrent
@@ -781,6 +891,9 @@ export default function JobDetail({ id }: { id: string }) {
                                   ? "hover:border-brand-light hover:text-ink"
                                   : "",
                                 !canManageAccess ? "cursor-default" : "",
+                                (needsReportFirst || needsInspectionFirst) && !isCurrent
+                                  ? "opacity-60"
+                                  : "",
                               ].join(" ")}
                             >
                               <span className="block tabular-nums text-[10px] opacity-70">
@@ -806,9 +919,21 @@ export default function JobDetail({ id }: { id: string }) {
                       })}
                     </ol>
                   </div>
+                  {canManageAccess && panels.documents && !hasReportDocument && (
+                      <p className="text-xs text-amber-700">
+                        Upload a Report document before Report Delivered — the issued email attaches it
+                        automatically.
+                      </p>
+                    )}
                 </section>
 
-                <div className="grid gap-6 lg:grid-cols-2">
+                {(panels.preSiteCheckpoints || panels.inspectionDetails) && (
+                <div
+                  className={`grid gap-6 ${
+                    panels.preSiteCheckpoints && panels.inspectionDetails ? "lg:grid-cols-2" : "lg:grid-cols-1"
+                  }`}
+                >
+                  {panels.preSiteCheckpoints && (
                   <section className="space-y-4 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
                     <div className="flex items-center gap-2.5">
                       <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
@@ -844,17 +969,23 @@ export default function JobDetail({ id }: { id: string }) {
                       ))}
                     </div>
                   </section>
+                  )}
 
+                  {panels.inspectionDetails && (
                   <section className="flex flex-col space-y-4 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
                     <div className="flex items-center gap-2.5">
                       <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
                         <CalendarDays className="size-4" aria-hidden />
                       </div>
                       <div>
-                        <h3 className="text-sm font-medium text-ink">Inspection</h3>
+                        <h3 className="text-sm font-medium text-ink">
+                          {panels.inspectionDetailsProposed ? "Proposed inspection" : "Inspection"}
+                        </h3>
                         <p className="text-xs text-ink-muted">
                           {canSetInspectionDate
-                            ? "Booked date for the site visit"
+                            ? panels.inspectionDetailsProposed
+                              ? "Required before the access request email to the agent"
+                              : "Booked date and arrival window for the site visit"
                             : "Set by ops — shown for your diary"}
                         </p>
                       </div>
@@ -862,14 +993,25 @@ export default function JobDetail({ id }: { id: string }) {
                     {canSetInspectionDate ? (
                       <>
                         <TextField
-                          label="Inspection date"
+                          label="Date"
                           type="date"
                           value={inspectionDate}
                           onChange={(e) => setInspectionDate(e.target.value)}
                         />
+                        <TextField
+                          label="Arrival window"
+                          placeholder="e.g. 9:00–12:00"
+                          value={inspectionWindow}
+                          onChange={(e) => setInspectionWindow(e.target.value)}
+                        />
                         {inspectionError && (
                           <p className="text-sm text-red-600">{inspectionError}</p>
                         )}
+                        {!inspectionDate.trim() || !inspectionWindow.trim() ? (
+                          <p className="text-xs text-amber-700">
+                            Date and arrival window are included in the Access Request and surveyor emails.
+                          </p>
+                        ) : null}
                         <div className="mt-auto flex justify-end border-t border-line pt-3">
                           <SecondaryButton
                             type="button"
@@ -878,25 +1020,37 @@ export default function JobDetail({ id }: { id: string }) {
                             onClick={saveInspectionDetails}
                             disabled={savingInspection}
                           >
-                            {savingInspection ? "Saving…" : "Save date"}
+                            {savingInspection ? "Saving…" : "Save"}
                           </SecondaryButton>
                         </div>
                       </>
                     ) : (
-                      <p className="text-sm text-ink">
-                        {inspectionDate
-                          ? new Date(`${inspectionDate}T12:00:00`).toLocaleDateString("en-GB", {
-                              weekday: "long",
-                              day: "numeric",
-                              month: "long",
-                              year: "numeric",
-                            })
-                          : "Not set yet"}
-                      </p>
+                      <dl className="space-y-2 text-sm">
+                        <div>
+                          <dt className="text-xs text-ink-muted">Date</dt>
+                          <dd className="text-ink">
+                            {inspectionDate
+                              ? new Date(`${inspectionDate}T12:00:00`).toLocaleDateString("en-GB", {
+                                  weekday: "long",
+                                  day: "numeric",
+                                  month: "long",
+                                  year: "numeric",
+                                })
+                              : "Not set yet"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-ink-muted">Arrival window</dt>
+                          <dd className="text-ink">{inspectionWindow.trim() || "Not set yet"}</dd>
+                        </div>
+                      </dl>
                     )}
                   </section>
+                  )}
                 </div>
+                )}
 
+                {panels.dataCapture && (
                 <section className="space-y-4 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
                   <div className="flex items-center gap-2.5">
                     <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
@@ -917,9 +1071,9 @@ export default function JobDetail({ id }: { id: string }) {
                     Data capture complete (photos, notes, checklist)
                   </label>
                 </section>
+                )}
 
-                {canManageAccess &&
-                  (job.stage === "COMPLETED" || job.stage === "REPORT_DELIVERED") && (
+                {panels.reviewRequest && canManageAccess && (
                   <div className="flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-ink">Review request</p>
@@ -942,8 +1096,71 @@ export default function JobDetail({ id }: { id: string }) {
               </div>
             </CrmPanel>
 
-            <div className={`grid gap-6 ${showMoney ? "lg:grid-cols-2" : "lg:grid-cols-1"}`}>
-              {showMoney && (
+            {panels.earlierDetails && canManageAccess && (
+              <details className="rounded-xl border border-line bg-surface">
+                <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-ink">
+                  Earlier details — surveyor &amp; access
+                </summary>
+                <div className="space-y-4 border-t border-line px-4 py-4">
+                  <div>
+                    <p className="text-xs text-ink-muted">Surveyor</p>
+                    {canAssignSurveyor ? (
+                      <SelectField
+                        label="Assigned surveyor"
+                        value={job.assignedTo?.id ?? ""}
+                        onChange={(e) => assignSurveyor(e.target.value)}
+                      >
+                        <option value="">Unassigned</option>
+                        {surveyors.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.fullName}
+                          </option>
+                        ))}
+                      </SelectField>
+                    ) : (
+                      <p className="text-sm text-ink">{job.assignedTo?.fullName ?? "Unassigned"}</p>
+                    )}
+                  </div>
+                  <div className="grid gap-4 text-sm lg:grid-cols-2">
+                    <div>
+                      <p className="text-xs text-ink-muted">Estate agent</p>
+                      <p className="text-ink">{job.agentName || "—"}</p>
+                      <p className="text-ink-muted">{job.agentEmail || "—"}</p>
+                      <p className="text-ink-muted">{job.agentPhone || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-ink-muted">Vendor / occupant</p>
+                      <p className="text-ink">{job.vendorName || "—"}</p>
+                      <p className="text-ink-muted">{job.vendorEmail || "—"}</p>
+                      <p className="text-ink-muted">{job.vendorPhone || "—"}</p>
+                    </div>
+                  </div>
+                  {job.accessNotes && (
+                    <div>
+                      <p className="text-xs text-ink-muted">Access notes</p>
+                      <p className="whitespace-pre-wrap text-sm text-ink">{job.accessNotes}</p>
+                    </div>
+                  )}
+                  {inspectionDate && (
+                    <div>
+                      <p className="text-xs text-ink-muted">Inspection date</p>
+                      <p className="text-sm text-ink">
+                        {new Date(`${inspectionDate}T12:00:00`).toLocaleDateString("en-GB", {
+                          weekday: "long",
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </details>
+            )}
+
+            {(panels.documents || panels.paymentsHistory) && (
+            <div className={`grid gap-6 ${showMoney && panels.paymentsHistory ? "lg:grid-cols-2" : "lg:grid-cols-1"}`}>
+              {showMoney && panels.paymentsHistory && (
               <CrmPanel title="Payments history">
                 {(job.payments ?? []).length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-sidebar/40 px-4 py-8 text-center">
@@ -966,6 +1183,7 @@ export default function JobDetail({ id }: { id: string }) {
               </CrmPanel>
               )}
 
+              {panels.documents && (
               <CrmPanel title="Documents">
                 <div className="space-y-4">
                   {documents.length > 0 ? (
@@ -994,6 +1212,7 @@ export default function JobDetail({ id }: { id: string }) {
                     </div>
                   )}
 
+                  {panels.documentsUpload && (
                   <div className="space-y-3 border-t border-line pt-4">
                     <SelectField
                       label="Document type"
@@ -1027,9 +1246,12 @@ export default function JobDetail({ id }: { id: string }) {
                       </SecondaryButton>
                     </div>
                   </div>
+                  )}
                 </div>
               </CrmPanel>
+              )}
             </div>
+            )}
           </>
         )}
 

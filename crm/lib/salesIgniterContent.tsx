@@ -1,5 +1,10 @@
 import { linkifyText } from "@/crm/lib/formatMessageBody";
-import { htmlToPlainText, isHtmlContent, sanitizeEmailHtml } from "@/crm/lib/messageFormatting";
+import {
+  htmlToPlainText,
+  isDesignedEmailHtml,
+  isHtmlContent,
+  prepareEmailHtmlForThread,
+} from "@/crm/lib/messageFormatting";
 import { cn } from "@/lib/utils";
 
 const BRACKET_URL_REGEX = /\[?(https?:\/\/[^\]\s<>]+)\]?/gi;
@@ -100,16 +105,22 @@ export function SalesIgniterRichContent({
   }
 
   if (isHtmlContent(source)) {
+    const designed = isDesignedEmailHtml(source);
     return (
       <div
         className={cn(
-          "crm-email-body crm-email-body--thread text-sm leading-relaxed [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl",
+          "crm-email-body crm-email-body--thread text-sm leading-relaxed [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl",
           compact && "prose prose-sm max-w-none prose-neutral",
-          isOutbound && channel === "EMAIL"
-            ? "[&_a]:text-indigo-700"
-            : "[&_a]:text-(--color-primary)"
+          designed
+            ? "crm-email-body--designed"
+            : cn(
+                "[&_a]:underline",
+                isOutbound && channel === "EMAIL"
+                  ? "[&_a]:text-indigo-700"
+                  : "[&_a]:text-(--color-primary)"
+              )
         )}
-        dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(source) }}
+        dangerouslySetInnerHTML={{ __html: prepareEmailHtmlForThread(source) }}
       />
     );
   }

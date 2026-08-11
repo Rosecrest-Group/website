@@ -138,13 +138,28 @@ export function nodeDisplayDetail(node: Node): string {
       const attachments = Array.isArray(data.attachmentDocumentTypes)
         ? data.attachmentDocumentTypes.map(String).filter(Boolean)
         : [];
-      if (attachments.length === 0) return template;
-      const attachmentLabel = `Attach ${attachments
-        .map((type) =>
-          type === "REPORT" ? "report" : type === "ACTION_PLAN" ? "action plan" : type === "COSTING" ? "costing" : type.toLowerCase()
-        )
-        .join(", ")}`;
-      return template ? `${template} · ${attachmentLabel}` : attachmentLabel;
+      const parts: string[] = [];
+      if (template) parts.push(template);
+      if (attachments.length > 0) {
+        parts.push(
+          `Attach ${attachments
+            .map((type) =>
+              type === "REPORT"
+                ? "report"
+                : type === "ACTION_PLAN"
+                  ? "action plan"
+                  : type === "COSTING"
+                    ? "costing"
+                    : type.toLowerCase()
+            )
+            .join(", ")}`
+        );
+      }
+      const ccPath = String(data.ccPath ?? "").trim();
+      if (ccPath === "job.surveyorEmail") parts.push("CC surveyor");
+      else if (ccPath === "job.agentEmail") parts.push("CC estate agent");
+      else if (ccPath) parts.push(`CC ${ccPath}`);
+      return parts.join(" · ");
     }
     case "sendSms":
     case "sendWhatsapp":

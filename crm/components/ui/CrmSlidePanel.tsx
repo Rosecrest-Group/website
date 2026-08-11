@@ -5,6 +5,10 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/** Soft spring — decelerates into place without a hard stop. */
+const PANEL_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
+const PANEL_MS = 480;
+
 export interface CrmSlidePanelProps {
   isOpen: boolean;
   onClose: () => void;
@@ -32,11 +36,18 @@ export default function CrmSlidePanel({
   useEffect(() => {
     if (isOpen) {
       setMounted(true);
-      const frame = requestAnimationFrame(() => setVisible(true));
-      return () => cancelAnimationFrame(frame);
+      // Double rAF so the browser paints the off-screen state before we animate in.
+      let inner = 0;
+      const outer = requestAnimationFrame(() => {
+        inner = requestAnimationFrame(() => setVisible(true));
+      });
+      return () => {
+        cancelAnimationFrame(outer);
+        cancelAnimationFrame(inner);
+      };
     }
     setVisible(false);
-    const timer = setTimeout(() => setMounted(false), 300);
+    const timer = setTimeout(() => setMounted(false), PANEL_MS);
     return () => clearTimeout(timer);
   }, [isOpen]);
 
@@ -66,9 +77,10 @@ export default function CrmSlidePanel({
         type="button"
         aria-label="Close panel"
         className={cn(
-          "absolute inset-0 bg-white/25 backdrop-blur-sm transition-[opacity,backdrop-filter] duration-300 ease-out",
-          visible ? "opacity-100" : "opacity-0",
+          "absolute inset-0 bg-(--color-ink)/20 transition-[opacity,backdrop-filter] will-change-[opacity,backdrop-filter]",
+          visible ? "opacity-100 backdrop-blur-[3px]" : "opacity-0 backdrop-blur-0",
         )}
+        style={{ transitionDuration: `${PANEL_MS}ms`, transitionTimingFunction: PANEL_EASE }}
         onClick={closeDisabled ? undefined : onClose}
       />
 
@@ -77,10 +89,13 @@ export default function CrmSlidePanel({
         aria-modal="true"
         aria-labelledby={title ? "crm-slide-panel-title" : undefined}
         className={cn(
-          "crm-theme absolute inset-y-0 right-0 flex h-dvh max-h-dvh w-full flex-col border-l border-(--color-line) bg-(--color-surface) shadow-[0_0_48px_rgba(63,63,80,0.12)] transition-transform duration-300 ease-[var(--ease-out-expo)] will-change-transform",
+          "crm-theme absolute inset-y-0 right-0 flex h-dvh max-h-dvh w-full flex-col border-l border-(--color-line) bg-(--color-surface) will-change-transform",
+          "shadow-[-12px_0_48px_rgba(63,63,80,0.10)]",
+          "transition-[transform,opacity] transform-gpu",
           widthClassName,
-          visible ? "translate-x-0" : "translate-x-full",
+          visible ? "translate-x-0 opacity-100" : "translate-x-full opacity-95",
         )}
+        style={{ transitionDuration: `${PANEL_MS}ms`, transitionTimingFunction: PANEL_EASE }}
       >
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-(--color-line) px-5 py-4">
           <div className="min-w-0">

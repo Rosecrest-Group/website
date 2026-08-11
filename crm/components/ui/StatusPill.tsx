@@ -92,6 +92,32 @@ export function leadStageToPillVariant(stage: string): StatusVariant {
   }
 }
 
+export function jobStageToPillVariant(stage: string): StatusVariant {
+  switch (stage) {
+    case "PAID":
+    case "WORK_SCHEDULED":
+      return "new";
+    case "ACCESS_REQUESTED":
+    case "WORK_IN_PROGRESS":
+      return "pending";
+    case "ACCESS_CONFIRMED":
+    case "INSPECTION_COMPLETE":
+    case "WORK_COMPLETE":
+      return "awaiting";
+    case "INSPECTION_BOOKED":
+    case "REPORT_DRAFTING":
+    case "SNAGGING":
+      return "in-review";
+    case "REPORT_QC":
+      return "paused";
+    case "REPORT_DELIVERED":
+    case "COMPLETED":
+      return "completed";
+    default:
+      return "in-review";
+  }
+}
+
 export default function StatusPill({
   variant,
   label,

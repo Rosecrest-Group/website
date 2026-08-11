@@ -191,3 +191,21 @@
 .crm-email-body--thread a {
   word-break: break-word;
 }
+
+/* Designed quotation / marketing emails: keep card + CTA layout inside the bubble. */
+.crm-email-body--designed {
+  font-size: 14px;
+}
+
+.crm-email-body--designed > div {
+  max-width: 100% !important;
+}
+
+.crm-email-body--designed a[style*="display:inline-block"],
+.crm-email-body--designed a[style*="display: inline-block"] {
+  text-decoration: none !important;
+}
+
+.crm-email-body--designed img {
+  border-radius: 0;
+}

@@ -728,6 +728,7 @@ export default function CrmDashboard({
           columns={leadColumns}
           data={recentLeads as (Lead & Record<string, unknown>)[]}
           getRowKey={(row) => row.id}
+          onRowClick={(row) => router.push(`/crm/leads/${row.id}`)}
           emptyMessage="No leads in this period"
           toolbarExtra={
             <Link

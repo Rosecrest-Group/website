@@ -43,6 +43,20 @@ const THREAD_EMAIL_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   },
 };
 
+/**
+ * Designed / marketing emails (quotation cards, CTA buttons) use nested divs + inline styles.
+ * These must keep their layout in thread bubbles instead of being flattened to reader-mode <p>s.
+ */
+export function isDesignedEmailHtml(html: string): boolean {
+  const trimmed = html.trim();
+  if (!trimmed || !isHtmlContent(trimmed)) return false;
+  const styleCount = (trimmed.match(/\sstyle\s*=/gi) ?? []).length;
+  if (styleCount >= 3) return true;
+  if (/display\s*:\s*inline-block/i.test(trimmed) && /<a\b/i.test(trimmed)) return true;
+  if (/border-radius\s*:/i.test(trimmed) && /background\s*:/i.test(trimmed)) return true;
+  return false;
+}
+
 export function isHtmlContent(body: string): boolean {
   // Require a real HTML tag — plain-text emails often include <https://...> angle brackets.
   return /<\/?(?:p|div|br|span|strong|b|em|i|u|s|ul|ol|li|a|h[1-6]|table|thead|tbody|tr|td|th|blockquote|img|html|body|font|center)\b/i.test(
@@ -61,11 +75,33 @@ function escapeHtml(text: string): string {
     .replace(/>/g, "&gt;");
 }
 
+const BARE_URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)}\]'"])/g;
+
 function linkifyEscaped(text: string): string {
   return text.replace(
-    /(https?:\/\/[^\s<]+[^\s<.,;:!?)}\]'"])/g,
+    BARE_URL_RE,
     '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
   );
+}
+
+/** Turn bare http(s) URLs in text nodes into anchors; leave existing <a> tags alone. */
+function linkifyBareUrlsInHtml(html: string): string {
+  const parts = html.split(/(<a\b[^>]*>[\s\S]*?<\/a>)/gi);
+  return parts
+    .map((part) => {
+      if (/^<a\b/i.test(part)) return part;
+      return part.replace(/(^|>)([^<]*)/g, (_match, prefix: string, text: string) => {
+        if (!text || !/https?:\/\//i.test(text)) return `${prefix}${text}`;
+        return (
+          prefix +
+          text.replace(
+            BARE_URL_RE,
+            '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+          )
+        );
+      });
+    })
+    .join("");
 }
 
 function quoteDepth(line: string): { depth: number; rest: string } {
@@ -168,15 +204,27 @@ export function plainTextEmailToHtml(text: string): string {
 /**
  * Normalize email HTML for chat-thread bubbles.
  * Contenteditable often emits <div> lines; inbound plain-text replies need quote/list formatting.
+ * Designed quotation emails keep their inline-styled layout (cards + CTA buttons).
  */
 export function prepareEmailHtmlForThread(body: string): string {
   if (!isHtmlContent(body)) {
     return plainTextEmailToHtml(body);
   }
 
+  if (isDesignedEmailHtml(body)) {
+    let html = sanitizeHtml(body, {
+      ...EMAIL_SANITIZE_OPTIONS,
+      transformTags: {
+        a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer", target: "_blank" }),
+      },
+    });
+    html = linkifyBareUrlsInHtml(html);
+    return html.trim() || "<p></p>";
+  }
+
   let html = sanitizeHtml(body, THREAD_EMAIL_SANITIZE_OPTIONS);
 
-  // Contenteditable / marketing wrappers → paragraphs
+  // Contenteditable wrappers → paragraphs (not for designed layout emails)
   html = html.replace(/<div(\s[^>]*)?>/gi, "<p>").replace(/<\/div>/gi, "</p>");
 
   // Flatten accidental nested paragraphs from wrapper conversion
@@ -191,6 +239,9 @@ export function prepareEmailHtmlForThread(body: string): string {
 
   // Keep at most one blank line between blocks
   html = html.replace(/(?:<br\s*\/?\s*>\s*){3,}/gi, "<br><br>");
+
+  // Templates often emit plain URLs inside <p>/<li> without <a> wrappers
+  html = linkifyBareUrlsInHtml(html);
 
   return html.trim() || "<p></p>";
 }

@@ -138,6 +138,14 @@ export interface InternalMessageItem {
   author: { id: string; fullName: string; email: string; avatarUrl?: string | null };
   parentMessageId?: string | null;
   parentPreview?: { id: string; authorName: string; body: string } | null;
+  referencedMessageId?: string | null;
+  referencedPreview?: {
+    id: string;
+    subject: string | null;
+    body: string;
+    channel: string;
+    direction: string;
+  } | null;
   mentions: Array<{
     kind: "USER" | "ROLE";
     alias?: string | null;
@@ -476,6 +484,8 @@ export interface Lead {
   bedroomBand: string | null;
   quotedAmount: number | null;
   quotedAt: string | null;
+  /** First open of the lead pay URL; null until the customer clicks. */
+  paymentLinkClickedAt?: string | null;
   cadenceStopped: boolean;
   createdAt: string;
   updatedAt: string;
@@ -513,6 +523,7 @@ export interface Message {
   fromAddress?: string;
   teamConnectPhoneDocId?: string | null;
   teamConnectMessageId?: string | null;
+  replyToMessageId?: string | null;
 }
 
 export interface TeamConnectNumber {

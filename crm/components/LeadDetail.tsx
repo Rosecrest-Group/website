@@ -27,6 +27,7 @@ import LeadMessageThread from "@/crm/components/LeadMessageThread";
 import ActivityFeed from "@/crm/components/ActivityFeed";
 import LeadTags from "@/crm/components/LeadTags";
 import { useCrmTopBar } from "@/crm/lib/crmTopBarContext";
+import { filterLeadThreadActivities } from "@/crm/lib/threadActivities";
 
 function formatRelative(dateStr: string) {
   const d = new Date(dateStr);
@@ -35,6 +36,15 @@ function formatRelative(dateStr: string) {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
+}
+
+function paymentStatusSub(lead: LeadDetailType): string {
+  if (lead.stage === "CONVERTED") return "Payment received";
+  if (!lead.quotedAmount) return "No payment link yet";
+  if (lead.paymentLinkClickedAt) {
+    return `Stripe link sent · clicked ${formatRelative(lead.paymentLinkClickedAt)}`;
+  }
+  return "Stripe link sent · not clicked";
 }
 
 function nextWorkflowStepText(lead: LeadDetailType, currentStep?: CadenceStep): string {
@@ -106,6 +116,15 @@ export default function LeadDetail({
     setError("");
     reload();
   }, [id]);
+
+  // Poll while waiting for the customer to open the pay link so the CRM updates without a manual refresh.
+  useEffect(() => {
+    if (!lead || lead.stage === "CONVERTED" || lead.paymentLinkClickedAt || !lead.quotedAmount) {
+      return;
+    }
+    const timer = window.setInterval(() => reload({ silent: true }), 8000);
+    return () => window.clearInterval(timer);
+  }, [id, lead?.stage, lead?.paymentLinkClickedAt, lead?.quotedAmount]);
 
   useEffect(() => {
     if (embedded) return;
@@ -359,7 +378,7 @@ export default function LeadDetail({
               {
                 label: "Payment status",
                 value: lead.stage === "CONVERTED" ? "Paid" : "Unpaid",
-                sub: "Stripe link sent · not clicked",
+                sub: paymentStatusSub(lead),
                 warn: lead.stage !== "CONVERTED",
               },
               {
@@ -505,12 +524,7 @@ export default function LeadDetail({
                   customer ? `${customer.firstName} ${customer.lastName}` : "Customer"
                 }
                 messages={lead.messages}
-                threadActivities={lead.activities.filter(
-                  (a) =>
-                    a.type.includes("call") ||
-                    a.type === "cadence.stopped" ||
-                    a.type === "payment.received"
-                )}
+                threadActivities={filterLeadThreadActivities(lead.activities)}
                 onSent={() => reload({ silent: true })}
                 className="h-full min-h-0 flex-1"
               />
@@ -518,6 +532,7 @@ export default function LeadDetail({
             <TabsContent value="activity" className="mt-0 min-h-0 flex-1 overflow-y-auto">
               <ActivityFeed
                 activities={lead.activities}
+                messages={lead.messages}
                 leadName={
                   lead.customerName ??
                   (lead.customer
@@ -728,12 +743,7 @@ export default function LeadDetail({
             customer ? `${customer.firstName} ${customer.lastName}` : "Customer"
           }
           messages={lead.messages}
-          threadActivities={lead.activities.filter(
-            (a) =>
-              a.type.includes("call") ||
-              a.type === "cadence.stopped" ||
-              a.type === "payment.received"
-          )}
+          threadActivities={filterLeadThreadActivities(lead.activities)}
           onSent={() => reload({ silent: true })}
           className="h-full min-h-0 max-h-none flex-1 rounded-none border-0"
         />

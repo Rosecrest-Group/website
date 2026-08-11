@@ -17,7 +17,7 @@ import {
   ChevronDown,
   type LucideIcon,
 } from "lucide-react";
-import type { Activity, Task } from "@/crm/types";
+import type { Activity, Message, Task } from "@/crm/types";
 import { api } from "@/crm/lib/api";
 import { getCachedCurrentUser, prefetchCurrentUser } from "@/crm/lib/currentUserCache";
 import TaskDetailPanel from "@/crm/components/TaskDetailPanel";
@@ -210,13 +210,40 @@ function messageReplyAction(channel: string, subject?: string): string {
   return subject ? `${base} · "${subject}"` : base;
 }
 
-function messageDetail(desc: string, metadata?: Record<string, unknown> | null): string | undefined {
-  const templateMatch = desc.match(/\(Template:\s*(.+?)\)/i);
-  if (templateMatch) return templateMatch[1];
-  if (metadata?.template) return String(metadata.template);
-  const quoted = desc.match(/"([^"]+)"/);
-  if (quoted) return quoted[1];
-  return undefined;
+/** Drop trailing "| location" segments templates append to email subjects. */
+function cleanActivitySubject(subject: string): string {
+  const cleaned = subject.split(/\s+\|\s+/)[0]?.trim() ?? subject.trim();
+  return cleaned || subject.trim();
+}
+
+function messageSentDetail(
+  activity: Activity,
+  messagesById?: Map<string, Pick<Message, "subject" | "toAddress">>,
+  templatesById?: Map<string, string>
+): string | undefined {
+  const meta = activity.metadata ?? {};
+
+  if (typeof meta.templateName === "string" && meta.templateName.trim()) {
+    return meta.templateName.trim();
+  }
+
+  const templateMatch = activity.description.match(/\(Template:\s*(.+?)\)/i);
+  if (templateMatch?.[1]?.trim()) return templateMatch[1].trim();
+
+  const templateId = typeof meta.templateId === "string" ? meta.templateId : null;
+  if (templateId && templatesById?.get(templateId)) {
+    return templatesById.get(templateId);
+  }
+
+  if (typeof meta.subject === "string" && meta.subject.trim()) {
+    return cleanActivitySubject(meta.subject);
+  }
+  const messageId = typeof meta.messageId === "string" ? meta.messageId : null;
+  const fromMessage = messageId ? messagesById?.get(messageId)?.subject : null;
+  if (fromMessage?.trim()) return cleanActivitySubject(fromMessage);
+
+  const fromDesc = activity.description.match(/sent ·\s*"([^"]+)"/i);
+  return fromDesc?.[1] ? cleanActivitySubject(fromDesc[1]) : undefined;
 }
 
 function parseMessageReceived(activity: Activity, leadName?: string): {
@@ -227,7 +254,7 @@ function parseMessageReceived(activity: Activity, leadName?: string): {
 } {
   const meta = activity.metadata ?? {};
   const channel = String(meta.channel ?? "EMAIL");
-  const subject = meta.subject ? String(meta.subject) : undefined;
+  const subject = meta.subject ? cleanActivitySubject(String(meta.subject)) : undefined;
   const actor = leadName?.trim() || "Lead";
 
   return {
@@ -240,19 +267,22 @@ function parseMessageReceived(activity: Activity, leadName?: string): {
 
 function parseMessageSent(
   activity: Activity,
-  currentUserId: string | null
+  currentUserId: string | null,
+  messagesById?: Map<string, Pick<Message, "subject" | "toAddress">>,
+  templatesById?: Map<string, string>
 ): {
   actor: string;
   action: string;
   icon: LucideIcon;
   avatar?: string;
   sourceIcon?: LucideIcon;
+  preview?: string;
 } {
   const meta = activity.metadata ?? {};
   const channel = String(meta.channel ?? "EMAIL");
   const icon = messageChannelIcon(channel);
   const noun = messageChannelNoun(channel);
-  const detail = messageDetail(activity.description, meta);
+  const detail = messageSentDetail(activity, messagesById, templatesById);
   const authorName = activity.author?.fullName;
 
   if (!activity.author) {
@@ -264,9 +294,8 @@ function parseMessageSent(
     };
   }
 
-  const actor = displayActor(activity.author, currentUserId);
   return {
-    actor,
+    actor: displayActor(activity.author, currentUserId),
     action: detail ? `sent ${noun} · "${detail}"` : `sent an ${noun}`,
     icon,
     avatar: authorName ? initials(authorName) : undefined,
@@ -296,6 +325,10 @@ function parseActorAction(
 
   if (activity.type === "payment.received") {
     return { actor: "Payment", action: "received" };
+  }
+
+  if (activity.type === "payment_link.clicked") {
+    return { actor: "Payment link", action: "opened" };
   }
 
   if (activity.type === "cadence.stopped") {
@@ -404,7 +437,9 @@ function activitiesToEvents(
   activities: Activity[],
   currentUserId: string | null,
   taskById: Map<string, Task>,
-  leadName?: string
+  leadName?: string,
+  messagesById?: Map<string, Pick<Message, "subject" | "toAddress">>,
+  templatesById?: Map<string, string>
 ): TimelineEvent[] {
   return groupActivities(activities).map((group) => {
     const primary = group[0];
@@ -430,7 +465,7 @@ function activitiesToEvents(
     }
 
     if (primary.type === "message.sent") {
-      const msg = parseMessageSent(primary, currentUserId);
+      const msg = parseMessageSent(primary, currentUserId, messagesById, templatesById);
       return {
         id: primary.id,
         type: "email",
@@ -439,6 +474,7 @@ function activitiesToEvents(
         icon: msg.icon,
         avatar: msg.avatar,
         sourceIcon: msg.sourceIcon,
+        preview: msg.preview,
         timestamp: new Date(primary.createdAt),
       };
     }
@@ -699,9 +735,12 @@ function Event({
 export default function ActivityFeed({
   activities,
   leadName,
+  messages = [],
 }: {
   activities: Activity[];
   leadName?: string;
+  /** Used to recover subject/recipient for older message.sent activities. */
+  messages?: Message[];
 }) {
   const [filter, setFilter] = useState<"all" | TimelineEventType>("all");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
@@ -711,6 +750,18 @@ export default function ActivityFeed({
   const [taskById, setTaskById] = useState<Map<string, Task>>(() => new Map());
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [teamMembers, setTeamMembers] = useState<Array<{ id: string; fullName: string }>>([]);
+  const [templatesById, setTemplatesById] = useState<Map<string, string>>(() => new Map());
+
+  const messagesById = useMemo(() => {
+    const map = new Map<string, Pick<Message, "subject" | "toAddress">>();
+    for (const message of messages) {
+      map.set(message.id, {
+        subject: message.subject,
+        toAddress: message.toAddress,
+      });
+    }
+    return map;
+  }, [messages]);
 
   useEffect(() => {
     prefetchCurrentUser().then((user) => {
@@ -724,6 +775,33 @@ export default function ActivityFeed({
       .then((res) => setTeamMembers(res.users.map((u) => ({ id: u.id, fullName: u.fullName }))))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const needsLookup = activities.some((activity) => {
+      if (activity.type !== "message.sent") return false;
+      const meta = activity.metadata ?? {};
+      if (typeof meta.templateName === "string" && meta.templateName.trim()) return false;
+      return typeof meta.templateId === "string" && Boolean(meta.templateId);
+    });
+    if (!needsLookup) return;
+
+    let cancelled = false;
+    void api
+      .listTemplates()
+      .then((res) => {
+        if (cancelled) return;
+        const map = new Map<string, string>();
+        for (const template of res.items) {
+          map.set(template.id, template.name);
+        }
+        setTemplatesById(map);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activities]);
 
   const taskIds = useMemo(() => {
     const ids = new Set<string>();
@@ -757,8 +835,8 @@ export default function ActivityFeed({
   }, [taskIds]);
 
   const events = useMemo(
-    () => activitiesToEvents(activities, currentUserId, taskById, leadName),
-    [activities, currentUserId, taskById, leadName]
+    () => activitiesToEvents(activities, currentUserId, taskById, leadName, messagesById, templatesById),
+    [activities, currentUserId, taskById, leadName, messagesById, templatesById]
   );
 
   function handleTaskClick(taskId: string) {

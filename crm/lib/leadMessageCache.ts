@@ -1,4 +1,4 @@
-import type { Activity, Message } from "@/crm/types";
+import type { Activity, InternalMessageItem, Message } from "@/crm/types";
 
 const MAX_CACHED_THREADS = 40;
 
@@ -10,6 +10,8 @@ export const MESSAGE_FIRST_PAGE_SIZE = 20;
 
 export type CachedLeadThread = {
   messages: Message[];
+  notes: InternalMessageItem[];
+  conversationId: string | null;
   activities: Activity[];
   page: number;
   hasMore: boolean;
@@ -27,6 +29,11 @@ export function setCachedLeadThread(leadId: string, patch: Partial<CachedLeadThr
   const existing = cache.get(leadId);
   const next: CachedLeadThread = {
     messages: patch.messages ?? existing?.messages ?? [],
+    notes: patch.notes ?? existing?.notes ?? [],
+    conversationId:
+      patch.conversationId !== undefined
+        ? patch.conversationId
+        : (existing?.conversationId ?? null),
     activities: patch.activities ?? existing?.activities ?? [],
     page: patch.page ?? existing?.page ?? 1,
     hasMore: patch.hasMore ?? existing?.hasMore ?? false,
@@ -59,6 +66,8 @@ export function prefetchLeadThread(
   leadId: string,
   loader: () => Promise<{
     messages: Message[];
+    notes?: InternalMessageItem[];
+    conversationId?: string | null;
     activities?: Activity[];
     page: number;
     hasMore: boolean;
@@ -74,6 +83,8 @@ export function prefetchLeadThread(
     .then((result) =>
       setCachedLeadThread(leadId, {
         messages: result.messages,
+        notes: result.notes ?? [],
+        conversationId: result.conversationId ?? null,
         activities: result.activities ?? [],
         page: result.page,
         hasMore: result.hasMore,

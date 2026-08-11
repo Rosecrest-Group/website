@@ -6,12 +6,15 @@ import { Mail, MessageSquare, Phone, Search } from "lucide-react";
 import LeadDetailPanel from "@/crm/components/LeadDetailPanel";
 import LeadMessageThread from "@/crm/components/LeadMessageThread";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
+import PhoneButton from "@/crm/components/PhoneButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import { api } from "@/crm/lib/api";
 import { formatInboxListTime, messageTimestamp } from "@/crm/lib/formatChatTime";
+import { getCachedLead, prefetchLead } from "@/crm/lib/leadDetailCache";
 import { isHtmlContent } from "@/crm/lib/messageFormatting";
 import { useInfiniteScroll } from "@/crm/lib/useInfiniteScroll";
-import { MESSAGE_FIRST_PAGE_SIZE, prefetchLeadThread } from "@/crm/lib/leadMessageCache";
+import { MESSAGE_FIRST_PAGE_SIZE } from "@/crm/lib/leadMessageCache";
+import { prefetchLeadThreadWithActivities } from "@/crm/lib/loadLeadThread";
 import type { InboxThread, Message } from "@/crm/types";
 import { cn } from "@/lib/utils";
 
@@ -81,6 +84,7 @@ export default function InboxView({
   const [activeQuery, setActiveQuery] = useState("");
   const [mobileShowThread, setMobileShowThread] = useState(false);
   const [leadPanelOpen, setLeadPanelOpen] = useState(false);
+  const [customerPhone, setCustomerPhone] = useState<string | null>(null);
   const skipInitialFetch = useRef(Boolean(initialThreads));
   const listRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -199,18 +203,7 @@ export default function InboxView({
 
   function prefetchThread(leadId: string | null | undefined) {
     if (!leadId) return;
-    void prefetchLeadThread(leadId, async () => {
-      const page = await api.listMessages({
-        leadId,
-        limit: String(MESSAGE_FIRST_PAGE_SIZE),
-        page: "1",
-      });
-      return {
-        messages: page.items,
-        page: page.page,
-        hasMore: page.hasMore ?? page.page * page.limit < page.total,
-      };
-    });
+    void prefetchLeadThreadWithActivities(leadId, MESSAGE_FIRST_PAGE_SIZE);
   }
 
   function openThread(thread: InboxThread) {
@@ -218,6 +211,29 @@ export default function InboxView({
     setSelected(thread);
     setMobileShowThread(true);
   }
+
+  useEffect(() => {
+    const leadId = selected?.leadId;
+    if (!leadId) {
+      setCustomerPhone(null);
+      return;
+    }
+
+    const cached = getCachedLead(leadId);
+    if (cached?.customer?.phone) {
+      setCustomerPhone(cached.customer.phone);
+    } else {
+      setCustomerPhone(null);
+    }
+
+    let cancelled = false;
+    void prefetchLead(leadId).then((lead) => {
+      if (!cancelled) setCustomerPhone(lead?.customer?.phone ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected?.leadId]);
 
   // Notification deep link. The thread is normally already on page one, but fall back to
   // fetching it directly so an older conversation still opens. Handled once per link so a
@@ -442,14 +458,26 @@ export default function InboxView({
               onRead={clearUnread}
               className="min-h-0 flex-1"
               headerActions={
-                <SecondaryButton
-                  type="button"
-                  size="small"
-                  className="w-auto"
-                  onClick={() => setLeadPanelOpen(true)}
-                >
-                  View lead
-                </SecondaryButton>
+                <div className="flex w-full items-center justify-between gap-3">
+                  <SecondaryButton
+                    type="button"
+                    size="small"
+                    className="w-auto"
+                    onClick={() => setLeadPanelOpen(true)}
+                  >
+                    View lead
+                  </SecondaryButton>
+                  {customerPhone ? (
+                    <PhoneButton
+                      number={customerPhone}
+                      iconOnly
+                      context={{
+                        leadId: selected.leadId,
+                        customerName: selected.customerName,
+                      }}
+                    />
+                  ) : null}
+                </div>
               }
             />
           </div>

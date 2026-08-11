@@ -9,7 +9,7 @@ import { BEDROOM_BAND_LABELS } from "@/crm/lib/constants";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import Table, { type Column } from "@/crm/components/ui/Table";
-import StatusPill from "@/crm/components/ui/StatusPill";
+import StatusPill, { jobStageToPillVariant } from "@/crm/components/ui/StatusPill";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 
 export default function CrmJobsList({
@@ -93,7 +93,10 @@ export default function CrmJobsList({
       key: "stage",
       header: "Stage",
       render: (value) => (
-        <StatusPill variant="in-review" label={(value as string).replace(/_/g, " ")} />
+        <StatusPill
+          variant={jobStageToPillVariant(value as string)}
+          label={(value as string).replace(/_/g, " ")}
+        />
       ),
     },
     ...(showMoney

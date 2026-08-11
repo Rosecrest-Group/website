@@ -967,6 +967,8 @@ export const api = {
 
     teamConnectPhoneDocId?: string;
 
+    replyToMessageId?: string;
+
   }) => request<Message>("/messages/send", { method: "POST", body: JSON.stringify(payload) }),
 
   listTeamConnectNumbers: () =>
@@ -1143,6 +1145,7 @@ export const api = {
       body?: string;
       attachmentIds?: string[];
       parentMessageId?: string;
+      referencedMessageId?: string;
       isUrgent?: boolean;
     }
   ) =>
