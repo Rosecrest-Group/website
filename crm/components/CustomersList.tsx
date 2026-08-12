@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api } from "@/crm/lib/api";
+import { getListPageCache, setListPageCache } from "@/crm/lib/listPageCache";
 import type { Customer } from "@/crm/types";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
@@ -14,11 +15,12 @@ export default function CustomersList({
 }: {
   initialData?: { items: Customer[]; total: number } | null;
 }) {
-  const [customers, setCustomers] = useState<Customer[]>(() => initialData?.items ?? []);
-  const [total, setTotal] = useState(() => initialData?.total ?? 0);
+  const seed = initialData ?? getListPageCache<{ items: Customer[]; total: number }>("customers:default");
+  const [customers, setCustomers] = useState<Customer[]>(() => seed?.items ?? []);
+  const [total, setTotal] = useState(() => seed?.total ?? 0);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(() => !initialData);
-  const skipInitialFetch = useRef(Boolean(initialData));
+  const [loading, setLoading] = useState(() => !seed);
+  const skipInitialFetch = useRef(Boolean(seed));
 
   useEffect(() => {
     if (skipInitialFetch.current && !search) {
@@ -33,6 +35,7 @@ export default function CustomersList({
         .then((res) => {
           setCustomers(res.items);
           setTotal(res.total);
+          if (!search) setListPageCache("customers:default", res);
         })
         .finally(() => setLoading(false));
     }, search ? 300 : 0);

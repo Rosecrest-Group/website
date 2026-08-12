@@ -4,10 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
 import { prefetchLead } from "@/crm/lib/leadDetailCache";
+import { getListPageCache, setListPageCache } from "@/crm/lib/listPageCache";
 import type { Lead, LeadStage, Paginated } from "@/crm/types";
 import {
   BEDROOM_BAND_LABELS,
   LEAD_STAGE_LABELS,
+  PROPERTY_VALUE_BAND_LABELS,
   SURVEY_LEVEL_LABELS,
 } from "@/crm/lib/constants";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
@@ -54,21 +56,22 @@ export default function LeadsList({
   initialData?: LeadsListInitialData | null;
 }) {
   const router = useRouter();
-  const [leads, setLeads] = useState<Lead[]>(() => initialData?.items ?? []);
-  const [total, setTotal] = useState(() => initialData?.total ?? 0);
+  const seed = initialData ?? getListPageCache<LeadsListInitialData>("leads:default");
+  const [leads, setLeads] = useState<Lead[]>(() => seed?.items ?? []);
+  const [total, setTotal] = useState(() => seed?.total ?? 0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [stage, setStage] = useState("");
-  const [loading, setLoading] = useState(() => !initialData);
+  const [loading, setLoading] = useState(() => !seed);
   const [error, setError] = useState("");
-  const skipInitialFetch = useRef(Boolean(initialData));
+  const skipInitialFetch = useRef(Boolean(seed));
   const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (skipInitialFetch.current) {
       skipInitialFetch.current = false;
       // Warm first few lead details shortly after paint for snappier row clicks.
-      const ids = (initialData?.items ?? []).slice(0, 3).map((l) => l.id);
+      const ids = (seed?.items ?? []).slice(0, 3).map((l) => l.id);
       if (ids.length > 0) {
         const timer = window.setTimeout(() => {
           for (const id of ids) void prefetchLead(id);
@@ -91,6 +94,9 @@ export default function LeadsList({
           setLeads(res.items);
           setTotal(res.total);
           setError("");
+          if (!search && !stage && page === 1) {
+            setListPageCache("leads:default", res);
+          }
         })
         .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
         .finally(() => setLoading(false));
@@ -175,6 +181,17 @@ export default function LeadsList({
       render: (value) => (
         <span className="text-sm text-ink-muted">
           {value ? BEDROOM_BAND_LABELS[value as string] ?? (value as string) : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "propertyValueBand",
+      header: "Value",
+      render: (value) => (
+        <span className="text-sm text-ink-muted">
+          {value
+            ? PROPERTY_VALUE_BAND_LABELS[value as string] ?? (value as string)
+            : "—"}
         </span>
       ),
     },

@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import TasksList from "@/crm/components/TasksList";
-import { serverCrmFetch } from "@/crm/lib/serverCrmApi";
-import type { Paginated, Task } from "@/crm/types";
+import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 
-export default async function TasksPage() {
-  const initialData = await serverCrmFetch<Paginated<Task>>("/tasks?page=1&limit=25");
-
-  return <TasksList initialData={initialData} />;
+export default function TasksPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <TasksList />
+    </Suspense>
+  );
 }

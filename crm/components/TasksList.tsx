@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Trash2 } from "lucide-react";
 import { api } from "@/crm/lib/api";
+import { getListPageCache, setListPageCache } from "@/crm/lib/listPageCache";
 import { TASK_STATUS_LABELS } from "@/crm/lib/constants";
 import {
   buildTaskPayload,
@@ -47,14 +48,15 @@ export default function TasksList({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [tasks, setTasks] = useState<Task[]>(() => initialData?.items ?? []);
-  const [total, setTotal] = useState(() => initialData?.total ?? 0);
+  const seed = initialData ?? getListPageCache<{ items: Task[]; total: number }>("tasks:default");
+  const [tasks, setTasks] = useState<Task[]>(() => seed?.items ?? []);
+  const [total, setTotal] = useState(() => seed?.total ?? 0);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState("");
-  const [loading, setLoading] = useState(() => !initialData);
+  const [loading, setLoading] = useState(() => !seed);
   const [error, setError] = useState("");
-  const skipInitialFetch = useRef(Boolean(initialData));
+  const skipInitialFetch = useRef(Boolean(seed));
 
   const [teamMembers, setTeamMembers] = useState<Array<{ id: string; fullName: string }>>([]);
 
@@ -83,6 +85,9 @@ export default function TasksList({
         setTasks(res.items);
         setTotal(res.total);
         setError("");
+        if (!search && !status && !assigneeFilter) {
+          setListPageCache("tasks:default", res);
+        }
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load tasks"))
       .finally(() => setLoading(false));

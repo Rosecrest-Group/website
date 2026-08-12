@@ -229,6 +229,26 @@ export const BEDROOM_BAND_LABELS: Record<string, string> = {
   ABOVE_9: "9+ bed",
 };
 
+export const PROPERTY_VALUE_BANDS = [
+  "0-250k",
+  "250k-500k",
+  "500k-750k",
+  "750k-1m",
+  "1m-2m",
+  "2m+",
+] as const;
+
+export type PropertyValueBand = (typeof PROPERTY_VALUE_BANDS)[number];
+
+export const PROPERTY_VALUE_BAND_LABELS: Record<string, string> = {
+  "0-250k": "£0–250k",
+  "250k-500k": "£250–500k",
+  "500k-750k": "£500–750k",
+  "750k-1m": "£750k–1m",
+  "1m-2m": "£1–2m",
+  "2m+": "£2m+",
+};
+
 /** Flexi-Fee inc-VAT (£) — keep in sync with api/src/config/stripePaymentCatalog.ts */
 export const FLEXI_FEE_INC_VAT: Record<BedroomBand, { l1: number; l2: number; l3: number }> = {
   STUDIO: { l1: 280.99, l2: 330.99, l3: 550.99 },

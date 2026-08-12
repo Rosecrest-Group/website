@@ -315,7 +315,15 @@ function parseActorAction(
 
   if (activity.type === "lead.created") {
     const from = desc.replace(/^Lead created from\s+/i, "").trim();
-    return { actor: "Lead created", action: `from ${from.toLowerCase()}` };
+    const message =
+      typeof activity.metadata?.message === "string"
+        ? activity.metadata.message.trim().replace(/\s+/g, " ")
+        : "";
+    return {
+      actor: "Lead created",
+      action: `from ${from.toLowerCase()}`,
+      preview: message || undefined,
+    };
   }
 
   if (activity.type === "stage.changed") {

@@ -1,11 +1,5 @@
-import { headers } from "next/headers";
-
-import CrmShell from "@/crm/components/CrmShell";
-import DataDumpShell from "@/crm/components/data-dump/DataDumpShell";
+import CrmRouteFrame from "@/crm/components/CrmRouteFrame";
 import { inter } from "@/lib/fonts";
-import { getServerCrmUser } from "@/crm/lib/serverCrmApi";
-
-import { isCrmDataDumpRoute, isCrmPublicRoute } from "@/crm/lib/constants";
 
 import "./crm.css";
 
@@ -14,28 +8,14 @@ export const metadata = {
   description: "Internal CRM for Rosecrest",
 };
 
-export default async function CrmLayout({
+export default function CrmLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = (await headers()).get("x-pathname") ?? "";
-
-  if (isCrmPublicRoute(pathname)) {
-    return (
-      <div
-        className={`crm-theme ${inter.variable} min-h-dvh bg-canvas text-ink`}
-      >
-        {children}
-      </div>
-    );
-  }
-
-  if (isCrmDataDumpRoute(pathname)) {
-    return <DataDumpShell>{children}</DataDumpShell>;
-  }
-
-  const initialUser = await getServerCrmUser();
-
-  return <CrmShell initialUser={initialUser}>{children}</CrmShell>;
+  return (
+    <div className={`crm-theme ${inter.variable} min-h-dvh bg-canvas text-ink`}>
+      <CrmRouteFrame>{children}</CrmRouteFrame>
+    </div>
+  );
 }

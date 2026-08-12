@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
-import { prefetchCurrentUser } from "@/crm/lib/currentUserCache";
+import { getCachedCurrentUser } from "@/crm/lib/currentUserCache";
 import { forbiddenRedirect } from "@/crm/lib/rbac";
 import type { UserRole } from "@/crm/types";
 
@@ -18,14 +18,16 @@ export default function CrmRoleGuard({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [role, setRole] = useState<UserRole | null>(initialRole);
+  const [role, setRole] = useState<UserRole | null>(
+    () => initialRole ?? getCachedCurrentUser()?.role ?? null,
+  );
 
   useEffect(() => {
     if (initialRole) {
       setRole(initialRole);
       return;
     }
-    void prefetchCurrentUser();
+    if (getCachedCurrentUser()) return;
     api
       .getMe()
       .then((me) => setRole(me.role))

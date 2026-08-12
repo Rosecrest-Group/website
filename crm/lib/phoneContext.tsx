@@ -114,7 +114,7 @@ export function PhoneProvider({
     // Defer phone/telephony boot so first page data isn't competing for bandwidth.
     const timer = window.setTimeout(() => {
       void refreshPhoneSettings();
-    }, 400);
+    }, 2000);
     return () => window.clearTimeout(timer);
   }, [refreshPhoneSettings]);
 

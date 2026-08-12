@@ -639,6 +639,8 @@ export interface LeadDetail extends Lead {
   cadenceRun?: CadenceRunInfo | null;
   job?: Job | null;
   possibleDuplicateLeads?: PossibleDuplicateLead[];
+  /** Partner free-text notes (e.g. Pinlocal survey requirements). */
+  intakeMessage?: string | null;
 }
 
 export interface Job {

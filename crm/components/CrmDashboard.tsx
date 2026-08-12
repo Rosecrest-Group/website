@@ -137,6 +137,22 @@ const DASHBOARD_PERIODS: { value: DashboardPeriod; label: string; short: string 
 
 type PeriodCacheEntry = { data: DashboardSales; recentLeads: Lead[] };
 
+type DashboardSnapshot = {
+  role: UserRole;
+  period: DashboardPeriod;
+  data: DashboardSales | null;
+  recentLeads: Lead[];
+  myJobs: Job[];
+  assignedTasks: Task[];
+  createdTasks: Task[];
+};
+
+let memorySnapshot: DashboardSnapshot | null = null;
+
+function rememberSnapshot(snapshot: DashboardSnapshot) {
+  memorySnapshot = snapshot;
+}
+
 /* ------------------------------------------------------------------ */
 /* page                                                               */
 /* ------------------------------------------------------------------ */
@@ -153,24 +169,32 @@ export default function CrmDashboard({
   initialJobs?: Job[] | null;
 }) {
   const router = useRouter();
-  const [role, setRole] = useState<UserRole | null>(() => initialMe?.role ?? null);
-  const [period, setPeriod] = useState<DashboardPeriod>("this_month");
-  const [data, setData] = useState<DashboardSales | null>(() => initialDashboard);
-  const [recentLeads, setRecentLeads] = useState<Lead[]>(
-    () => initialDashboard?.recentLeads ?? [],
+  const snapshot = memorySnapshot;
+  const [role, setRole] = useState<UserRole | null>(
+    () => initialMe?.role ?? snapshot?.role ?? null,
   );
-  const [myJobs, setMyJobs] = useState<Job[]>(() => initialJobs ?? []);
+  const [period, setPeriod] = useState<DashboardPeriod>(
+    () => snapshot?.period ?? "this_month",
+  );
+  const [data, setData] = useState<DashboardSales | null>(
+    () => initialDashboard ?? snapshot?.data ?? null,
+  );
+  const [recentLeads, setRecentLeads] = useState<Lead[]>(
+    () => initialDashboard?.recentLeads ?? snapshot?.recentLeads ?? [],
+  );
+  const [myJobs, setMyJobs] = useState<Job[]>(() => initialJobs ?? snapshot?.myJobs ?? []);
   const [assignedTasks, setAssignedTasks] = useState<Task[]>(
-    () => initialTasks?.assignedToMe ?? [],
+    () => initialTasks?.assignedToMe ?? snapshot?.assignedTasks ?? [],
   );
   const [createdTasks, setCreatedTasks] = useState<Task[]>(
-    () => initialTasks?.createdByMe ?? [],
+    () => initialTasks?.createdByMe ?? snapshot?.createdTasks ?? [],
   );
   const [error, setError] = useState("");
   const seeded = Boolean(
-    initialMe &&
+    (initialMe &&
       initialTasks &&
-      (canReadLeads(initialMe.role) ? initialDashboard : initialJobs),
+      (canReadLeads(initialMe.role) ? initialDashboard : initialJobs)) ||
+      snapshot,
   );
   const [isLoading, setIsLoading] = useState(() => !seeded);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -187,11 +211,17 @@ export default function CrmDashboard({
               },
             ],
           ]
-        : [],
+        : snapshot?.data
+          ? [
+              [
+                snapshot.period,
+                { data: snapshot.data, recentLeads: snapshot.recentLeads },
+              ],
+            ]
+          : [],
     ),
   );
   const fetchGeneration = useRef(0);
-  const skipInitialFetch = useRef(seeded);
 
   function applyDashboard(entry: PeriodCacheEntry) {
     setData(entry.data);
@@ -209,11 +239,6 @@ export default function CrmDashboard({
   }
 
   useEffect(() => {
-    if (skipInitialFetch.current) {
-      skipInitialFetch.current = false;
-      return;
-    }
-
     let cancelled = false;
     (async () => {
       try {
@@ -230,6 +255,15 @@ export default function CrmDashboard({
           applyDashboard(entry);
           setAssignedTasks(tasksRes.assignedToMe);
           setCreatedTasks(tasksRes.createdByMe);
+          rememberSnapshot({
+            role: me.role,
+            period,
+            data: entry.data,
+            recentLeads: entry.recentLeads,
+            myJobs: [],
+            assignedTasks: tasksRes.assignedToMe,
+            createdTasks: tasksRes.createdByMe,
+          });
         } else {
           const [jobsRes, tasksRes] = await Promise.all([
             api.listJobs({ limit: "8", page: "1" }),
@@ -239,6 +273,15 @@ export default function CrmDashboard({
           setMyJobs(jobsRes.items);
           setAssignedTasks(tasksRes.assignedToMe);
           setCreatedTasks(tasksRes.createdByMe);
+          rememberSnapshot({
+            role: me.role,
+            period,
+            data: null,
+            recentLeads: [],
+            myJobs: jobsRes.items,
+            assignedTasks: tasksRes.assignedToMe,
+            createdTasks: tasksRes.createdByMe,
+          });
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load");

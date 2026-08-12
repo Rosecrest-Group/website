@@ -1,11 +1,11 @@
+import { Suspense } from "react";
 import ConversationsView from "@/crm/components/ConversationsView";
-import { serverCrmFetch } from "@/crm/lib/serverCrmApi";
-import type { InternalConversationSummary } from "@/crm/types";
+import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 
-export default async function ConversationsPage() {
-  const initial = await serverCrmFetch<{ items: InternalConversationSummary[] }>(
-    "/conversations",
+export default function ConversationsPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <ConversationsView />
+    </Suspense>
   );
-
-  return <ConversationsView initialThreads={initial?.items ?? null} />;
 }

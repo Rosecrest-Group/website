@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
+import { getCachedCurrentUser } from "@/crm/lib/currentUserCache";
+import { getListPageCache, setListPageCache } from "@/crm/lib/listPageCache";
 import { canViewJobMoney } from "@/crm/lib/rbac";
 import type { Job, UserRole } from "@/crm/types";
 import { BEDROOM_BAND_LABELS } from "@/crm/lib/constants";
@@ -18,19 +20,25 @@ export default function CrmJobsList({
   initialData?: { items: Job[] } | null;
 }) {
   const router = useRouter();
-  const [jobs, setJobs] = useState<Job[]>(() => initialData?.items ?? []);
+  const seed = initialData ?? getListPageCache<{ items: Job[] }>("jobs:default");
+  const [jobs, setJobs] = useState<Job[]>(() => seed?.items ?? []);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(() => !initialData);
-  const [role, setRole] = useState<UserRole | null>(null);
+  const [loading, setLoading] = useState(() => !seed);
+  const [role, setRole] = useState<UserRole | null>(
+    () => getCachedCurrentUser()?.role ?? null,
+  );
 
   useEffect(() => {
     api.getMe().then((me) => setRole(me.role)).catch(() => setRole(null));
-    if (initialData) return;
+    if (seed) return;
     api
       .listJobs({ limit: "50", page: "1" })
-      .then((res) => setJobs(res.items))
+      .then((res) => {
+        setJobs(res.items);
+        setListPageCache("jobs:default", res);
+      })
       .finally(() => setLoading(false));
-  }, [initialData]);
+  }, [seed]);
 
   const leadName = (job: Job) =>
     job.customer

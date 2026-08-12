@@ -27,10 +27,13 @@ export default function CrmLoginForm() {
     setError("");
     setLoading(true);
     try {
-      await login(email, password, keepSignedIn);
+      const data = await login(email, password, keepSignedIn);
+      if (data.user && !data.requires2fa) {
+        const { seedCurrentUser } = await import("@/crm/lib/currentUserCache");
+        seedCurrentUser(data.user);
+      }
       const redirect = searchParams.get("redirect") ?? "/crm";
       router.push(redirect);
-      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

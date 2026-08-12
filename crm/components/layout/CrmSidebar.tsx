@@ -43,6 +43,7 @@ import { api, logout } from "@/crm/lib/api";
 import { canAccessAdminSettings, navSectionsForRole } from "@/crm/lib/rbac";
 import { useInboxUnreadCount } from "@/crm/lib/useInboxUnreadCount";
 import { useTeamChatUnreadCount } from "@/crm/lib/useTeamChatUnreadCount";
+import { getCachedApiUser } from "@/crm/lib/currentUserCache";
 import type { ApiUser } from "@/crm/types";
 import { cn } from "@/lib/utils";
 
@@ -117,7 +118,9 @@ export default function CrmSidebar({
   const teamChatHref = `${CRM_BASE_PATH}/conversations`;
   const inboxUnread = useInboxUnreadCount();
   const inboxHref = `${CRM_BASE_PATH}/inbox`;
-  const [user, setUser] = useState<ApiUser | null>(initialUser ?? null);
+  const [user, setUser] = useState<ApiUser | null>(
+    () => initialUser ?? getCachedApiUser(),
+  );
 
   useEffect(() => {
     if (initialUser) {
@@ -239,7 +242,9 @@ function userInitials(fullName: string) {
 }
 
 function SidebarFooter({ user: userProp }: { user?: ApiUser | null }) {
-  const [user, setUser] = useState<ApiUser | null>(userProp ?? null);
+  const [user, setUser] = useState<ApiUser | null>(
+    () => userProp ?? getCachedApiUser(),
+  );
 
   useEffect(() => {
     if (userProp) {

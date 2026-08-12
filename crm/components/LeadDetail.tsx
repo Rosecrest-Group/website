@@ -6,7 +6,13 @@ import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
 import type { CadenceStep, LeadDetail as LeadDetailType, SurveyLevel } from "@/crm/types";
 import { getCachedLead, setCachedLead } from "@/crm/lib/leadDetailCache";
-import { LEAD_STAGE_LABELS, LOST_REASON_OPTIONS, SURVEY_LEVEL_LABELS } from "@/crm/lib/constants";
+import {
+  BEDROOM_BAND_LABELS,
+  LEAD_STAGE_LABELS,
+  LOST_REASON_OPTIONS,
+  PROPERTY_VALUE_BAND_LABELS,
+  SURVEY_LEVEL_LABELS,
+} from "@/crm/lib/constants";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, ChevronRight, Maximize2 } from "lucide-react";
@@ -341,6 +347,35 @@ export default function LeadDetail({
                   {lead.propertyAddress}, {lead.propertyPostcode}
                 </p>
               </div>
+              <div className="min-w-0">
+                <p className="text-xs text-ink-muted">Bedrooms</p>
+                <p className="mt-0.5 text-sm font-medium text-ink">
+                  {lead.bedroomBand
+                    ? BEDROOM_BAND_LABELS[lead.bedroomBand] ?? lead.bedroomBand
+                    : "—"}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-ink-muted">Property value</p>
+                <p className="mt-0.5 text-sm font-medium text-ink">
+                  {lead.propertyValueBand
+                    ? PROPERTY_VALUE_BAND_LABELS[lead.propertyValueBand] ??
+                      lead.propertyValueBand
+                    : "—"}
+                </p>
+              </div>
+              {lead.intakeMessage ? (
+                <div className="min-w-0 sm:col-span-2">
+                  <p className="text-xs text-ink-muted">
+                    {lead.source === "PINLOCAL"
+                      ? "Survey requirements"
+                      : "Comments"}
+                  </p>
+                  <p className="mt-0.5 whitespace-pre-wrap text-sm font-medium text-ink">
+                    {lead.intakeMessage}
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             {lead.stage !== "CONVERTED" && (
