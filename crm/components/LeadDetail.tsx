@@ -10,8 +10,8 @@ import {
   BEDROOM_BAND_LABELS,
   LEAD_STAGE_LABELS,
   LOST_REASON_OPTIONS,
-  PROPERTY_VALUE_BAND_LABELS,
   SURVEY_LEVEL_LABELS,
+  formatPropertyValueLabel,
 } from "@/crm/lib/constants";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -447,10 +447,7 @@ export default function LeadDetail({
               <div className="min-w-0">
                 <p className="text-xs text-ink-muted">Property value</p>
                 <p className="mt-0.5 text-sm font-medium text-ink">
-                  {lead.propertyValueBand
-                    ? PROPERTY_VALUE_BAND_LABELS[lead.propertyValueBand] ??
-                      lead.propertyValueBand
-                    : "—"}
+                  {formatPropertyValueLabel(lead)}
                 </p>
               </div>
               {lead.intakeMessage ? (

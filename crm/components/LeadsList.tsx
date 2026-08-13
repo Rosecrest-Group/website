@@ -10,8 +10,8 @@ import {
   BEDROOM_BAND_LABELS,
   LEAD_SOURCES,
   LEAD_STAGE_LABELS,
-  PROPERTY_VALUE_BAND_LABELS,
   SURVEY_LEVEL_LABELS,
+  formatPropertyValueLabel,
 } from "@/crm/lib/constants";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
@@ -217,14 +217,10 @@ export default function LeadsList({
       ),
     },
     {
-      key: "propertyValueBand",
+      key: "propertyValue",
       header: "Value",
-      render: (value) => (
-        <span className="text-sm text-ink-muted">
-          {value
-            ? PROPERTY_VALUE_BAND_LABELS[value as string] ?? (value as string)
-            : "—"}
-        </span>
+      render: (_value, row) => (
+        <span className="text-sm text-ink-muted">{formatPropertyValueLabel(row)}</span>
       ),
     },
     {

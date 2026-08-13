@@ -285,6 +285,26 @@ export const PROPERTY_VALUE_BAND_LABELS: Record<string, string> = {
   "2m+": "£2m+",
 };
 
+const GBP_WHOLE = new Intl.NumberFormat("en-GB", {
+  style: "currency",
+  currency: "GBP",
+  maximumFractionDigits: 0,
+});
+
+/** Exact purchase value when known; otherwise the coarse source band. */
+export function formatPropertyValueLabel(lead: {
+  propertyValue?: number | null;
+  propertyValueBand?: string | null;
+}): string {
+  if (lead.propertyValue != null && lead.propertyValue > 0) {
+    return GBP_WHOLE.format(lead.propertyValue);
+  }
+  if (lead.propertyValueBand) {
+    return PROPERTY_VALUE_BAND_LABELS[lead.propertyValueBand] ?? lead.propertyValueBand;
+  }
+  return "—";
+}
+
 /** Flexi-Fee inc-VAT (£) — keep in sync with api/src/config/stripePaymentCatalog.ts */
 export const FLEXI_FEE_INC_VAT: Record<BedroomBand, { l1: number; l2: number; l3: number }> = {
   STUDIO: { l1: 280.99, l2: 330.99, l3: 550.99 },

@@ -482,6 +482,8 @@ export interface Lead {
   propertyAddress: string;
   propertyPostcode: string;
   propertyValueBand: string | null;
+  /** Exact purchase value in GBP when the source sent one. */
+  propertyValue: number | null;
   bedroomBand: string | null;
   quotedAmount: number | null;
   quotedAt: string | null;
