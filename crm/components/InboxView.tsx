@@ -42,6 +42,20 @@ function channelIcon(channel: string) {
   return MessageSquare;
 }
 
+function displayAddress(address?: string | null): string | null {
+  const trimmed = address?.trim();
+  if (!trimmed) return null;
+  return trimmed.replace(/^whatsapp:/i, "");
+}
+
+function counterpartLabel(message: Message): string | null {
+  const address = displayAddress(
+    message.direction === "OUTBOUND" ? message.toAddress : message.fromAddress
+  );
+  if (!address) return null;
+  return message.direction === "OUTBOUND" ? `To ${address}` : `From ${address}`;
+}
+
 /** Match thread bubble channel colors; stronger for outbound, softer for inbound. */
 function channelBadgeClass(channel: string, direction?: string) {
   const outbound = direction === "OUTBOUND";
@@ -353,6 +367,11 @@ export default function InboxView({
           const isSelected = selected?.threadKey === thread.threadKey;
           const isUnread = Boolean(thread.unread) && !isSelected;
           const unreadCount = thread.unreadCount ?? 0;
+          const addressLabel = counterpartLabel(thread.lastMessage);
+          const senderName =
+            thread.lastMessage.direction === "OUTBOUND"
+              ? thread.lastMessage.author?.fullName?.trim()
+              : undefined;
 
           return (
             <button
@@ -415,6 +434,10 @@ export default function InboxView({
                   <ChannelIcon className="size-3" aria-hidden />
                   {thread.lastMessage.channel}
                 </span>
+                {addressLabel && (
+                  <span className="truncate text-(--color-tc-40)">{addressLabel}</span>
+                )}
+                {senderName && <span className="truncate">{senderName}</span>}
                 <span>{thread.messageCount} msgs</span>
               </div>
             </button>

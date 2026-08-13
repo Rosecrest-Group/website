@@ -14,6 +14,7 @@ import type {
   UserRole,
 } from "@/crm/types";
 import { CRM_BASE_PATH, LEAD_STAGE_LABELS, TASK_STATUS_LABELS } from "@/crm/lib/constants";
+import { formatJobStageLabel } from "@/crm/lib/jobStages";
 import { canReadLeads } from "@/crm/lib/rbac";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
@@ -26,7 +27,7 @@ import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import { cn } from "@/lib/utils";
 
 import { useRouter } from "next/navigation";
-import { Users, CheckCircle, TrendingUp, Globe, MapPin, Tag } from "lucide-react";
+import { Users, CheckCircle, TrendingUp, Globe, MapPin, Tag, PoundSterling, UserMinus } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                            */
@@ -564,9 +565,9 @@ export default function CrmDashboard({
               {
                 key: "stage",
                 header: "Stage",
-                render: (value) => (
+                render: (value, row) => (
                   <span className="text-sm text-ink">
-                    {String(value).replace(/_/g, " ")}
+                    {formatJobStageLabel(String(value), (row as Job).jobType)}
                   </span>
                 ),
               },
@@ -632,7 +633,7 @@ export default function CrmDashboard({
           isRefreshing && "pointer-events-none opacity-55",
         )}
       >
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Active leads"
           value={data?.activeLeads ?? 0}
@@ -642,39 +643,26 @@ export default function CrmDashboard({
           action={{ label: "View all", href: "/crm/leads" }}
         />
         <StatsCard
-          title={`Conversion · ${periodShort}`}
-          value={data ? `${data.conversionRate30d}%` : "0%"}
-          icon={<CheckCircle />}
-          iconTint="success"
-          subtitle={data ? `${data.convertedLast30d} converted` : undefined}
+          title="Opportunity value"
+          value={data ? `£${(data.opportunityValue ?? 0).toFixed(0)}` : "£0"}
+          icon={<PoundSterling />}
+          iconTint="info"
+          subtitle="Quoted, not yet won or lost"
         />
         <StatsCard
-          title="Avg time to pay"
-          value={data ? `${data.avgTimeToPayDays}d` : "—"}
-          icon={<TrendingUp />}
-          iconTint="info"
-          subtitle="From paid jobs"
+          title={`Lost · ${periodShort}`}
+          value={data?.lostLast30d ?? 0}
+          icon={<UserMinus />}
+          iconTint="danger"
+          action={{ label: "View lost", href: "/crm/leads?stage=LOST" }}
         />
-        {data?.totalAcquisitionCost30d !== undefined && (
-          <StatsCard
-            title={`Lead cost · ${periodShort}`}
-            value={`£${data.totalAcquisitionCost30d.toFixed(0)}`}
-            icon={<Tag />}
-            iconTint="warning"
-            subtitle={
-              data.costPerConversion30d
-                ? `£${data.costPerConversion30d} per conversion`
-                : undefined
-            }
-          />
-        )}
         {data?.revenueLast30d !== undefined && (
           <StatsCard
             title={`Revenue · ${periodShort}`}
             value={`£${data.revenueLast30d.toFixed(0)}`}
             icon={<TrendingUp />}
             iconTint="success"
-            subtitle={data.roi30d ? `${data.roi30d}× on lead spend` : undefined}
+            subtitle="Paid jobs in this period"
           />
         )}
       </div>
@@ -701,24 +689,8 @@ export default function CrmDashboard({
             ),
           },
           {
-            key: "converted",
-            header: "Won",
-            align: "right",
-            render: (v) => (
-              <span className="text-sm font-medium text-ink tabular-nums">{v as number}</span>
-            ),
-          },
-          {
-            key: "conversionRate",
-            header: "Conv %",
-            align: "right",
-            render: (v) => (
-              <span className="text-sm font-medium text-ink tabular-nums">{v as number}%</span>
-            ),
-          },
-          {
-            key: "acquisitionCost",
-            header: "Lead cost",
+            key: "quotedPipeline",
+            header: "Pipeline £",
             align: "right",
             render: (v) => (
               <span className="text-sm font-medium text-ink tabular-nums">
@@ -726,8 +698,18 @@ export default function CrmDashboard({
               </span>
             ),
           },
+          {
+            key: "converted",
+            header: "Won",
+            align: "right",
+            render: (v) => (
+              <span className="text-sm font-medium text-ink tabular-nums">{v as number}</span>
+            ),
+          },
         ]}
         data={(data?.funnelBySource ?? []) as unknown as Record<string, unknown>[]}
+        getRowKey={(row) => String(row.source)}
+        onRowClick={(row) => router.push(`/crm/leads?source=${encodeURIComponent(String(row.source))}`)}
         emptyMessage="No leads in this period"
       />
 
@@ -738,7 +720,7 @@ export default function CrmDashboard({
             key: "stage",
             header: "Stage",
             render: (v) => (
-              <span className="text-sm text-ink">{(v as string).replace(/_/g, " ")}</span>
+              <span className="text-sm text-ink">{formatJobStageLabel(v as string)}</span>
             ),
           },
           {
@@ -754,6 +736,8 @@ export default function CrmDashboard({
           stage: row.stage,
           count: row._count.id,
         }))}
+        getRowKey={(row) => String(row.stage)}
+        onRowClick={(row) => router.push(`/crm/jobs?stage=${encodeURIComponent(String(row.stage))}`)}
         emptyMessage="No jobs in this period"
       />
 
@@ -762,6 +746,7 @@ export default function CrmDashboard({
         columns={stageColumns}
         data={stageRows}
         getRowKey={(row) => row.stage}
+        onRowClick={(row) => router.push(`/crm/leads?stage=${encodeURIComponent(row.stage)}`)}
         emptyMessage="No leads in this period"
       />
 

@@ -271,6 +271,17 @@ export async function acceptInvite(tokenHash: string, type: "invite" | "recovery
   return json.data;
 }
 
+export async function acceptCrmInvite(inviteToken: string, password: string) {
+  const res = await fetch(`${API_BASE}/auth/accept-invite`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ inviteToken, password }),
+  });
+  const json = (await res.json()) as ApiResult<{ accepted: boolean }>;
+  if (!json.ok) throw new Error(json.error.message);
+  return json.data;
+}
+
 
 
 export async function refreshSession(): Promise<boolean> {
@@ -645,6 +656,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  resendTeamInvite: (id: string) =>
+    request<AdminUserSummary>(`/admin/users/${id}/resend-invite`, { method: "POST" }),
 
   updateTeamUser: (
     id: string,

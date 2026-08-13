@@ -64,7 +64,7 @@ export const CRM_NAV_SECTIONS: CrmNavSection[] = [
     items: [
       { label: "Dashboard", href: CRM_BASE_PATH },
       { label: "Inbox", href: `${CRM_BASE_PATH}/inbox` },
-      { label: "Customers", href: `${CRM_BASE_PATH}/customers` },
+      { label: "Contacts", href: `${CRM_BASE_PATH}/customers` },
     ],
   },
   {
@@ -90,7 +90,7 @@ export const CRM_NAV_SECTIONS: CrmNavSection[] = [
   {
     title: "Dashboards",
     items: [
-      { label: "Operations", href: `${CRM_BASE_PATH}/analytics` },
+      { label: "Analytics", href: `${CRM_BASE_PATH}/analytics` },
       { label: "Finance", href: `${CRM_BASE_PATH}/revenue` },
       { label: "SLAs", href: `${CRM_BASE_PATH}/slas` },
     ],
@@ -154,6 +154,7 @@ export const LEAD_STAGE_LABELS: Record<string, string> = {
 };
 
 export const LOST_REASON_OPTIONS: { value: string; label: string }[] = [
+  { value: "TOO_EXPENSIVE", label: "Too expensive" },
   { value: "CHOSE_COMPETITOR", label: "Chose competitor" },
   { value: "TIMING_WRONG", label: "Timing wrong" },
   { value: "PROPERTY_FELL_THROUGH", label: "Property fell through" },

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { acceptInvite, resetPassword } from "@/crm/lib/api";
+import { acceptCrmInvite, acceptInvite, resetPassword } from "@/crm/lib/api";
 import CurvedContainer from "@/crm/components/ui/CurvedContainer";
 import TextField from "@/crm/components/ui/TextField";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
@@ -12,11 +12,17 @@ import BodySubtext from "@/crm/components/ui/BodySubtext";
 import CrmAuthBrand from "@/crm/components/CrmAuthBrand";
 
 type InviteSession =
+  | { kind: "inviteToken"; inviteToken: string }
   | { kind: "tokenHash"; tokenHash: string; type: "invite" | "recovery" }
   | { kind: "session"; accessToken: string; refreshToken: string };
 
 function parseInviteSession(): InviteSession | null {
   const query = new URLSearchParams(window.location.search);
+  const inviteToken = query.get("invite_token");
+  if (inviteToken) {
+    return { kind: "inviteToken", inviteToken };
+  }
+
   const tokenHash = query.get("token_hash");
   const queryType = query.get("type");
   if (tokenHash && (queryType === "invite" || queryType === "recovery")) {
@@ -67,7 +73,9 @@ export default function CrmAcceptInviteForm() {
     setError("");
     setLoading(true);
     try {
-      if (session.kind === "tokenHash") {
+      if (session.kind === "inviteToken") {
+        await acceptCrmInvite(session.inviteToken, password);
+      } else if (session.kind === "tokenHash") {
         await acceptInvite(session.tokenHash, session.type, password);
       } else {
         await resetPassword(session.accessToken, session.refreshToken, password);

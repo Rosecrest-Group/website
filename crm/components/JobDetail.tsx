@@ -7,6 +7,7 @@ import {
   canEditInspectionDate,
   canManageJobAccessDetails,
   canMutateLeads,
+  canTickPreSiteCheckpoints,
   canViewJobMoney,
 } from "@/crm/lib/rbac";
 import type { Job, JobDocument, SnaggingItem, UserRole } from "@/crm/types";
@@ -20,8 +21,8 @@ import TextField from "@/crm/components/ui/TextField";
 import SelectField from "@/crm/components/ui/SelectField";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import ConfirmModal from "@/crm/components/ui/ConfirmModal";
-import InternalConversationPanel, { prefetchInternalThread } from "@/crm/components/InternalConversationPanel";
 import { ArrowLeft, Building2, CalendarDays, CheckSquare, ClipboardList, FileText, KeyRound, UserRound, Wallet } from "lucide-react";
+import { canonicalSurveyStage, SURVEY_JOB_STAGES } from "@/crm/lib/jobStages";
 
 function paymentStatusVariant(status: string): "completed" | "pending" | "in-review" | "failed" {
   if (status === "PAID") return "completed";
@@ -29,29 +30,48 @@ function paymentStatusVariant(status: string): "completed" | "pending" | "in-rev
   return "pending";
 }
 
-const SURVEY_STAGES = [
-  "PAID",
-  "ACCESS_REQUESTED",
-  "ACCESS_CONFIRMED",
-  "INSPECTION_BOOKED",
-  "INSPECTION_COMPLETE",
-  "REPORT_DRAFTING",
-  "REPORT_QC",
-  "REPORT_DELIVERED",
-  "COMPLETED",
-] as const;
+const SURVEY_STAGES = SURVEY_JOB_STAGES;
+
+const INSPECTION_WINDOWS = ["8am–1pm", "2pm–5pm"] as const;
+
+function normalizeInspectionWindow(value: string): string {
+  const compact = value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[–—−]/g, "-");
+  if (compact === "8am-1pm") return "8am–1pm";
+  if (compact === "2pm-5pm") return "2pm–5pm";
+  return value.trim();
+}
+
+type AccessContactKind = "agent" | "vendor";
+
+function accessContactKindFromJob(job: {
+  agentName?: string | null;
+  agentEmail?: string | null;
+  agentPhone?: string | null;
+  vendorName?: string | null;
+  vendorEmail?: string | null;
+  vendorPhone?: string | null;
+}): AccessContactKind {
+  if (job.agentName?.trim() || job.agentEmail?.trim() || job.agentPhone?.trim()) return "agent";
+  if (job.vendorName?.trim() || job.vendorEmail?.trim() || job.vendorPhone?.trim()) return "vendor";
+  return "agent";
+}
 
 type SurveyStage = (typeof SURVEY_STAGES)[number];
 
 function surveyStageIndex(stage: string): number {
   if (stage === "PENDING_PAYMENT") return -1;
-  return SURVEY_STAGES.indexOf(stage as SurveyStage);
+  return SURVEY_STAGES.indexOf(canonicalSurveyStage(stage) as SurveyStage);
 }
 
 /** Which Job Detail panels to show for the current survey stage. */
 function surveyStagePanels(stage: string, opts: { hasSurveyor: boolean; accessPendingReview: boolean }) {
-  const idx = surveyStageIndex(stage);
-  const is = (...stages: string[]) => stages.includes(stage);
+  const canonical = canonicalSurveyStage(stage);
+  const idx = surveyStageIndex(canonical);
+  const is = (...stages: string[]) => stages.includes(canonical);
   const atOrAfter = (s: SurveyStage) => {
     const target = SURVEY_STAGES.indexOf(s);
     return target >= 0 && idx >= target;
@@ -63,27 +83,27 @@ function surveyStagePanels(stage: string, opts: { hasSurveyor: boolean; accessPe
 
   const accessPhase = is("PENDING_PAYMENT", "PAID", "ACCESS_REQUESTED") || opts.accessPendingReview;
   const bookingPhase = is("ACCESS_CONFIRMED", "INSPECTION_BOOKED");
-  const reportPhase = is("REPORT_DRAFTING", "REPORT_QC", "REPORT_DELIVERED", "COMPLETED");
   const inspectionDetails =
     stage === "PENDING_PAYMENT" ||
     (idx >= 0 && idx <= SURVEY_STAGES.indexOf("INSPECTION_BOOKED"));
 
   return {
     /** Unpaid payment actions stay available until paid regardless of stage. */
-    surveyor: accessPhase || !opts.hasSurveyor,
+    surveyor: idx < SURVEY_STAGES.indexOf("INSPECTION_COMPLETE") || !opts.hasSurveyor,
     accessEditor: accessPhase,
     accessReadOnly: !accessPhase && atOrAfter("ACCESS_CONFIRMED"),
+    showAccessNotes: atOrAfter("ACCESS_REQUESTED"),
     /** Torera: checkpoints once assigned, before attending site. */
     preSiteCheckpoints: beforeSite,
     /** Proposed / booked date + arrival window — needed before Access Request email. */
     inspectionDetails,
     inspectionDetailsProposed: accessPhase && !bookingPhase,
     dataCapture: is("INSPECTION_COMPLETE"),
-    documents: reportPhase,
-    documentsUpload: is("REPORT_DRAFTING", "REPORT_QC"),
-    reviewRequest: is("REPORT_DELIVERED", "COMPLETED"),
-    paymentsHistory: is("REPORT_DELIVERED", "COMPLETED"),
-    earlierDetails: atOrAfter("ACCESS_CONFIRMED"),
+    documents: atOrAfter("INSPECTION_COMPLETE"),
+    documentsUpload: atOrAfter("INSPECTION_COMPLETE"),
+    reviewRequest: is("REPORT_DELIVERED"),
+    paymentsHistory: is("REPORT_DELIVERED"),
+    earlierDetails: atOrAfter("INSPECTION_COMPLETE"),
   };
 }
 
@@ -114,6 +134,7 @@ export default function JobDetail({ id }: { id: string }) {
     vendorPhone: "",
     accessNotes: "",
   });
+  const [accessContactKind, setAccessContactKind] = useState<AccessContactKind>("agent");
   const [inspectionDate, setInspectionDate] = useState("");
   const [inspectionWindow, setInspectionWindow] = useState("");
   const [inspectionError, setInspectionError] = useState<string | null>(null);
@@ -133,7 +154,7 @@ export default function JobDetail({ id }: { id: string }) {
         setWorkStart(j.workStartDate?.slice(0, 10) ?? "");
         setWorkEnd(j.workEndDate?.slice(0, 10) ?? "");
         setInspectionDate(j.inspectionDate?.slice(0, 10) ?? "");
-        setInspectionWindow(j.inspectionWindow ?? "");
+        setInspectionWindow(normalizeInspectionWindow(j.inspectionWindow ?? ""));
         setAccessForm({
           agentName: j.agentName ?? "",
           agentEmail: j.agentEmail ?? "",
@@ -143,7 +164,7 @@ export default function JobDetail({ id }: { id: string }) {
           vendorPhone: j.vendorPhone ?? "",
           accessNotes: j.accessNotes ?? "",
         });
-        prefetchInternalThread({ jobId: j.id });
+        setAccessContactKind(accessContactKindFromJob(j));
       })
       .finally(() => {
         if (!silent) setLoading(false);
@@ -160,6 +181,7 @@ export default function JobDetail({ id }: { id: string }) {
   const showMoney = role ? canViewJobMoney(role) : false;
   const canManageAccess = role ? canManageJobAccessDetails(role) : false;
   const canSetInspectionDate = role ? canEditInspectionDate(role) : false;
+  const canTickCheckpoints = role ? canTickPreSiteCheckpoints(role) : false;
 
   async function createLink() {
     const r = await api.createPaymentLink(id);
@@ -279,12 +301,56 @@ export default function JobDetail({ id }: { id: string }) {
     reload();
   }
 
+  function accessDetailsPayload() {
+    if (accessContactKind === "agent") {
+      return {
+        agentName: accessForm.agentName,
+        agentEmail: accessForm.agentEmail,
+        agentPhone: accessForm.agentPhone,
+        vendorName: "",
+        vendorEmail: "",
+        vendorPhone: "",
+        accessNotes: accessForm.accessNotes,
+      };
+    }
+    return {
+      vendorName: accessForm.vendorName,
+      vendorEmail: accessForm.vendorEmail,
+      vendorPhone: accessForm.vendorPhone,
+      agentName: "",
+      agentEmail: "",
+      agentPhone: "",
+      accessNotes: accessForm.accessNotes,
+    };
+  }
+
+  function switchAccessContactKind(next: AccessContactKind) {
+    if (next === accessContactKind) return;
+    setAccessForm((form) => {
+      if (next === "vendor") {
+        return {
+          ...form,
+          vendorName: form.vendorName || form.agentName,
+          vendorEmail: form.vendorEmail || form.agentEmail,
+          vendorPhone: form.vendorPhone || form.agentPhone,
+        };
+      }
+      return {
+        ...form,
+        agentName: form.agentName || form.vendorName,
+        agentEmail: form.agentEmail || form.vendorEmail,
+        agentPhone: form.agentPhone || form.vendorPhone,
+      };
+    });
+    setAccessContactKind(next);
+  }
+
   async function saveAccessDetails() {
     setAccessError(null);
     setAccessSaved(false);
     setSavingAccess(true);
     try {
-      await api.updateJob(id, accessForm);
+      await api.updateJob(id, accessDetailsPayload());
       await reload();
       setAccessSaved(true);
     } catch (e) {
@@ -306,9 +372,9 @@ export default function JobDetail({ id }: { id: string }) {
     setConfirmingAccess(true);
     try {
       await api.updateJob(id, {
-        ...accessForm,
+        ...accessDetailsPayload(),
         inspectionDate: new Date(`${inspectionDate}T12:00:00.000Z`).toISOString(),
-        inspectionWindow: inspectionWindow.trim(),
+        inspectionWindow: normalizeInspectionWindow(inspectionWindow) || null,
       });
       await api.confirmJobAccessDetails(id);
       await reload();
@@ -367,7 +433,7 @@ export default function JobDetail({ id }: { id: string }) {
         : null;
       await api.updateJob(id, {
         inspectionDate: iso,
-        inspectionWindow: inspectionWindow.trim() || null,
+        inspectionWindow: normalizeInspectionWindow(inspectionWindow) || null,
       });
       await reload();
     } catch (e) {
@@ -386,6 +452,7 @@ export default function JobDetail({ id }: { id: string }) {
     field: "surveyorJobReviewed" | "surveyorDiaryConfirmed" | "surveyorDesktopResearch",
     value: boolean
   ) {
+    if (!canTickCheckpoints) return;
     setJob((j) => (j ? { ...j, [field]: value } : j));
     try {
       await api.updateJob(id, { [field]: value });
@@ -490,15 +557,10 @@ export default function JobDetail({ id }: { id: string }) {
           </CrmPanel>
         )}
 
-        {/* Setup: Payment (+ Surveyor for survey jobs in access phase) */}
+        {/* Payment only while unpaid; surveyor sits with access below. */}
+        {(isTrade || (showMoney && job.paymentStatus !== "PAID")) && (
         <div
-          className={`grid gap-6 ${
-            isTrade
-              ? "lg:grid-cols-3"
-              : showMoney && job.paymentStatus !== "PAID" && panels.surveyor
-                ? "lg:grid-cols-2"
-                : "lg:grid-cols-1"
-          }`}
+          className={`grid gap-6 ${isTrade ? "lg:grid-cols-3" : "lg:grid-cols-1"}`}
         >
           {showMoney && (isTrade || job.paymentStatus !== "PAID") && (
             <CrmPanel title="Payment">
@@ -535,34 +597,6 @@ export default function JobDetail({ id }: { id: string }) {
                   )}
                 </div>
               </div>
-            </CrmPanel>
-          )}
-
-          {!isTrade && panels.surveyor && (
-            <CrmPanel title="Surveyor assignment">
-              {canAssignSurveyor ? (
-                <>
-                  <SelectField
-                    label="Assigned surveyor"
-                    value={job.assignedTo?.id ?? ""}
-                    onChange={(e) => assignSurveyor(e.target.value)}
-                  >
-                    <option value="">Unassigned</option>
-                    {surveyors.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.fullName}
-                      </option>
-                    ))}
-                  </SelectField>
-                  {!job.assignedTo && (
-                    <p className="mt-2 text-xs text-amber-700">Assign a surveyor before requesting access.</p>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-ink-muted">
-                  {job.assignedTo?.fullName ?? "Unassigned"}
-                </p>
-              )}
             </CrmPanel>
           )}
 
@@ -625,93 +659,174 @@ export default function JobDetail({ id }: { id: string }) {
             </CrmPanel>
           )}
         </div>
+        )}
 
         {!isTrade && (
           <>
-            {canManageAccess && job.accessDetailsPendingReview && (
-              <CrmPanel title="Access details — review required" className="border-amber-300 bg-amber-50/50">
-                <p className="mb-3 text-sm text-amber-900">
-                  Client reply was parsed into the fields below. Verify and confirm to request access from the estate agent.
-                </p>
-                <PrimaryButton
-                  type="button"
-                  className="w-auto px-6"
-                  onClick={confirmAccessDetails}
-                  disabled={savingAccess || confirmingAccess}
-                >
-                  {confirmingAccess ? "Confirming…" : "Confirm access details"}
-                </PrimaryButton>
-                {accessError && <p className="mt-2 text-sm text-red-600">{accessError}</p>}
-              </CrmPanel>
-            )}
-
-            {panels.accessEditor && canManageAccess && (
-            <CrmPanel title="Access details">
+            {(panels.surveyor ||
+              (panels.accessEditor && canManageAccess) ||
+              (!canManageAccess && panels.accessReadOnly)) && (
+            <CrmPanel title="Surveyor & access">
               <div className="space-y-6">
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <section className="space-y-4 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
-                        <Building2 className="size-4" aria-hidden />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-medium text-ink">Estate agent</h3>
-                        <p className="text-xs text-ink-muted">Who to contact for access</p>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <TextField
-                        label="Name"
-                        value={accessForm.agentName}
-                        onChange={(e) => setAccessForm({ ...accessForm, agentName: e.target.value })}
-                      />
-                      <TextField
-                        label="Email"
-                        type="email"
-                        value={accessForm.agentEmail}
-                        onChange={(e) => setAccessForm({ ...accessForm, agentEmail: e.target.value })}
-                      />
-                      <TextField
-                        label="Phone"
-                        type="tel"
-                        value={accessForm.agentPhone}
-                        onChange={(e) => setAccessForm({ ...accessForm, agentPhone: e.target.value })}
-                      />
-                    </div>
-                  </section>
+                {canManageAccess && job.accessDetailsPendingReview && (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50/50 p-4">
+                    <p className="text-sm text-amber-900">
+                      Client reply was parsed into the contact fields. Verify and confirm to request access.
+                    </p>
+                    {accessError && <p className="mt-2 text-sm text-red-600">{accessError}</p>}
+                  </div>
+                )}
 
-                  <section className="space-y-4 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
-                        <UserRound className="size-4" aria-hidden />
+                <div
+                  className={`grid gap-6 ${
+                    panels.surveyor && (panels.accessEditor || panels.accessReadOnly || canManageAccess)
+                      ? "lg:grid-cols-2"
+                      : "lg:grid-cols-1"
+                  }`}
+                >
+                  {panels.surveyor && (
+                    <section className="space-y-4 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
+                          <UserRound className="size-4" aria-hidden />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-medium text-ink">Surveyor</h3>
+                          <p className="text-xs text-ink-muted">Assign before requesting access — no email yet</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-sm font-medium text-ink">Vendor / occupant</h3>
-                        <p className="text-xs text-ink-muted">On-site contact if known</p>
+                      {canAssignSurveyor ? (
+                        <>
+                          <SelectField
+                            label="Assigned surveyor"
+                            value={job.assignedTo?.id ?? ""}
+                            onChange={(e) => assignSurveyor(e.target.value)}
+                          >
+                            <option value="">Unassigned</option>
+                            {surveyors.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.fullName}
+                              </option>
+                            ))}
+                          </SelectField>
+                          {!job.assignedTo && (
+                            <p className="text-xs text-amber-700">Assign a surveyor before requesting access.</p>
+                          )}
+                          {job.assignedTo && (
+                            <p className="text-xs text-ink-muted">
+                              Booking details go out when you mark Access Confirmed.
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-sm text-ink">{job.assignedTo?.fullName ?? "Unassigned"}</p>
+                      )}
+                    </section>
+                  )}
+
+                  {panels.accessEditor && canManageAccess ? (
+                    <section className="space-y-4 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
+                          {accessContactKind === "agent" ? (
+                            <Building2 className="size-4" aria-hidden />
+                          ) : (
+                            <UserRound className="size-4" aria-hidden />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-medium text-ink">Estate agent / vendor</h3>
+                          <p className="text-xs text-ink-muted">One contact for access</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="space-y-3">
-                      <TextField
-                        label="Name"
-                        value={accessForm.vendorName}
-                        onChange={(e) => setAccessForm({ ...accessForm, vendorName: e.target.value })}
-                      />
-                      <TextField
-                        label="Email"
-                        type="email"
-                        value={accessForm.vendorEmail}
-                        onChange={(e) => setAccessForm({ ...accessForm, vendorEmail: e.target.value })}
-                      />
-                      <TextField
-                        label="Phone"
-                        type="tel"
-                        value={accessForm.vendorPhone}
-                        onChange={(e) => setAccessForm({ ...accessForm, vendorPhone: e.target.value })}
-                      />
-                    </div>
-                  </section>
+                      <div className="space-y-3">
+                        <SelectField
+                          label="Contact type"
+                          value={accessContactKind}
+                          onChange={(e) => switchAccessContactKind(e.target.value as AccessContactKind)}
+                        >
+                          <option value="agent">Estate agent</option>
+                          <option value="vendor">Vendor / occupant</option>
+                        </SelectField>
+                        <TextField
+                          label="Name"
+                          value={accessContactKind === "agent" ? accessForm.agentName : accessForm.vendorName}
+                          onChange={(e) =>
+                            setAccessForm(
+                              accessContactKind === "agent"
+                                ? { ...accessForm, agentName: e.target.value }
+                                : { ...accessForm, vendorName: e.target.value }
+                            )
+                          }
+                        />
+                        <TextField
+                          label="Email"
+                          type="email"
+                          value={accessContactKind === "agent" ? accessForm.agentEmail : accessForm.vendorEmail}
+                          onChange={(e) =>
+                            setAccessForm(
+                              accessContactKind === "agent"
+                                ? { ...accessForm, agentEmail: e.target.value }
+                                : { ...accessForm, vendorEmail: e.target.value }
+                            )
+                          }
+                        />
+                        <TextField
+                          label="Phone"
+                          type="tel"
+                          value={accessContactKind === "agent" ? accessForm.agentPhone : accessForm.vendorPhone}
+                          onChange={(e) =>
+                            setAccessForm(
+                              accessContactKind === "agent"
+                                ? { ...accessForm, agentPhone: e.target.value }
+                                : { ...accessForm, vendorPhone: e.target.value }
+                            )
+                          }
+                        />
+                      </div>
+                    </section>
+                  ) : (
+                    (job.agentName ||
+                      job.agentEmail ||
+                      job.agentPhone ||
+                      job.vendorName ||
+                      job.vendorEmail ||
+                      job.vendorPhone) && (
+                      <section className="space-y-2 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
+                            {job.agentName || job.agentEmail || job.agentPhone ? (
+                              <Building2 className="size-4" aria-hidden />
+                            ) : (
+                              <UserRound className="size-4" aria-hidden />
+                            )}
+                          </div>
+                          <h3 className="text-sm font-medium text-ink">
+                            {job.agentName || job.agentEmail || job.agentPhone
+                              ? "Estate agent"
+                              : "Vendor / occupant"}
+                          </h3>
+                        </div>
+                        <dl className="space-y-1.5 text-sm">
+                          <div>
+                            <dt className="text-xs text-ink-muted">Name</dt>
+                            <dd className="text-ink">{job.agentName || job.vendorName || "—"}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs text-ink-muted">Email</dt>
+                            <dd className="text-ink">{job.agentEmail || job.vendorEmail || "—"}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs text-ink-muted">Phone</dt>
+                            <dd className="text-ink">{job.agentPhone || job.vendorPhone || "—"}</dd>
+                          </div>
+                        </dl>
+                      </section>
+                    )
+                  )}
                 </div>
 
+                {panels.accessEditor && canManageAccess && panels.showAccessNotes && (
                 <section className="space-y-3">
                   <div className="flex items-center gap-2.5">
                     <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
@@ -719,19 +834,35 @@ export default function JobDetail({ id }: { id: string }) {
                     </div>
                     <div>
                       <h3 className="text-sm font-medium text-ink">Access notes</h3>
-                      <p className="text-xs text-ink-muted">Keys, alarms, parking, preferred times</p>
+                      <p className="text-xs text-ink-muted">Keys, alarms, parking, preferred times — add after you request access</p>
                     </div>
                   </div>
                   <textarea
                     id="access-notes"
-                    rows={4}
+                    rows={3}
                     value={accessForm.accessNotes}
                     onChange={(e) => setAccessForm({ ...accessForm, accessNotes: e.target.value })}
                     placeholder="e.g. Keysafe code, dog on site, call agent 30 mins before…"
                     className="w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-brand-light focus:ring-2 focus:ring-brand-muted"
                   />
                 </section>
+                )}
 
+                {!canManageAccess && panels.showAccessNotes && job.accessNotes && (
+                  <section className="space-y-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
+                        <KeyRound className="size-4" aria-hidden />
+                      </div>
+                      <h3 className="text-sm font-medium text-ink">Access notes</h3>
+                    </div>
+                    <p className="whitespace-pre-wrap rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink">
+                      {job.accessNotes}
+                    </p>
+                  </section>
+                )}
+
+                {panels.accessEditor && canManageAccess && (
                 <div className="flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 space-y-1">
                     {job.accessDetailsVerifiedAt ? (
@@ -768,81 +899,10 @@ export default function JobDetail({ id }: { id: string }) {
                     </PrimaryButton>
                   </div>
                 </div>
+                )}
               </div>
             </CrmPanel>
             )}
-
-            {!canManageAccess &&
-              panels.accessReadOnly &&
-              (job.agentName ||
-                job.agentEmail ||
-                job.agentPhone ||
-                job.vendorName ||
-                job.vendorEmail ||
-                job.vendorPhone ||
-                job.accessNotes) && (
-                <CrmPanel title="Access details">
-                  <div className="grid gap-6 lg:grid-cols-2">
-                    <section className="space-y-2 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
-                          <Building2 className="size-4" aria-hidden />
-                        </div>
-                        <h3 className="text-sm font-medium text-ink">Estate agent</h3>
-                      </div>
-                      <dl className="space-y-1.5 text-sm">
-                        <div>
-                          <dt className="text-xs text-ink-muted">Name</dt>
-                          <dd className="text-ink">{job.agentName || "—"}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-ink-muted">Email</dt>
-                          <dd className="text-ink">{job.agentEmail || "—"}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-ink-muted">Phone</dt>
-                          <dd className="text-ink">{job.agentPhone || "—"}</dd>
-                        </div>
-                      </dl>
-                    </section>
-                    <section className="space-y-2 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
-                          <UserRound className="size-4" aria-hidden />
-                        </div>
-                        <h3 className="text-sm font-medium text-ink">Vendor / occupant</h3>
-                      </div>
-                      <dl className="space-y-1.5 text-sm">
-                        <div>
-                          <dt className="text-xs text-ink-muted">Name</dt>
-                          <dd className="text-ink">{job.vendorName || "—"}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-ink-muted">Email</dt>
-                          <dd className="text-ink">{job.vendorEmail || "—"}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-ink-muted">Phone</dt>
-                          <dd className="text-ink">{job.vendorPhone || "—"}</dd>
-                        </div>
-                      </dl>
-                    </section>
-                    {job.accessNotes && (
-                      <section className="space-y-2 lg:col-span-2">
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
-                            <KeyRound className="size-4" aria-hidden />
-                          </div>
-                          <h3 className="text-sm font-medium text-ink">Access notes</h3>
-                        </div>
-                        <p className="whitespace-pre-wrap rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink">
-                          {job.accessNotes}
-                        </p>
-                      </section>
-                    )}
-                  </div>
-                </CrmPanel>
-              )}
 
             <CrmPanel title="Survey workflow">
               <div className="space-y-6">
@@ -861,7 +921,7 @@ export default function JobDetail({ id }: { id: string }) {
                     <ol className="flex min-w-max items-stretch gap-1.5">
                       {SURVEY_STAGES.map((s, i) => {
                         const currentIndex = surveyStageIndex(job.stage);
-                        const isCurrent = job.stage === s;
+                        const isCurrent = canonicalSurveyStage(job.stage) === s;
                         const isDone = currentIndex > i;
                         const needsReportFirst = s === "REPORT_DELIVERED" && !hasReportDocument;
                         const needsInspectionFirst =
@@ -874,7 +934,9 @@ export default function JobDetail({ id }: { id: string }) {
                               onClick={() => canManageAccess && updateSurveyStage(s)}
                               disabled={!canManageAccess}
                               title={
-                                needsReportFirst
+                                !canManageAccess
+                                  ? "Ops moves the job stage."
+                                  : needsReportFirst
                                   ? "Upload a Report document first — it is attached to the client email"
                                   : needsInspectionFirst
                                     ? "Set proposed inspection date and arrival window first"
@@ -890,7 +952,7 @@ export default function JobDetail({ id }: { id: string }) {
                                 canManageAccess && !isCurrent
                                   ? "hover:border-brand-light hover:text-ink"
                                   : "",
-                                !canManageAccess ? "cursor-default" : "",
+                                !canManageAccess ? "cursor-not-allowed" : "",
                                 (needsReportFirst || needsInspectionFirst) && !isCurrent
                                   ? "opacity-60"
                                   : "",
@@ -942,7 +1004,9 @@ export default function JobDetail({ id }: { id: string }) {
                       <div>
                         <h3 className="text-sm font-medium text-ink">Pre-site checkpoints</h3>
                         <p className="text-xs text-ink-muted">
-                          Required before attending. Ops is alerted if these stay unticked.
+                          {canTickCheckpoints
+                            ? "Tick these before attending site. Ops can see your progress."
+                            : "The assigned surveyor marks these before attending site."}
                         </p>
                       </div>
                     </div>
@@ -956,13 +1020,16 @@ export default function JobDetail({ id }: { id: string }) {
                       ).map(([field, label]) => (
                         <label
                           key={field}
-                          className="flex cursor-pointer items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink"
+                          className={`flex items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink ${
+                            canTickCheckpoints ? "cursor-pointer" : "cursor-not-allowed"
+                          }`}
                         >
                           <input
                             type="checkbox"
                             checked={Boolean(job[field])}
+                            disabled={!canTickCheckpoints}
                             onChange={(e) => toggleSurveyorCheckpoint(field, e.target.checked)}
-                            className="size-4 rounded border-line text-brand focus:ring-brand-muted"
+                            className="size-4 rounded border-line text-brand focus:ring-brand-muted disabled:cursor-not-allowed"
                           />
                           {label}
                         </label>
@@ -998,12 +1065,22 @@ export default function JobDetail({ id }: { id: string }) {
                           value={inspectionDate}
                           onChange={(e) => setInspectionDate(e.target.value)}
                         />
-                        <TextField
+                        <SelectField
                           label="Arrival window"
-                          placeholder="e.g. 9:00–12:00"
                           value={inspectionWindow}
                           onChange={(e) => setInspectionWindow(e.target.value)}
-                        />
+                        >
+                          <option value="">Select window</option>
+                          {INSPECTION_WINDOWS.map((window) => (
+                            <option key={window} value={window}>
+                              {window}
+                            </option>
+                          ))}
+                          {inspectionWindow &&
+                            !(INSPECTION_WINDOWS as readonly string[]).includes(inspectionWindow) && (
+                              <option value={inspectionWindow}>{inspectionWindow}</option>
+                            )}
+                        </SelectField>
                         {inspectionError && (
                           <p className="text-sm text-red-600">{inspectionError}</p>
                         )}
@@ -1058,7 +1135,9 @@ export default function JobDetail({ id }: { id: string }) {
                     </div>
                     <div>
                       <h3 className="text-sm font-medium text-ink">After inspection</h3>
-                      <p className="text-xs text-ink-muted">Mark when site data is captured</p>
+                      <p className="text-xs text-ink-muted">
+                        Mark when site data is captured on the surveyor’s reporting system. The report PDF is uploaded later.
+                      </p>
                     </div>
                   </div>
                   <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink">
@@ -1068,7 +1147,7 @@ export default function JobDetail({ id }: { id: string }) {
                       onChange={toggleDataCapture}
                       className="size-4 rounded border-line text-brand focus:ring-brand-muted"
                     />
-                    Data capture complete (photos, notes, checklist)
+                    Data captured on surveyor’s reporting system
                   </label>
                 </section>
                 )}
@@ -1102,6 +1181,7 @@ export default function JobDetail({ id }: { id: string }) {
                   Earlier details — surveyor &amp; access
                 </summary>
                 <div className="space-y-4 border-t border-line px-4 py-4">
+                  {!panels.surveyor && (
                   <div>
                     <p className="text-xs text-ink-muted">Surveyor</p>
                     {canAssignSurveyor ? (
@@ -1121,18 +1201,17 @@ export default function JobDetail({ id }: { id: string }) {
                       <p className="text-sm text-ink">{job.assignedTo?.fullName ?? "Unassigned"}</p>
                     )}
                   </div>
-                  <div className="grid gap-4 text-sm lg:grid-cols-2">
+                  )}
+                  <div className="grid gap-4 text-sm lg:grid-cols-1">
                     <div>
-                      <p className="text-xs text-ink-muted">Estate agent</p>
-                      <p className="text-ink">{job.agentName || "—"}</p>
-                      <p className="text-ink-muted">{job.agentEmail || "—"}</p>
-                      <p className="text-ink-muted">{job.agentPhone || "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-ink-muted">Vendor / occupant</p>
-                      <p className="text-ink">{job.vendorName || "—"}</p>
-                      <p className="text-ink-muted">{job.vendorEmail || "—"}</p>
-                      <p className="text-ink-muted">{job.vendorPhone || "—"}</p>
+                      <p className="text-xs text-ink-muted">
+                        {job.agentName || job.agentEmail || job.agentPhone
+                          ? "Estate agent"
+                          : "Vendor / occupant"}
+                      </p>
+                      <p className="text-ink">{job.agentName || job.vendorName || "—"}</p>
+                      <p className="text-ink-muted">{job.agentEmail || job.vendorEmail || "—"}</p>
+                      <p className="text-ink-muted">{job.agentPhone || job.vendorPhone || "—"}</p>
                     </div>
                   </div>
                   {job.accessNotes && (
@@ -1186,6 +1265,46 @@ export default function JobDetail({ id }: { id: string }) {
               {panels.documents && (
               <CrmPanel title="Documents">
                 <div className="space-y-4">
+                  {panels.documentsUpload && (
+                    <div className="flex flex-wrap items-end gap-3">
+                      <SelectField
+                        label="Type"
+                        value={docType}
+                        onChange={(e) => setDocType(e.target.value)}
+                      >
+                        <option value="REPORT">Report</option>
+                        <option value="ACTION_PLAN">Action plan</option>
+                        <option value="COSTING">Costing</option>
+                        <option value="OTHER">Other</option>
+                      </SelectField>
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <label htmlFor="job-document-file" className="block text-sm font-medium text-ink">
+                          File
+                        </label>
+                        <input
+                          id="job-document-file"
+                          type="file"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.gif"
+                          onChange={(e) => {
+                            setDocError(null);
+                            setDocFile(e.target.files?.[0] ?? null);
+                          }}
+                          className="block w-full text-sm text-ink file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:opacity-90"
+                        />
+                      </div>
+                      <SecondaryButton
+                        type="button"
+                        size="small"
+                        className="w-auto shrink-0"
+                        onClick={uploadDocument}
+                        disabled={!docFile || uploadingDoc}
+                      >
+                        {uploadingDoc ? "Uploading…" : "Upload"}
+                      </SecondaryButton>
+                    </div>
+                  )}
+                  {docError && <p className="text-sm text-red-600">{docError}</p>}
+
                   {documents.length > 0 ? (
                     <ul className="space-y-2">
                       {documents.map((d) => (
@@ -1206,46 +1325,7 @@ export default function JobDetail({ id }: { id: string }) {
                       ))}
                     </ul>
                   ) : (
-                    <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-sidebar/40 px-4 py-6 text-center">
-                      <FileText className="size-5 text-ink-faint" aria-hidden />
-                      <p className="text-sm text-ink-muted">No documents yet</p>
-                    </div>
-                  )}
-
-                  {panels.documentsUpload && (
-                  <div className="space-y-3 border-t border-line pt-4">
-                    <SelectField
-                      label="Document type"
-                      value={docType}
-                      onChange={(e) => setDocType(e.target.value)}
-                    >
-                      <option value="REPORT">Report</option>
-                      <option value="ACTION_PLAN">Action plan</option>
-                      <option value="COSTING">Costing</option>
-                      <option value="OTHER">Other</option>
-                    </SelectField>
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.gif"
-                      onChange={(e) => {
-                        setDocError(null);
-                        setDocFile(e.target.files?.[0] ?? null);
-                      }}
-                      className="block w-full text-sm text-ink file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:opacity-90"
-                    />
-                    {docError && <p className="text-sm text-red-600">{docError}</p>}
-                    <div className="flex justify-end">
-                      <SecondaryButton
-                        type="button"
-                        size="small"
-                        className="w-auto"
-                        onClick={uploadDocument}
-                        disabled={!docFile || uploadingDoc}
-                      >
-                        {uploadingDoc ? "Uploading…" : "Upload"}
-                      </SecondaryButton>
-                    </div>
-                  </div>
+                    <p className="text-sm text-ink-muted">No documents yet</p>
                   )}
                 </div>
               </CrmPanel>
@@ -1302,14 +1382,6 @@ export default function JobDetail({ id }: { id: string }) {
         )}
       </div>
 
-      <InternalConversationPanel
-        jobId={job.id}
-        title={
-          job.customer
-            ? `Job · ${job.jobNumber} · ${job.customer.firstName} ${job.customer.lastName}`
-            : `Job · ${job.jobNumber}`
-        }
-      />
       <ConfirmModal
         isOpen={showMoney && markPaidConfirmOpen}
         title="Mark as paid?"

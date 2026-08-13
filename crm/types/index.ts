@@ -463,6 +463,7 @@ export interface Customer {
   createdAt: string;
   updatedAt: string;
   _count?: { leads: number; jobs: number };
+  latestLead?: { id: string; source: string; stage: string } | null;
 }
 
 export interface LeadTag {
@@ -490,6 +491,8 @@ export interface Lead {
   createdAt: string;
   updatedAt: string;
   convertedToJobId: string | null;
+  lostReason?: string | null;
+  lostReasonNote?: string | null;
   customerName?: string;
   customer?: Customer;
   assignedTo?: { id: string; fullName: string; email: string } | null;
@@ -524,6 +527,7 @@ export interface Message {
   teamConnectPhoneDocId?: string | null;
   teamConnectMessageId?: string | null;
   replyToMessageId?: string | null;
+  author?: { id: string; fullName: string } | null;
 }
 
 export interface TeamConnectNumber {
@@ -710,6 +714,7 @@ export interface DashboardSales {
   period?: DashboardPeriod;
   since?: string;
   activeLeads: number;
+  opportunityValue?: number;
   conversionRate30d: number;
   leadsLast30d: number;
   convertedLast30d: number;

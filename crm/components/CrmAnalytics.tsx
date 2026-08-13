@@ -2,30 +2,34 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/crm/lib/api";
-import type { DashboardOps } from "@/crm/types";
+import type { DashboardOps, DashboardSales } from "@/crm/types";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import StatsCard from "@/crm/components/admin/StatsCard";
 import ExportCsvButton from "@/crm/components/ExportCsvButton";
 import Table, { type Column } from "@/crm/components/ui/Table";
-import { ClipboardCheck, FileEdit, Wrench, UserMinus } from "lucide-react";
+import { ClipboardCheck, FileEdit, Wrench, UserMinus, CheckCircle, TrendingUp, Tag } from "lucide-react";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
+import { formatJobStageLabel } from "@/crm/lib/jobStages";
 
 export default function CrmAnalytics() {
   const [data, setData] = useState<DashboardOps | null>(null);
+  const [sales, setSales] = useState<DashboardSales | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api
-      .getDashboardOps()
-      .then(setData)
+    Promise.all([api.getDashboardOps(), api.getDashboard("this_month")])
+      .then(([ops, salesDash]) => {
+        setData(ops);
+        setSales(salesDash);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
   const stageRows =
     data?.jobsByStage?.map((row) => ({
-      stage: row.stage.replace(/_/g, " "),
+      stage: formatJobStageLabel(row.stage),
       count: row._count.id,
     })) ?? [];
 
@@ -50,9 +54,39 @@ export default function CrmAnalytics() {
     <CrmPageContent>
       <CrmPageHeader
         title="Analytics"
-        subtitle="Operations metrics"
+        subtitle="Conversion, cost, and operations metrics"
         actions={<ExportCsvButton type="jobs" label="Export jobs" />}
       />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatsCard
+          title="Conversion · this month"
+          value={sales ? `${sales.conversionRate30d}%` : "0%"}
+          icon={<CheckCircle />}
+          iconTint="success"
+          subtitle={sales ? `${sales.convertedLast30d} converted` : undefined}
+        />
+        <StatsCard
+          title="Avg time to pay"
+          value={sales ? `${sales.avgTimeToPayDays}d` : "—"}
+          icon={<TrendingUp />}
+          iconTint="info"
+          subtitle="From paid jobs"
+        />
+        {sales?.totalAcquisitionCost30d !== undefined && (
+          <StatsCard
+            title="Lead cost · this month"
+            value={`£${sales.totalAcquisitionCost30d.toFixed(0)}`}
+            icon={<Tag />}
+            iconTint="warning"
+            subtitle={
+              sales.costPerConversion30d
+                ? `£${sales.costPerConversion30d} per conversion`
+                : undefined
+            }
+          />
+        )}
+      </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard 

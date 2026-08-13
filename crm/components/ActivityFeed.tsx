@@ -326,6 +326,19 @@ function parseActorAction(
     };
   }
 
+  if (activity.type === "lead.duplicate_intake") {
+    return { actor: "Duplicate intake", action: desc.replace(/^Duplicate intake\s+/i, "").trim() || desc };
+  }
+
+  if (activity.type === "lead.additional_quote") {
+    const level =
+      typeof activity.metadata?.surveyLevel === "string" ? activity.metadata.surveyLevel.replace(/_/g, " ") : "";
+    return {
+      actor: "Additional quote",
+      action: level ? `requested ${level.toLowerCase()}` : desc,
+    };
+  }
+
   if (activity.type === "stage.changed") {
     const stage = desc.replace(/^Stage (changed to\s+)?/i, "").trim();
     return { actor: "Stage", action: stage ? `moved to ${stage}` : "updated" };

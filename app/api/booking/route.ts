@@ -28,10 +28,12 @@ export async function POST(req: Request) {
       propertyAddress,
       postcode: body.jobPostcode,
       surveyLevel: body.surveyType,
+      bedrooms: body.bedrooms,
       quotedAmount:
         quotedAmount != null && !Number.isNaN(quotedAmount)
           ? quotedAmount
           : undefined,
+      isExpressTurnaround: body.isExpressTurnaround === true,
     };
 
     console.log("📋 Booking → CRM payload:", JSON.stringify(payload, null, 2));

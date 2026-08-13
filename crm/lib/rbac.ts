@@ -92,6 +92,11 @@ export function canEditInspectionDate(role: UserRole): boolean {
   return hasExactRole(role, LEAD_ACCESS_ROLES);
 }
 
+/** Pre-site ticks are the assigned surveyor’s; ops/admin can view only. */
+export function canTickPreSiteCheckpoints(role: UserRole): boolean {
+  return role === "SURVEYOR";
+}
+
 /** Default home when a role hits a forbidden path. */
 export function defaultLandingPath(role: UserRole): string {
   if (role === "SURVEYOR" || role === "TRADE_OPERATIVE" || role === "QC") {

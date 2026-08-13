@@ -19,7 +19,8 @@ type Snapshot = {
   items: UserNotificationItem[];
 };
 
-let snapshot: Snapshot = { unreadCount: 0, items: [] };
+const SERVER_SNAPSHOT: Snapshot = { unreadCount: 0, items: [] };
+let snapshot: Snapshot = SERVER_SNAPSHOT;
 const listeners = new Set<() => void>();
 let subscriberCount = 0;
 let intervalId: number | null = null;
@@ -147,7 +148,7 @@ function getSnapshot() {
 }
 
 function getServerSnapshot(): Snapshot {
-  return { unreadCount: 0, items: [] };
+  return SERVER_SNAPSHOT;
 }
 
 export function useNotificationCount() {

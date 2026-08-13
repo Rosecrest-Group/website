@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { resetPassword } from "@/crm/lib/api";
+import { acceptInvite, resetPassword } from "@/crm/lib/api";
 import CurvedContainer from "@/crm/components/ui/CurvedContainer";
 import TextField from "@/crm/components/ui/TextField";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
@@ -11,18 +11,31 @@ import BodyHeading from "@/crm/components/ui/BodyHeading";
 import BodySubtext from "@/crm/components/ui/BodySubtext";
 import CrmAuthBrand from "@/crm/components/CrmAuthBrand";
 
-function parseRecoveryTokens(hash: string) {
-  const params = new URLSearchParams(hash.replace(/^#/, ""));
+type ResetSession =
+  | { kind: "tokenHash"; tokenHash: string; type: "recovery" }
+  | { kind: "session"; accessToken: string; refreshToken: string };
+
+function parseResetSession(): ResetSession | null {
+  const query = new URLSearchParams(window.location.search);
+  const tokenHash = query.get("token_hash");
+  const queryType = query.get("type");
+  if (tokenHash && queryType === "recovery") {
+    return { kind: "tokenHash", tokenHash, type: "recovery" };
+  }
+
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const type = params.get("type");
   const accessToken = params.get("access_token");
   const refreshToken = params.get("refresh_token");
-  if (type !== "recovery" || !accessToken || !refreshToken) return null;
-  return { accessToken, refreshToken };
+  if (type === "recovery" && accessToken && refreshToken) {
+    return { kind: "session", accessToken, refreshToken };
+  }
+  return null;
 }
 
 export default function CrmResetPasswordForm() {
   const router = useRouter();
-  const [tokens, setTokens] = useState<{ accessToken: string; refreshToken: string } | null>(null);
+  const [tokens, setTokens] = useState<ResetSession | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -30,7 +43,7 @@ export default function CrmResetPasswordForm() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    const parsed = parseRecoveryTokens(window.location.hash);
+    const parsed = parseResetSession();
     setTokens(parsed);
     if (!parsed) {
       setError("This reset link is invalid or has expired. Request a new one.");
@@ -53,7 +66,11 @@ export default function CrmResetPasswordForm() {
     setError("");
     setLoading(true);
     try {
-      await resetPassword(tokens.accessToken, tokens.refreshToken, password);
+      if (tokens.kind === "tokenHash") {
+        await acceptInvite(tokens.tokenHash, tokens.type, password);
+      } else {
+        await resetPassword(tokens.accessToken, tokens.refreshToken, password);
+      }
       setDone(true);
       window.history.replaceState(null, "", window.location.pathname);
       setTimeout(() => router.push("/crm/login"), 3000);

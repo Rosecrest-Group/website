@@ -25,6 +25,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -144,12 +145,16 @@ export default function CrmSidebar({
         <Link
           href={CRM_BASE_PATH}
           onClick={onNavigate}
-          className="flex min-w-0 items-center gap-2.5"
+          className="flex min-w-0 items-center"
         >
-          <div className="flex size-8 items-center justify-center rounded-lg bg-linear-to-br from-brand to-brand-deep shadow-[0_4px_12px_rgb(109_40_217/0.35)]">
-            <span className="text-sm font-semibold tracking-tight text-white">R</span>
-          </div>
-          <span className="text-sm font-semibold tracking-tight text-ink">Rosecrest</span>
+          <Image
+            src="/assets/svgs/logo-blue.svg"
+            alt="Rosecrest"
+            width={350}
+            height={54}
+            className="h-7 w-auto max-w-full object-contain object-left"
+            priority
+          />
         </Link>
 
         {onClose ? (

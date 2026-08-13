@@ -49,7 +49,7 @@ export default function CustomerProfile({ id }: { id: string }) {
         href="/crm/customers"
         className="inline-flex items-center gap-1 text-sm text-(--color-tc-30) hover:text-(--color-tc-40)"
       >
-        ← Customers
+        ← Contacts
       </Link>
 
       <div>

@@ -95,6 +95,18 @@ function channelLabel(channel: string) {
   return "SMS";
 }
 
+function displayAddress(address?: string | null): string | null {
+  const trimmed = address?.trim();
+  if (!trimmed) return null;
+  return trimmed.replace(/^whatsapp:/i, "");
+}
+
+function counterpartAddressLabel(message: Message, isOutbound: boolean): string | null {
+  const address = displayAddress(isOutbound ? message.toAddress : message.fromAddress);
+  if (!address) return null;
+  return isOutbound ? `To ${address}` : `From ${address}`;
+}
+
 function isPolicySkipFailure(reason?: string | null): boolean {
   if (!reason) return false;
   const r = reason.toLowerCase();
@@ -781,11 +793,14 @@ function ThreadBubble({
   onAddNote?: (message: Message) => void;
 }) {
   const isOutbound = message.direction === "OUTBOUND";
-  const authorName = isOutbound ? "Rosecrest" : customerName;
+  const authorName = isOutbound
+    ? message.author?.fullName?.trim() || "Rosecrest"
+    : customerName;
   const ChannelIcon =
     message.channel === "EMAIL" ? Mail : message.channel === "WHATSAPP" ? Phone : MessageSquare;
   const designedEmail =
     message.channel === "EMAIL" && isDesignedEmailHtml(message.body);
+  const addressLabel = counterpartAddressLabel(message, isOutbound);
 
   return (
     <div className={cn("group flex gap-2", isOutbound ? "flex-row-reverse" : "flex-row")}>
@@ -823,8 +838,8 @@ function ThreadBubble({
           >
             <ChannelIcon className="size-3" aria-hidden />
             {channelLabel(message.channel)}
-            {message.channel === "SMS" && isOutbound && message.fromAddress && (
-              <span className="text-[10px] text-(--color-tc-20)">from {message.fromAddress}</span>
+            {addressLabel && (
+              <span className="text-[10px] text-(--color-tc-30)">{addressLabel}</span>
             )}
           </span>
           <span>{formatChatTime(messageTimestamp(message))}</span>

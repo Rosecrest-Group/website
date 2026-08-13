@@ -102,14 +102,13 @@ export function jobStageToPillVariant(stage: string): StatusVariant {
       return "pending";
     case "ACCESS_CONFIRMED":
     case "INSPECTION_COMPLETE":
+    case "REPORT_DRAFTING":
+    case "REPORT_QC":
     case "WORK_COMPLETE":
       return "awaiting";
     case "INSPECTION_BOOKED":
-    case "REPORT_DRAFTING":
     case "SNAGGING":
       return "in-review";
-    case "REPORT_QC":
-      return "paused";
     case "REPORT_DELIVERED":
     case "COMPLETED":
       return "completed";

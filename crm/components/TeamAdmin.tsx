@@ -9,6 +9,7 @@ import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import CrmPanel from "@/crm/components/ui/CrmPanel";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
+import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import TextField from "@/crm/components/ui/TextField";
 import SelectField from "@/crm/components/ui/SelectField";
 import Table, { type Column } from "@/crm/components/ui/Table";
@@ -100,7 +101,7 @@ export default function TeamAdmin() {
         role: invite.role,
         ...(credentials ? { credentials } : {}),
       });
-      toast.success(`Invite sent to ${user.fullName}. They’ll stay inactive until they set a password.`);
+      toast.success(`Invite sent to ${user.fullName}. The link expires in 7 days.`);
       setInvite({ email: "", fullName: "", role: "OPS", credentials: "" });
       await load();
     } catch (err) {
@@ -155,6 +156,23 @@ export default function TeamAdmin() {
       toast.error(message);
     } finally {
       setRemoving(false);
+      setSavingId(null);
+    }
+  }
+
+  async function resendInvite(row: TeamRow) {
+    if (!isManager) {
+      toast.error("Only Super Admins can resend invites");
+      return;
+    }
+
+    setSavingId(row.id);
+    try {
+      await api.resendTeamInvite(row.id);
+      toast.success(`Invite resent to ${row.fullName}. The link expires in 7 days.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not resend invite");
+    } finally {
       setSavingId(null);
     }
   }
@@ -223,27 +241,41 @@ export default function TeamAdmin() {
             header: "Actions",
             render: (_value: unknown, row: TeamRow) => {
               const isSelf = row.id === currentUser?.id;
+              const inactive = row.isActive === false;
               return (
-                <SelectField
-                  aria-label={`Actions for ${row.fullName}`}
-                  value=""
-                  disabled={savingId === row.id || isSelf}
-                  onChange={(e) => {
-                    const action = e.target.value;
-                    e.target.value = "";
-                    void handleAction(row, action);
-                  }}
-                >
-                  <option value="" disabled>
-                    {isSelf ? "—" : "Actions"}
-                  </option>
-                  {row.isActive === false ? (
-                    <option value="reactivate">Reactivate</option>
-                  ) : (
-                    <option value="deactivate">Deactivate</option>
+                <div className="flex flex-wrap items-center gap-2">
+                  {inactive && (
+                    <SecondaryButton
+                      type="button"
+                      size="small"
+                      className="w-auto"
+                      disabled={savingId === row.id || isSelf}
+                      onClick={() => void resendInvite(row)}
+                    >
+                      {savingId === row.id ? "Sending…" : "Resend invite"}
+                    </SecondaryButton>
                   )}
-                  <option value="remove">Remove</option>
-                </SelectField>
+                  <SelectField
+                    aria-label={`Actions for ${row.fullName}`}
+                    value=""
+                    disabled={savingId === row.id || isSelf}
+                    onChange={(e) => {
+                      const action = e.target.value;
+                      e.target.value = "";
+                      void handleAction(row, action);
+                    }}
+                  >
+                    <option value="" disabled>
+                      {isSelf ? "—" : "Actions"}
+                    </option>
+                    {inactive ? (
+                      <option value="reactivate">Reactivate</option>
+                    ) : (
+                      <option value="deactivate">Deactivate</option>
+                    )}
+                    <option value="remove">Remove</option>
+                  </SelectField>
+                </div>
               );
             },
           } satisfies Column<TeamRow>,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/crm/lib/api";
 import { getCachedCurrentUser } from "@/crm/lib/currentUserCache";
 import { getListPageCache, setListPageCache } from "@/crm/lib/listPageCache";
@@ -12,6 +12,7 @@ import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import Table, { type Column } from "@/crm/components/ui/Table";
 import StatusPill, { jobStageToPillVariant } from "@/crm/components/ui/StatusPill";
+import { formatJobStageLabel } from "@/crm/lib/jobStages";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 
 export default function CrmJobsList({
@@ -20,7 +21,10 @@ export default function CrmJobsList({
   initialData?: { items: Job[] } | null;
 }) {
   const router = useRouter();
-  const seed = initialData ?? getListPageCache<{ items: Job[] }>("jobs:default");
+  const searchParams = useSearchParams();
+  const stage = searchParams.get("stage") ?? "";
+  const seed =
+    !stage ? (initialData ?? getListPageCache<{ items: Job[] }>("jobs:default")) : null;
   const [jobs, setJobs] = useState<Job[]>(() => seed?.items ?? []);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(() => !seed);
@@ -30,15 +34,18 @@ export default function CrmJobsList({
 
   useEffect(() => {
     api.getMe().then((me) => setRole(me.role)).catch(() => setRole(null));
-    if (seed) return;
+    if (seed && !stage) return;
+    setLoading(true);
+    const params: Record<string, string> = { limit: "50", page: "1" };
+    if (stage) params.stage = stage;
     api
-      .listJobs({ limit: "50", page: "1" })
+      .listJobs(params)
       .then((res) => {
         setJobs(res.items);
-        setListPageCache("jobs:default", res);
+        if (!stage) setListPageCache("jobs:default", res);
       })
       .finally(() => setLoading(false));
-  }, [seed]);
+  }, [seed, stage]);
 
   const leadName = (job: Job) =>
     job.customer
@@ -100,10 +107,10 @@ export default function CrmJobsList({
     {
       key: "stage",
       header: "Stage",
-      render: (value) => (
+      render: (value, row) => (
         <StatusPill
           variant={jobStageToPillVariant(value as string)}
-          label={(value as string).replace(/_/g, " ")}
+          label={formatJobStageLabel(value as string, row.jobType)}
         />
       ),
     },

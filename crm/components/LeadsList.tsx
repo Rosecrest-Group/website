@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/crm/lib/api";
 import { prefetchLead } from "@/crm/lib/leadDetailCache";
 import { getListPageCache, setListPageCache } from "@/crm/lib/listPageCache";
 import type { Lead, LeadStage, Paginated } from "@/crm/types";
 import {
   BEDROOM_BAND_LABELS,
+  LEAD_SOURCES,
   LEAD_STAGE_LABELS,
   PROPERTY_VALUE_BAND_LABELS,
   SURVEY_LEVEL_LABELS,
@@ -56,16 +57,30 @@ export default function LeadsList({
   initialData?: LeadsListInitialData | null;
 }) {
   const router = useRouter();
-  const seed = initialData ?? getListPageCache<LeadsListInitialData>("leads:default");
+  const searchParams = useSearchParams();
+  const urlStage = searchParams.get("stage") ?? "";
+  const urlSource = searchParams.get("source") ?? "";
+  const hasUrlFilters = Boolean(urlStage || urlSource);
+  const seed =
+    !hasUrlFilters
+      ? (initialData ?? getListPageCache<LeadsListInitialData>("leads:default"))
+      : null;
   const [leads, setLeads] = useState<Lead[]>(() => seed?.items ?? []);
   const [total, setTotal] = useState(() => seed?.total ?? 0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [stage, setStage] = useState("");
+  const [stage, setStage] = useState(urlStage);
+  const [source, setSource] = useState(urlSource);
   const [loading, setLoading] = useState(() => !seed);
   const [error, setError] = useState("");
   const skipInitialFetch = useRef(Boolean(seed));
   const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setStage(urlStage);
+    setSource(urlSource);
+    setPage(1);
+  }, [urlStage, urlSource]);
 
   useEffect(() => {
     if (skipInitialFetch.current) {
@@ -87,6 +102,7 @@ export default function LeadsList({
     };
     if (search) params.search = search;
     if (stage) params.stage = stage;
+    if (source) params.source = source;
     const timer = setTimeout(() => {
       api
         .listLeads(params)
@@ -94,7 +110,7 @@ export default function LeadsList({
           setLeads(res.items);
           setTotal(res.total);
           setError("");
-          if (!search && !stage && page === 1) {
+          if (!search && !stage && !source && page === 1) {
             setListPageCache("leads:default", res);
           }
         })
@@ -102,13 +118,21 @@ export default function LeadsList({
         .finally(() => setLoading(false));
     }, search ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [search, stage, page]);
+  }, [search, stage, source, page]);
 
   useEffect(() => {
     return () => {
       if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
     };
   }, []);
+
+  function syncFilters(nextStage: string, nextSource: string) {
+    const params = new URLSearchParams();
+    if (nextStage) params.set("stage", nextStage);
+    if (nextSource) params.set("source", nextSource);
+    const qs = params.toString();
+    router.replace(qs ? `/crm/leads?${qs}` : "/crm/leads");
+  }
 
   function handleSearchChange(value: string) {
     setLoading(true);
@@ -120,6 +144,14 @@ export default function LeadsList({
     setLoading(true);
     setStage(value);
     setPage(1);
+    syncFilters(value, source);
+  }
+
+  function handleSourceChange(value: string) {
+    setLoading(true);
+    setSource(value);
+    setPage(1);
+    syncFilters(stage, value);
   }
 
   function warmLead(leadId: string) {
@@ -233,18 +265,32 @@ export default function LeadsList({
           onSearchChange={handleSearchChange}
           searchPlaceholder="Search name, email, address…"
           toolbarExtra={
-            <SelectField
-              variant="filter"
-              value={stage}
-              onChange={(e) => handleStageChange(e.target.value)}
-            >
-              <option value="">All stages</option>
-              {STAGES.map((s) => (
-                <option key={s} value={s}>
-                  {LEAD_STAGE_LABELS[s]}
-                </option>
-              ))}
-            </SelectField>
+            <div className="flex flex-wrap items-center gap-2">
+              <SelectField
+                variant="filter"
+                value={source}
+                onChange={(e) => handleSourceChange(e.target.value)}
+              >
+                <option value="">All sources</option>
+                {LEAD_SOURCES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </SelectField>
+              <SelectField
+                variant="filter"
+                value={stage}
+                onChange={(e) => handleStageChange(e.target.value)}
+              >
+                <option value="">Active stages</option>
+                {STAGES.map((s) => (
+                  <option key={s} value={s}>
+                    {LEAD_STAGE_LABELS[s]}
+                  </option>
+                ))}
+              </SelectField>
+            </div>
           }
           columns={columns}
           data={leads as (Lead & Record<string, unknown>)[]}

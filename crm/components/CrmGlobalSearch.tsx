@@ -32,7 +32,7 @@ const TYPE_ICONS = {
 const TYPE_LABELS = {
   lead: "Leads",
   job: "Jobs",
-  customer: "Customers",
+  customer: "Contacts",
 } as const;
 
 function formatLeadLabel(lead: Lead) {
@@ -175,9 +175,9 @@ export default function CrmGlobalSearch() {
 
   const searchPlaceholder = role && !canReadLeads(role)
     ? canAccessCustomerDirectory(role)
-      ? "Search jobs, customers..."
+      ? "Search jobs, contacts..."
       : "Search jobs..."
-    : "Search leads, jobs, customers...";
+    : "Search leads, jobs, contacts...";
 
   useEffect(() => {
     setHighlight(0);

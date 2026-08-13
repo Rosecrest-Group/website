@@ -250,9 +250,52 @@ export default function LeadDetail({
     : "??";
 
   const possibleDuplicates = lead.possibleDuplicateLeads ?? [];
+  const additionalQuotes = (lead.activities ?? []).filter((a) => a.type === "lead.additional_quote");
+  const lostReasonLabel =
+    lead.lostReason
+      ? (LOST_REASON_OPTIONS.find((option) => option.value === lead.lostReason)?.label ??
+        lead.lostReason.replace(/_/g, " "))
+      : null;
 
   const detailBody = (
     <>
+      {lead.stage === "LOST" && (
+        <div className="mb-6 rounded-xl border border-line bg-sidebar px-4 py-3 text-sm text-ink">
+          <p className="font-medium">Marked lost</p>
+          <p className="mt-1 text-ink-muted">
+            {lostReasonLabel ?? "No reason given"}
+            {lead.lostReasonNote ? ` — ${lead.lostReasonNote}` : ""}
+          </p>
+        </div>
+      )}
+
+      {additionalQuotes.length > 0 && (
+        <div className="mb-6 rounded-xl border border-brand-light bg-brand-muted px-4 py-3 text-sm text-ink">
+          <p className="font-medium">
+            Also requested{" "}
+            {additionalQuotes
+              .map((activity) => {
+                const level =
+                  typeof activity.metadata?.surveyLevel === "string"
+                    ? activity.metadata.surveyLevel
+                    : "";
+                const amount =
+                  typeof activity.metadata?.quotedAmount === "number"
+                    ? activity.metadata.quotedAmount
+                    : null;
+                const label = SURVEY_LEVEL_LABELS[level] ?? level ?? "another survey";
+                return amount != null ? `${label} (£${amount})` : label;
+              })
+              .join(" and ")}
+          </p>
+          <p className="mt-1 text-ink-muted">
+            Kept as one lead. Original request was{" "}
+            {lead.surveyLevel ? SURVEY_LEVEL_LABELS[lead.surveyLevel] ?? lead.surveyLevel : "the first survey"}
+            {lead.quotedAmount != null ? ` (£${lead.quotedAmount})` : ""}. Partner credit-back applies on the extra enquiry.
+          </p>
+        </div>
+      )}
+
       {possibleDuplicates.length > 0 && (
         <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <p className="font-medium">

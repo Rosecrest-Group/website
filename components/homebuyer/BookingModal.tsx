@@ -108,6 +108,7 @@ const formSchema = z.object({
   bedrooms: z.string().min(1, "Please select number of bedrooms"),
   helpWith: z.string().optional(),
   surveyType: z.string().min(1, "Please select survey type"),
+  expressReportDelivery: z.enum(["no", "yes"]),
 });
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -140,6 +141,7 @@ const BookingModal = ({
       propertyValue: "",
       bedrooms: "",
       surveyType: defaultSurveyType,
+      expressReportDelivery: "no",
       helpWith: "",
     },
   });
@@ -154,6 +156,11 @@ const BookingModal = ({
     name: "surveyType",
     defaultValue: defaultSurveyType,
   });
+  const expressReportDelivery = useWatch({
+    control,
+    name: "expressReportDelivery",
+    defaultValue: "no",
+  });
   const jobPostcode = useWatch({
     control,
     name: "jobPostcode",
@@ -166,12 +173,17 @@ const BookingModal = ({
   const basePrice = selectedBedrooms
     ? getPrice(selectedSurveyType, selectedBedrooms)
     : getPrice(defaultSurveyType, "1 Bedroom");
-  const totalPrice = basePrice;
+  const expressFee = expressReportDelivery === "yes" ? 200 : 0;
+  const totalPrice = basePrice + expressFee;
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setSubmitError(false);
     try {
-      const valuesWithPrice = { ...values, surveyingFees: totalPrice };
+      const valuesWithPrice = {
+        ...values,
+        surveyingFees: totalPrice,
+        isExpressTurnaround: values.expressReportDelivery === "yes",
+      };
       const res = await fetch("/api/booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -550,6 +562,30 @@ const BookingModal = ({
 
                   <div className="space-y-1.5">
                     <Label className="text-sm font-medium text-gray-700">
+                      Express Report Delivery (48 hours)
+                    </Label>
+                    <Controller
+                      name="expressReportDelivery"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <SelectTrigger className="h-11 rounded-xl border-[#E5E7EB] w-full text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="no">No</SelectItem>
+                            <SelectItem value="yes">Yes (+£200)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium text-gray-700">
                       Survey requirements{" "}
                       <span className="text-[#9CA3AF]">(optional)</span>
                     </Label>
@@ -590,6 +626,12 @@ const BookingModal = ({
                     </span>
                     <span className="font-medium">£{basePrice}</span>
                   </div>
+                  {expressFee > 0 && (
+                    <div className="flex items-center justify-between text-sm text-[#4A5565]">
+                      <span>Express Report Delivery (48 hours)</span>
+                      <span className="font-medium">£{expressFee}</span>
+                    </div>
+                  )}
                   <div className="pt-3 border-t border-gray-200">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-[#101828]">
