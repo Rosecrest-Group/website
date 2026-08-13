@@ -141,25 +141,31 @@ export default function StatsCard({
               <span
                 className={cn(
                   "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 font-medium",
-                  trend.isPositive ? tint.trendPositive : tint.trendNegative,
+                  trend.value === 0
+                    ? "bg-sidebar text-ink-subtle"
+                    : trend.isPositive
+                      ? tint.trendPositive
+                      : tint.trendNegative,
                 )}
               >
-                {trend.isPositive ? (
+                {trend.value > 0 ? (
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M18 15l-6-6-6 6" />
                   </svg>
-                ) : (
+                ) : trend.value < 0 ? (
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M6 9l6 6 6-6" />
                   </svg>
-                )}
+                ) : null}
                 {trend.value > 0 ? "+" : ""}
                 {trend.value}%
               </span>
             )}
 
             {(subtitle || trend?.label) && (
-              <span className="text-ink-subtle">{subtitle || trend?.label}</span>
+              <span className="text-ink-subtle">
+                {[subtitle, trend?.label].filter(Boolean).join(" · ")}
+              </span>
             )}
 
             {action && !action.href && (

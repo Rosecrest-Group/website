@@ -13,7 +13,7 @@ import type {
   TaskStatus,
   UserRole,
 } from "@/crm/types";
-import { CRM_BASE_PATH, LEAD_STAGE_LABELS, TASK_STATUS_LABELS } from "@/crm/lib/constants";
+import { CRM_BASE_PATH, DASHBOARD_PERIODS, LEAD_STAGE_LABELS, TASK_STATUS_LABELS, vsPeriodTrend } from "@/crm/lib/constants";
 import { formatJobStageLabel } from "@/crm/lib/jobStages";
 import { canReadLeads } from "@/crm/lib/rbac";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
@@ -128,15 +128,6 @@ function SourceIcon({ source }: { source?: string }) {
   return <Tag className={cls} aria-hidden />;
 }
 
-const DASHBOARD_PERIODS: { value: DashboardPeriod; label: string; short: string }[] = [
-  { value: "today", label: "Today", short: "today" },
-  { value: "yesterday", label: "Yesterday", short: "yesterday" },
-  { value: "7d", label: "Last 7 days", short: "7d" },
-  { value: "30d", label: "Last 30 days", short: "30d" },
-  { value: "this_month", label: "This month", short: "this month" },
-  { value: "90d", label: "Last 90 days", short: "90d" },
-];
-
 type PeriodCacheEntry = { data: DashboardSales; recentLeads: Lead[] };
 
 type DashboardSnapshot = {
@@ -176,7 +167,7 @@ export default function CrmDashboard({
     () => initialMe?.role ?? snapshot?.role ?? null,
   );
   const [period, setPeriod] = useState<DashboardPeriod>(
-    () => snapshot?.period ?? "this_month",
+    () => snapshot?.period ?? "30d",
   );
   const [data, setData] = useState<DashboardSales | null>(
     () => initialDashboard ?? snapshot?.data ?? null,
@@ -206,7 +197,7 @@ export default function CrmDashboard({
       initialDashboard
         ? [
             [
-              "this_month",
+              "30d",
               {
                 data: initialDashboard,
                 recentLeads: initialDashboard.recentLeads ?? [],
@@ -303,11 +294,7 @@ export default function CrmDashboard({
     startTransition(() => setPeriod(nextPeriod));
 
     const cached = periodCache.current.get(nextPeriod);
-    if (cached) {
-      applyDashboard(cached);
-      setIsRefreshing(false);
-      return;
-    }
+    if (cached) applyDashboard(cached);
 
     setIsRefreshing(true);
     void fetchPeriod(nextPeriod)
@@ -326,7 +313,7 @@ export default function CrmDashboard({
 
   const showOpsDashboard = role ? canReadLeads(role) : true;
   const periodShort =
-    DASHBOARD_PERIODS.find((p) => p.value === period)?.short ?? "this month";
+    DASHBOARD_PERIODS.find((p) => p.value === period)?.short ?? "30d";
 
   const periodFilter = (
     <FilterDropdown
@@ -636,25 +623,25 @@ export default function CrmDashboard({
       >
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard
-          title="Active leads"
+          title={`Active leads · ${periodShort}`}
           value={data?.activeLeads ?? 0}
           icon={<Users />}
           iconTint="primary"
-          subtitle="Not won or lost"
           action={{ label: "View all", href: "/crm/leads" }}
         />
         <StatsCard
-          title="Opportunity value"
+          title={`Opportunity · ${periodShort}`}
           value={data ? `£${(data.opportunityValue ?? 0).toFixed(0)}` : "£0"}
           icon={<PoundSterling />}
           iconTint="info"
-          subtitle="Quoted, not yet won or lost"
+          trend={vsPeriodTrend(data?.comparison?.deltas.opportunity, data?.comparison?.label)}
         />
         <StatsCard
           title={`Lost · ${periodShort}`}
           value={data?.lostLast30d ?? 0}
           icon={<UserMinus />}
           iconTint="danger"
+          trend={vsPeriodTrend(data?.comparison?.deltas.lost, data?.comparison?.label, true)}
           action={{ label: "View lost", href: "/crm/leads?stage=LOST" }}
         />
         {data?.revenueLast30d !== undefined && (
@@ -663,7 +650,9 @@ export default function CrmDashboard({
             value={`£${data.revenueLast30d.toFixed(0)}`}
             icon={<TrendingUp />}
             iconTint="success"
-            subtitle="Paid jobs in this period"
+            subtitle={`${data.convertedLast30d ?? 0} won`}
+            trend={vsPeriodTrend(data.comparison?.deltas.revenue, data.comparison?.label)}
+            action={{ label: "View won", href: "/crm/leads?stage=CONVERTED" }}
           />
         )}
       </div>

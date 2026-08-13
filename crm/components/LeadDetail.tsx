@@ -15,7 +15,7 @@ import {
 } from "@/crm/lib/constants";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ChevronRight, Maximize2 } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, Copy, Maximize2 } from "lucide-react";
 import PhoneButton from "@/crm/components/PhoneButton";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPanel from "@/crm/components/ui/CrmPanel";
@@ -44,8 +44,13 @@ function formatRelative(dateStr: string) {
   return `${days}d ago`;
 }
 
+function isLeadPaid(lead: LeadDetailType | null | undefined): boolean {
+  return lead?.job?.paymentStatus === "PAID";
+}
+
 function paymentStatusSub(lead: LeadDetailType): string {
-  if (lead.stage === "CONVERTED") return "Payment received";
+  if (isLeadPaid(lead)) return "Payment received";
+  if (lead.stage === "CONVERTED") return "Won · not yet paid";
   if (!lead.quotedAmount) return "No payment link yet";
   if (lead.paymentLinkClickedAt) {
     return `Stripe link sent · clicked ${formatRelative(lead.paymentLinkClickedAt)}`;
@@ -91,6 +96,10 @@ export default function LeadDetail({
   const [moveToPaidError, setMoveToPaidError] = useState<string | null>(null);
   const [moveToPaidAmount, setMoveToPaidAmount] = useState("");
   const [moveToPaidSurveyLevel, setMoveToPaidSurveyLevel] = useState<SurveyLevel>("LEVEL_2");
+  const [markWonConfirmOpen, setMarkWonConfirmOpen] = useState(false);
+  const [markingWon, setMarkingWon] = useState(false);
+  const [markWonError, setMarkWonError] = useState<string | null>(null);
+  const [markWonAmount, setMarkWonAmount] = useState("");
 
   function reload(options?: { silent?: boolean }) {
     if (!options?.silent) setLoading(true);
@@ -165,8 +174,28 @@ export default function LeadDetail({
       setMarkingLost(false);
     }
   }
+  async function markWon() {
+    if (markingWon || !lead || lead.stage === "CONVERTED") return;
+    const amount = Number(markWonAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setMarkWonError("Enter a valid amount greater than 0.");
+      return;
+    }
+    setMarkingWon(true);
+    setMarkWonError(null);
+    try {
+      await api.markLeadWon(id, amount);
+      setMarkWonConfirmOpen(false);
+      reload({ silent: true });
+    } catch (e) {
+      setMarkWonError(e instanceof Error ? e.message : "Failed to mark as won");
+    } finally {
+      setMarkingWon(false);
+    }
+  }
+
   async function convert() {
-    if (movingToPaid || !lead || lead.stage === "CONVERTED") return;
+    if (movingToPaid || !lead || isLeadPaid(lead)) return;
     const amount = Number(moveToPaidAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
       setMoveToPaidError("Enter a valid amount greater than 0.");
@@ -214,6 +243,10 @@ export default function LeadDetail({
     lead.stage !== "LOST" &&
     !lead.cadenceStopped;
   const canMarkLost = lead && lead.stage !== "CONVERTED" && lead.stage !== "LOST";
+  const canMarkWon =
+    lead && lead.stage !== "CONVERTED" && lead.stage !== "LOST" && !lead.convertedToJobId;
+  const canMoveToPaid =
+    lead && lead.stage !== "CONVERTED" && lead.stage !== "LOST" && !isLeadPaid(lead);
 
   const contentWrapperClass = embedded ? "space-y-6" : "";
 
@@ -265,6 +298,15 @@ export default function LeadDetail({
           <p className="mt-1 text-ink-muted">
             {lostReasonLabel ?? "No reason given"}
             {lead.lostReasonNote ? ` — ${lead.lostReasonNote}` : ""}
+          </p>
+        </div>
+      )}
+
+      {lead.stage === "CONVERTED" && !isLeadPaid(lead) && (
+        <div className="mb-6 rounded-xl border border-brand-light bg-brand-muted px-4 py-3 text-sm text-ink">
+          <p className="font-medium">Marked as won</p>
+          <p className="mt-1 text-ink-muted">
+            {lead.quotedAmount != null ? `£${lead.quotedAmount} recorded as revenue.` : "Quote recorded as revenue."}
           </p>
         </div>
       )}
@@ -373,15 +415,19 @@ export default function LeadDetail({
               {customer?.email && (
                 <div className="min-w-0 sm:col-span-2">
                   <p className="text-xs text-ink-muted">Email</p>
-                  <p className="mt-0.5 text-sm font-medium break-all text-ink" title={customer.email}>
-                    {customer.email}
-                  </p>
+                  <CopyValue
+                    value={customer.email}
+                    className="text-sm font-medium break-all text-ink"
+                  />
                 </div>
               )}
               {customer?.phone && (
                 <div className="min-w-0">
                   <p className="text-xs text-ink-muted">Phone</p>
-                  <p className="mt-0.5 text-sm font-medium text-ink">{customer.phone}</p>
+                  <CopyValue
+                    value={customer.phone}
+                    className="text-sm font-medium text-ink"
+                  />
                 </div>
               )}
               <div className="min-w-0 sm:col-span-2">
@@ -421,25 +467,45 @@ export default function LeadDetail({
               ) : null}
             </div>
 
-            {lead.stage !== "CONVERTED" && (
-              <div className="mt-4 border-t border-line pt-4">
-                <PrimaryButton
-                  type="button"
-                  className="!h-auto w-full !px-4 !py-1.5"
-                  disabled={movingToPaid}
-                  onClick={() => {
-                    setMoveToPaidError(null);
-                    setMoveToPaidAmount(
-                      lead.quotedAmount != null && lead.quotedAmount > 0
-                        ? String(lead.quotedAmount)
-                        : ""
-                    );
-                    setMoveToPaidSurveyLevel(lead.surveyLevel ?? "LEVEL_2");
-                    setMoveToPaidConfirmOpen(true);
-                  }}
-                >
-                  {movingToPaid ? "Moving…" : "Move to paid"}
-                </PrimaryButton>
+            {(canMarkWon || canMoveToPaid) && (
+              <div className="mt-4 space-y-2 border-t border-line pt-4">
+                {canMarkWon && (
+                  <SecondaryButton
+                    type="button"
+                    className="!h-auto w-full !px-4 !py-1.5"
+                    disabled={markingWon || movingToPaid}
+                    onClick={() => {
+                      setMarkWonError(null);
+                      setMarkWonAmount(
+                        lead.quotedAmount != null && lead.quotedAmount > 0
+                          ? String(lead.quotedAmount)
+                          : ""
+                      );
+                      setMarkWonConfirmOpen(true);
+                    }}
+                  >
+                    {markingWon ? "Saving…" : "Mark as won"}
+                  </SecondaryButton>
+                )}
+                {canMoveToPaid && (
+                  <PrimaryButton
+                    type="button"
+                    className="!h-auto w-full !px-4 !py-1.5"
+                    disabled={movingToPaid || markingWon}
+                    onClick={() => {
+                      setMoveToPaidError(null);
+                      setMoveToPaidAmount(
+                        lead.quotedAmount != null && lead.quotedAmount > 0
+                          ? String(lead.quotedAmount)
+                          : ""
+                      );
+                      setMoveToPaidSurveyLevel(lead.surveyLevel ?? "LEVEL_2");
+                      setMoveToPaidConfirmOpen(true);
+                    }}
+                  >
+                    {movingToPaid ? "Moving…" : "Move to paid"}
+                  </PrimaryButton>
+                )}
               </div>
             )}
           </CurvedContainer>
@@ -455,9 +521,9 @@ export default function LeadDetail({
               },
               {
                 label: "Payment status",
-                value: lead.stage === "CONVERTED" ? "Paid" : "Unpaid",
+                value: isLeadPaid(lead) ? "Paid" : lead.stage === "CONVERTED" ? "Won" : "Unpaid",
                 sub: paymentStatusSub(lead),
-                warn: lead.stage !== "CONVERTED",
+                warn: !isLeadPaid(lead),
               },
               {
                 label: "Owner",
@@ -736,6 +802,56 @@ export default function LeadDetail({
       )}
 
       <ConfirmModal
+        isOpen={markWonConfirmOpen}
+        title="Mark as won?"
+        description={
+          lead
+            ? `Confirm the quote for ${customer?.firstName ?? ""} ${customer?.lastName ?? ""} — ${lead.propertyAddress}, ${lead.propertyPostcode}.`
+                .replace(/\s+/g, " ")
+                .trim()
+            : undefined
+        }
+        confirmLabel="Mark as won"
+        loading={markingWon}
+        error={markWonError ?? undefined}
+        onConfirm={() => void markWon()}
+        onCancel={() => {
+          if (markingWon) return;
+          setMarkWonConfirmOpen(false);
+          setMarkWonError(null);
+        }}
+      >
+        <p className="mb-4 text-sm text-ink-muted">
+          This records the quote as revenue and stops nurture. No email or SMS is sent, and no job is created.
+        </p>
+        <TextField
+          label="Quote (£)"
+          type="text"
+          inputMode="decimal"
+          value={markWonAmount}
+          disabled={markingWon}
+          autoFocus
+          placeholder={lead?.quotedAmount != null ? String(lead.quotedAmount) : "0.00"}
+          onChange={(e) => {
+            const next = e.target.value.replace(/[^0-9.]/g, "");
+            setMarkWonAmount(next);
+            if (markWonError) setMarkWonError(null);
+          }}
+        />
+        {lead?.quotedAmount != null && lead.quotedAmount > 0 ? (
+          <p className="mt-1.5 text-xs text-ink-muted">
+            Original quote: £{lead.quotedAmount}
+            {lead.surveyLevel
+              ? ` · ${SURVEY_LEVEL_LABELS[lead.surveyLevel] ?? lead.surveyLevel}`
+              : ""}
+            . Change it above if the won amount is different.
+          </p>
+        ) : (
+          <p className="mt-1.5 text-xs text-ink-muted">Enter the amount to record as won revenue.</p>
+        )}
+      </ConfirmModal>
+
+      <ConfirmModal
         isOpen={moveToPaidConfirmOpen}
         title="Move to paid?"
         description={
@@ -834,6 +950,33 @@ export default function LeadDetail({
   }
 
   return <CrmPageContent className="!pt-3 sm:!pt-4 lg:!pt-4">{detailBody}</CrmPageContent>;
+}
+
+function CopyValue({ value, className }: { value: string; className?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    await navigator.clipboard.writeText(value);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <span className="mt-0.5 inline-flex min-w-0 items-center gap-1.5">
+      <span className={className} title={value}>
+        {value}
+      </span>
+      <button
+        type="button"
+        onClick={copy}
+        className="shrink-0 rounded-md p-1 text-ink-muted hover:bg-sidebar hover:text-ink"
+        aria-label={`Copy ${value}`}
+        title="Copy"
+      >
+        {copied ? <Check className="size-3.5 text-brand" /> : <Copy className="size-3.5" />}
+      </button>
+    </span>
+  );
 }
 
 function Row({ label, value }: { label: string; value: string }) {

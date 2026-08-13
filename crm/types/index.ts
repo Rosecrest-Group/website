@@ -708,7 +708,39 @@ export interface JobDocument {
   createdAt: string;
 }
 
-export type DashboardPeriod = "today" | "yesterday" | "7d" | "30d" | "this_month" | "90d";
+export type DashboardPeriod =
+  | "today"
+  | "yesterday"
+  | "7d"
+  | "30d"
+  | "this_month"
+  | "last_month"
+  | "90d"
+  | "all_time";
+
+export interface DashboardComparison {
+  label: string;
+  leads: number;
+  converted: number;
+  lost: number;
+  revenue: number;
+  conversionRate: number;
+  acquisitionCost: number;
+  opportunity: number;
+  deltas: {
+    leads: number | null;
+    converted: number | null;
+    lost: number | null;
+    revenue: number | null;
+    conversionRate: number | null;
+    acquisitionCost: number | null;
+    opportunity: number | null;
+    costPerLead: number | null;
+    costPerConversion: number | null;
+    roi: number | null;
+    lostRate: number | null;
+  };
+}
 
 export interface DashboardSales {
   period?: DashboardPeriod;
@@ -719,10 +751,14 @@ export interface DashboardSales {
   leadsLast30d: number;
   convertedLast30d: number;
   lostLast30d: number;
+  lostRate30d?: number;
   slaBreaches: number;
   jobsAwaitingPayment: number;
   leadsByStage: { stage: string; _count: { id: number } }[];
   avgTimeToPayDays: number;
+  avgTimeToQuoteDays?: number;
+  avgTimeToWinDays?: number;
+  lostByReason?: { reason: string; count: number }[];
   jobsByStage?: { stage: string; _count: { id: number } }[];
   funnelBySource?: {
     source: string;
@@ -738,6 +774,7 @@ export interface DashboardSales {
   costPerLead30d?: number;
   costPerConversion30d?: number;
   roi30d?: number | null;
+  comparison?: DashboardComparison | null;
 }
 
 export interface DashboardOps {

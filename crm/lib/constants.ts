@@ -1,3 +1,5 @@
+import type { DashboardPeriod } from "@/crm/types";
+
 /** Base path for all CRM routes */
 export const CRM_BASE_PATH = "/crm";
 
@@ -33,6 +35,30 @@ export function isCrmDataDumpRoute(pathname: string) {
 
 export function isCrmLegacyRoute(pathname: string) {
   return pathname === CRM_LEGACY_PATH || pathname.startsWith(`${CRM_LEGACY_PATH}/`);
+}
+
+export const DASHBOARD_PERIODS: { value: DashboardPeriod; label: string; short: string }[] = [
+  { value: "today", label: "Today", short: "today" },
+  { value: "yesterday", label: "Yesterday", short: "yesterday" },
+  { value: "7d", label: "Last 7 days", short: "7d" },
+  { value: "30d", label: "Last 30 days", short: "30d" },
+  { value: "this_month", label: "This month", short: "this month" },
+  { value: "last_month", label: "Last month", short: "last month" },
+  { value: "90d", label: "Last 90 days", short: "90d" },
+  { value: "all_time", label: "All time", short: "all time" },
+];
+
+export function vsPeriodTrend(
+  delta: number | null | undefined,
+  label: string | null | undefined,
+  invert = false,
+) {
+  if (delta == null || !label) return undefined;
+  return {
+    value: delta,
+    label,
+    isPositive: invert ? delta <= 0 : delta >= 0,
+  };
 }
 
 export type DataDumpNavItem = {
@@ -81,18 +107,18 @@ export const CRM_NAV_SECTIONS: CrmNavSection[] = [
     ],
   },
   {
-    title: "Automation",
-    items: [
-      { label: "Workflows", href: `${CRM_BASE_PATH}/workflows` },
-      { label: "Templates", href: `${CRM_BASE_PATH}/templates` },
-    ],
-  },
-  {
-    title: "Dashboards",
+    title: "Insights",
     items: [
       { label: "Analytics", href: `${CRM_BASE_PATH}/analytics` },
       { label: "Finance", href: `${CRM_BASE_PATH}/revenue` },
       { label: "SLAs", href: `${CRM_BASE_PATH}/slas` },
+    ],
+  },
+  {
+    title: "Automation",
+    items: [
+      { label: "Workflows", href: `${CRM_BASE_PATH}/workflows` },
+      { label: "Templates", href: `${CRM_BASE_PATH}/templates` },
     ],
   },
   {
@@ -149,7 +175,7 @@ export const LEAD_STAGE_LABELS: Record<string, string> = {
   FOLLOWING_UP: "Following up",
   AWAITING_PAYMENT: "Awaiting payment",
   PAUSED: "Paused",
-  CONVERTED: "Converted",
+  CONVERTED: "Won",
   LOST: "Lost",
 };
 

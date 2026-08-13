@@ -373,7 +373,7 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
-  getDashboard: (period: DashboardPeriod = "this_month") =>
+  getDashboard: (period: DashboardPeriod = "30d") =>
     request<DashboardSales>(`/dashboards/sales?period=${period}`),
 
   getDashboardOps: () => request<DashboardOps>("/dashboards/ops"),
@@ -801,6 +801,12 @@ export const api = {
   markLeadLost: (id: string, lostReason: string, lostReasonNote?: string) =>
 
     request<Lead>(`/leads/${id}/mark-lost`, { method: "POST", body: JSON.stringify({ lostReason, lostReasonNote }) }),
+
+  markLeadWon: (id: string, quotedAmount: number) =>
+    request<Lead>(`/leads/${id}/mark-won`, {
+      method: "POST",
+      body: JSON.stringify({ quotedAmount }),
+    }),
 
   convertLead: (
     id: string,
