@@ -153,6 +153,15 @@ export const LEAD_STAGE_LABELS: Record<string, string> = {
   LOST: "Lost",
 };
 
+/** Open pipeline: not won and not lost. Includes New even if no quote has been recorded. */
+export const ACTIVE_LEAD_STAGES = [
+  "NEW",
+  "QUOTE_SENT",
+  "FOLLOWING_UP",
+  "AWAITING_PAYMENT",
+  "PAUSED",
+] as const;
+
 export const LOST_REASON_OPTIONS: { value: string; label: string }[] = [
   { value: "TOO_EXPENSIVE", label: "Too expensive" },
   { value: "CHOSE_COMPETITOR", label: "Chose competitor" },

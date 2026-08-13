@@ -283,7 +283,7 @@ export default function LeadsList({
                 value={stage}
                 onChange={(e) => handleStageChange(e.target.value)}
               >
-                <option value="">Active stages</option>
+                <option value="">Active leads</option>
                 {STAGES.map((s) => (
                   <option key={s} value={s}>
                     {LEAD_STAGE_LABELS[s]}

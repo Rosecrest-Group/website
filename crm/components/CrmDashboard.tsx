@@ -130,6 +130,7 @@ function SourceIcon({ source }: { source?: string }) {
 
 const DASHBOARD_PERIODS: { value: DashboardPeriod; label: string; short: string }[] = [
   { value: "today", label: "Today", short: "today" },
+  { value: "yesterday", label: "Yesterday", short: "yesterday" },
   { value: "7d", label: "Last 7 days", short: "7d" },
   { value: "30d", label: "Last 30 days", short: "30d" },
   { value: "this_month", label: "This month", short: "this month" },
@@ -639,7 +640,7 @@ export default function CrmDashboard({
           value={data?.activeLeads ?? 0}
           icon={<Users />}
           iconTint="primary"
-          subtitle={data ? `+${data.leadsLast30d} ${periodShort}` : undefined}
+          subtitle="Not won or lost"
           action={{ label: "View all", href: "/crm/leads" }}
         />
         <StatsCard

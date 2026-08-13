@@ -708,7 +708,7 @@ export interface JobDocument {
   createdAt: string;
 }
 
-export type DashboardPeriod = "today" | "7d" | "30d" | "this_month" | "90d";
+export type DashboardPeriod = "today" | "yesterday" | "7d" | "30d" | "this_month" | "90d";
 
 export interface DashboardSales {
   period?: DashboardPeriod;
