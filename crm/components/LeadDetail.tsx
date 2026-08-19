@@ -51,10 +51,13 @@ function formatRelative(dateStr: string) {
 }
 
 function isLeadPaid(lead: LeadDetailType | null | undefined): boolean {
-  return lead?.job?.paymentStatus === "PAID";
+  return lead?.job?.paymentStatus === "PAID" || Boolean(lead?.paid);
 }
 
 function paymentStatusSub(lead: LeadDetailType): string {
+  if (isLeadPaid(lead) && !lead.job && !lead.convertedToJobId) {
+    return "Payment received · job pending";
+  }
   if (isLeadPaid(lead)) return "Payment received";
   if (lead.stage === "CONVERTED") return "Won · not yet paid";
   if (!lead.quotedAmount) return "No payment link yet";
@@ -276,7 +279,8 @@ export default function LeadDetail({
   }
 
   async function convert() {
-    if (movingToPaid || !lead || isLeadPaid(lead)) return;
+    if (movingToPaid || !lead) return;
+    if (isLeadPaid(lead) && (lead.job || lead.convertedToJobId)) return;
     const amount = Number(moveToPaidAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
       setMoveToPaidError("Enter a valid amount greater than 0.");
@@ -342,8 +346,14 @@ export default function LeadDetail({
   const canMarkLost = lead && lead.stage !== "CONVERTED" && lead.stage !== "LOST";
   const canMarkWon =
     lead && lead.stage !== "CONVERTED" && lead.stage !== "LOST" && !lead.convertedToJobId;
+  const needsFulfilmentJob =
+    Boolean(lead && isLeadPaid(lead) && !lead.job && !lead.convertedToJobId);
   const canMoveToPaid =
-    lead && lead.stage !== "CONVERTED" && lead.stage !== "LOST" && !isLeadPaid(lead);
+    Boolean(
+      lead &&
+        lead.stage !== "LOST" &&
+        ((!isLeadPaid(lead) && lead.stage !== "CONVERTED") || needsFulfilmentJob)
+    );
 
   const contentWrapperClass = embedded ? "space-y-6" : "";
 
@@ -395,6 +405,15 @@ export default function LeadDetail({
           <p className="mt-1 text-ink-muted">
             {lostReasonLabel ?? "No reason given"}
             {lead.lostReasonNote ? ` — ${lead.lostReasonNote}` : ""}
+          </p>
+        </div>
+      )}
+
+      {lead.stage === "CONVERTED" && isLeadPaid(lead) && !lead.job && !lead.convertedToJobId && (
+        <div className="mb-6 rounded-xl border border-line bg-sidebar px-4 py-3 text-sm text-ink">
+          <p className="font-medium">Payment received</p>
+          <p className="mt-1 text-ink-muted">
+            Stripe payment is saved. The survey job has not been created yet — use Move to paid.
           </p>
         </div>
       )}

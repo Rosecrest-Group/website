@@ -537,6 +537,8 @@ export interface Lead {
   createdAt: string;
   updatedAt: string;
   convertedToJobId: string | null;
+  /** True when a PAID payment row exists for this lead (Stripe or bank transfer). */
+  paid?: boolean;
   lostReason?: string | null;
   lostReasonNote?: string | null;
   customerName?: string;
