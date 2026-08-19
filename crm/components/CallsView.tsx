@@ -187,7 +187,6 @@ export default function CallsView() {
         if (cancelled || isAbortError(err)) return;
         setCalls([]);
         setHasMore(false);
-        setTotal(0);
         toast.error(err instanceof Error ? err.message : "Failed to load calls");
       })
       .finally(() => {
