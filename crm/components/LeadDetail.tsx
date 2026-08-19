@@ -34,6 +34,7 @@ import InternalConversationPanel, { prefetchInternalThread } from "@/crm/compone
 import LeadMessageThread from "@/crm/components/LeadMessageThread";
 import ActivityFeed from "@/crm/components/ActivityFeed";
 import LeadTags from "@/crm/components/LeadTags";
+import LeadWorkflowASend from "@/crm/components/LeadWorkflowASend";
 import { useCrmTopBar } from "@/crm/lib/crmTopBarContext";
 import { filterLeadThreadActivities } from "@/crm/lib/threadActivities";
 import { getCachedCurrentUser } from "@/crm/lib/currentUserCache";
@@ -675,6 +676,14 @@ export default function LeadDetail({
               </SecondaryButton>
             )}
           </CrmPanel>
+
+          <LeadWorkflowASend
+            leadId={lead.id}
+            quotedAmount={lead.quotedAmount}
+            customerEmail={customer?.email}
+            customerPhone={customer?.phone}
+            onSent={() => reload({ silent: true })}
+          />
 
           <LeadTags
             leadId={lead.id}

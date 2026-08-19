@@ -819,6 +819,15 @@ export const api = {
 
     }),
 
+  updateLead: (
+    id: string,
+    payload: {
+      quotedAmount?: number;
+      surveyLevel?: SurveyLevel;
+      assignedToId?: string | null;
+    }
+  ) => request<Lead>(`/leads/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+
   updateLeadStage: (id: string, stage: string) =>
 
     request<Lead>(`/leads/${id}/stage`, { method: "POST", body: JSON.stringify({ stage }) }),
