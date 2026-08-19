@@ -66,7 +66,17 @@ export default function ConfirmModal({
             disabled={loading}
             onClick={onConfirm}
           >
-            {loading ? "Working…" : confirmLabel}
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <span
+                  className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white"
+                  aria-hidden
+                />
+                Working…
+              </span>
+            ) : (
+              confirmLabel
+            )}
           </PrimaryButton>
         </div>
       </div>

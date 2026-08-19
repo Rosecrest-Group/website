@@ -8,6 +8,7 @@ import type { LeadDetail as LeadDetailType, SurveyLevel } from "@/crm/types";
 import { getCachedLead, setCachedLead } from "@/crm/lib/leadDetailCache";
 import {
   BEDROOM_BAND_LABELS,
+  CRM_BASE_PATH,
   LEAD_STAGE_LABELS,
   LOST_REASON_OPTIONS,
   SURVEY_LEVEL_LABELS,
@@ -37,6 +38,7 @@ import { useCrmTopBar } from "@/crm/lib/crmTopBarContext";
 import { filterLeadThreadActivities } from "@/crm/lib/threadActivities";
 import { getCachedCurrentUser } from "@/crm/lib/currentUserCache";
 import { canSkipWorkflowWait } from "@/crm/lib/rbac";
+import { doneTopProgress, startTopProgress } from "@/crm/lib/topProgress";
 
 function formatRelative(dateStr: string) {
   const d = new Date(dateStr);
@@ -248,6 +250,30 @@ export default function LeadDetail({
     }
   }
 
+  function goToPaidJob(jobId: string) {
+    setMoveToPaidConfirmOpen(false);
+    toast.success("Moved to paid");
+    router.push(`${CRM_BASE_PATH}/jobs/${jobId}`);
+  }
+
+  async function recoverPaidJobId(): Promise<string | null> {
+    try {
+      const updated = await api.getLead(id);
+      setCachedLead(id, updated);
+      setLead(updated);
+      const jobId = updated.job?.id ?? updated.convertedToJobId;
+      if (
+        jobId &&
+        (updated.job?.paymentStatus === "PAID" || updated.stage === "CONVERTED")
+      ) {
+        return jobId;
+      }
+    } catch {
+      // ignore — caller shows the original convert error
+    }
+    return null;
+  }
+
   async function convert() {
     if (movingToPaid || !lead || isLeadPaid(lead)) return;
     const amount = Number(moveToPaidAmount);
@@ -261,15 +287,23 @@ export default function LeadDetail({
     }
     setMovingToPaid(true);
     setMoveToPaidError(null);
+    startTopProgress();
     try {
       const result = await api.convertLead(id, amount, {
         surveyLevel: moveToPaidSurveyLevel,
       });
-      setMoveToPaidConfirmOpen(false);
-      router.push(`/crm/jobs/${result.job.id}`);
+      goToPaidJob(result.job.id);
     } catch (e) {
-      setMoveToPaidError(e instanceof Error ? e.message : "Failed to move to paid");
+      const recoveredId = await recoverPaidJobId();
+      if (recoveredId) {
+        goToPaidJob(recoveredId);
+        return;
+      }
+      const msg = e instanceof Error ? e.message : "Failed to move to paid";
+      setMoveToPaidError(msg);
+      toast.error(msg);
     } finally {
+      doneTopProgress();
       setMovingToPaid(false);
     }
   }
