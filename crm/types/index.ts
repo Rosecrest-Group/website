@@ -223,6 +223,50 @@ export interface DialpadCallInitiateResult {
   customData: string;
 }
 
+export type DialpadCallStatus = "live" | "missed" | "voicemail" | "answered";
+export type DialpadCallDirection = "inbound" | "outbound";
+
+export interface DialpadCall {
+  id: string;
+  type: string;
+  description: string;
+  createdAt: string;
+  status: DialpadCallStatus;
+  direction: DialpadCallDirection;
+  from: string | null;
+  to: string | null;
+  contactNumber: string | null;
+  durationSeconds: number | null;
+  recordingUrl: string | null;
+  transcript: string | null;
+  recapSummary: string | null;
+  outcome: string | null;
+  leadId: string | null;
+  jobId: string | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  propertyPostcode: string | null;
+  author: { id: string; fullName: string } | null;
+}
+
+export interface DialpadCallSummary {
+  todayCount: number;
+  todayMissedCount: number;
+  todayVoicemailCount: number;
+  todayLiveCount: number;
+  todayTalkSeconds: number;
+  avgDurationSeconds: number | null;
+}
+
+export interface DialpadCallsResult {
+  items: DialpadCall[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  summary: DialpadCallSummary;
+}
+
 export interface SalesIgniterNote {
   id: string;
   body: string;
@@ -572,6 +616,19 @@ export interface CadenceRunInfo {
   stoppedReason?: string | null;
 }
 
+export interface NextWorkflowStep {
+  executionId: string;
+  workflowId: string;
+  workflowName: string;
+  trigger?: string;
+  status: string;
+  label: string;
+  detail: string | null;
+  recipient: string | null;
+  scheduledAt: string | null;
+  canSkipWait?: boolean;
+}
+
 export interface MessageTemplate {
   id: string;
   name: string;
@@ -594,6 +651,10 @@ export interface InboxThread {
   /** Shared across the team: true until someone opens the thread. */
   unread?: boolean;
   unreadCount?: number;
+  /** Shared across the team: pinned threads stay at the top of the inbox. */
+  pinned?: boolean;
+  customerEmail?: string | null;
+  customerPhone?: string | null;
 }
 
 export interface WorkflowSummary {
@@ -643,6 +704,7 @@ export interface LeadDetail extends Lead {
   messages: Message[];
   journey: CadenceStep[];
   cadenceRun?: CadenceRunInfo | null;
+  nextWorkflowStep?: NextWorkflowStep | null;
   job?: Job | null;
   possibleDuplicateLeads?: PossibleDuplicateLead[];
   /** Partner free-text notes (e.g. Pinlocal survey requirements). */
@@ -673,6 +735,9 @@ export interface Job {
   accessDetailsVerifiedAt?: string | null;
   hasConditionRating3?: boolean | null;
   dataCaptureComplete?: boolean;
+  qcOttoReviewComplete?: boolean;
+  qcRicsPassConfirmed?: boolean;
+  qcLevelDeliverableComplete?: boolean;
   surveyorJobReviewed?: boolean;
   surveyorDiaryConfirmed?: boolean;
   surveyorDesktopResearch?: boolean;
@@ -691,6 +756,7 @@ export interface Job {
   createdAt: string;
   customer?: Customer;
   assignedTo?: { id: string; fullName: string; email: string; credentials?: string | null } | null;
+  leadId?: string | null;
 }
 
 export interface SnaggingItem {
@@ -726,17 +792,29 @@ export interface DashboardComparison {
   converted: number;
   lost: number;
   revenue: number;
+  mrr: number;
+  arr: number;
   conversionRate: number;
   acquisitionCost: number;
   opportunity: number;
+  avgWonValue: number;
+  forecast: number;
+  quoteRate: number;
+  quoteToWinRate: number;
   deltas: {
     leads: number | null;
     converted: number | null;
     lost: number | null;
     revenue: number | null;
+    mrr: number | null;
+    arr: number | null;
     conversionRate: number | null;
     acquisitionCost: number | null;
     opportunity: number | null;
+    avgWonValue: number | null;
+    forecast: number | null;
+    quoteRate: number | null;
+    quoteToWinRate: number | null;
     costPerLead: number | null;
     costPerConversion: number | null;
     roi: number | null;
@@ -766,6 +844,7 @@ export interface DashboardSales {
     source: string;
     leads: number;
     converted: number;
+    wonRevenue: number;
     acquisitionCost: number;
     quotedPipeline: number;
     conversionRate: number;
@@ -773,6 +852,13 @@ export interface DashboardSales {
   recentLeads?: Lead[];
   totalAcquisitionCost30d?: number;
   revenueLast30d?: number;
+  mrr?: number;
+  arr?: number;
+  quotedCount?: number;
+  quoteRate?: number;
+  quoteToWinRate?: number;
+  avgWonValue?: number;
+  forecast?: number;
   costPerLead30d?: number;
   costPerConversion30d?: number;
   roi30d?: number | null;

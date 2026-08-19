@@ -2,9 +2,23 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Mail, MessageSquare, Phone, Search } from "lucide-react";
+import { LayoutGroup, motion, useReducedMotion } from "framer-motion";
+import {
+  Copy,
+  Mail,
+  MailOpen,
+  MessageSquare,
+  Phone,
+  Pin,
+  PinOff,
+  Search,
+  User,
+} from "lucide-react";
+import { toast } from "sonner";
 import LeadDetailPanel from "@/crm/components/LeadDetailPanel";
 import LeadMessageThread from "@/crm/components/LeadMessageThread";
+import ActionDropdown, { type DropdownAction } from "@/crm/components/ui/ActionDropdown";
+import CrmModal from "@/crm/components/ui/CrmModal";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import PhoneButton from "@/crm/components/PhoneButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
@@ -15,11 +29,27 @@ import { isHtmlContent } from "@/crm/lib/messageFormatting";
 import { useInfiniteScroll } from "@/crm/lib/useInfiniteScroll";
 import { MESSAGE_FIRST_PAGE_SIZE } from "@/crm/lib/leadMessageCache";
 import { prefetchLeadThreadWithActivities } from "@/crm/lib/loadLeadThread";
+import { refreshInboxUnreadCount } from "@/crm/lib/useInboxUnreadCount";
 import type { InboxThread, Message } from "@/crm/types";
 import { cn } from "@/lib/utils";
 
 const INBOX_THREAD_MESSAGES: Message[] = [];
 const PAGE_SIZE = 10;
+const SEARCH_DEBOUNCE_MS = 200;
+const INBOX_PIN_LIMIT = 3;
+const INBOX_LAYOUT = { type: "spring", stiffness: 380, damping: 34, mass: 0.75 } as const;
+
+function apiErrorCode(err: unknown): string | undefined {
+  if (err && typeof err === "object" && "code" in err && typeof err.code === "string") {
+    return err.code;
+  }
+  return undefined;
+}
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === "AbortError";
+}
+
 /** Keeps the list honest about new arrivals without a realtime channel for client messages. */
 const REFRESH_MS = 20_000;
 /**
@@ -77,6 +107,184 @@ function channelBadgeClass(channel: string, direction?: string) {
   return "bg-(--color-nc-10) text-(--color-tc-30)";
 }
 
+function sortInboxThreads(threads: InboxThread[]): InboxThread[] {
+  return [...threads].sort((a, b) => {
+    if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
+    const at = new Date(messageTimestamp(a.lastMessage)).getTime();
+    const bt = new Date(messageTimestamp(b.lastMessage)).getTime();
+    if (at !== bt) return bt - at;
+    return (b.leadId ?? b.threadKey).localeCompare(a.leadId ?? a.threadKey);
+  });
+}
+
+function threadMatchesQuery(thread: InboxThread, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const digits = q.replace(/\D/g, "");
+  const preview = messagePreview(thread.lastMessage.body, thread.lastMessage.channel);
+  const fields = [
+    thread.customerName,
+    thread.propertyPostcode,
+    thread.customerEmail,
+    thread.customerPhone,
+    thread.lastMessage.subject,
+    thread.lastMessage.fromAddress,
+    thread.lastMessage.toAddress,
+    preview,
+  ];
+  if (fields.some((value) => value?.toLowerCase().includes(q))) return true;
+  if (digits.length >= 4) {
+    const phoneDigits = thread.customerPhone?.replace(/\D/g, "") ?? "";
+    if (phoneDigits.includes(digits)) return true;
+  }
+  return false;
+}
+
+function threadPanelTitle(thread: InboxThread): string {
+  return `${thread.customerName}${thread.propertyPostcode ? ` · ${thread.propertyPostcode}` : ""}`;
+}
+
+async function copyText(value: string, success: string) {
+  try {
+    await navigator.clipboard.writeText(value);
+    toast.success(success);
+  } catch {
+    toast.error("Couldn’t copy");
+  }
+}
+
+function InboxThreadRow({
+  thread,
+  isSelected,
+  onOpen,
+  onPrefetch,
+  onAction,
+}: {
+  thread: InboxThread;
+  isSelected: boolean;
+  onOpen: () => void;
+  onPrefetch: () => void;
+  onAction: (actionId: string) => void;
+}) {
+  const ChannelIcon = channelIcon(thread.lastMessage.channel);
+  const isUnread = Boolean(thread.unread) && !isSelected;
+  const unreadCount = thread.unreadCount ?? 0;
+  const addressLabel = counterpartLabel(thread.lastMessage);
+  const senderName =
+    thread.lastMessage.direction === "OUTBOUND"
+      ? thread.lastMessage.author?.fullName?.trim()
+      : undefined;
+  const phone = thread.customerPhone?.trim();
+  const email = thread.customerEmail?.trim();
+
+  const actions: DropdownAction[] = [
+    {
+      id: "toggle-read",
+      label: thread.unread ? "Mark as read" : "Mark as unread",
+      icon: thread.unread ? <MailOpen className="size-4" /> : <Mail className="size-4" />,
+    },
+    {
+      id: "toggle-pin",
+      label: thread.pinned ? "Unpin" : "Pin to top",
+      icon: thread.pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />,
+    },
+    ...(phone
+      ? [{ id: "copy-phone", label: "Copy phone", icon: <Copy className="size-4" /> }]
+      : []),
+    ...(email
+      ? [{ id: "copy-email", label: "Copy email", icon: <Copy className="size-4" /> }]
+      : []),
+    ...(thread.leadId
+      ? [{ id: "open-lead", label: "Open lead", icon: <User className="size-4" /> }]
+      : []),
+  ];
+
+  return (
+    <div
+      className={cn(
+        "relative w-full border-b border-(--color-tc-20) border-l-2 border-l-transparent transition hover:bg-(--color-nc-10)",
+        isUnread && "border-l-brand bg-brand-muted/25",
+        isSelected && "border-l-brand bg-brand-muted/70 hover:bg-brand-muted/70"
+      )}
+    >
+      <button
+        type="button"
+        onClick={onOpen}
+        onMouseEnter={onPrefetch}
+        onFocus={onPrefetch}
+        className="w-full px-4 py-3 pr-10 text-left"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p
+              className={cn(
+                "flex items-center gap-1.5 truncate font-medium text-(--color-tc-40)",
+                isUnread && "font-semibold"
+              )}
+            >
+              {thread.pinned ? (
+                <Pin className="size-3 shrink-0 fill-brand text-brand" aria-label="Pinned" />
+              ) : null}
+              <span className="truncate">{thread.customerName}</span>
+            </p>
+            {thread.propertyPostcode && (
+              <p className="mt-0.5 truncate text-xs text-(--color-tc-30)">{thread.propertyPostcode}</p>
+            )}
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <span
+              className={cn(
+                "text-[10px] text-(--color-tc-30)",
+                isUnread && "font-semibold text-brand"
+              )}
+            >
+              {formatInboxListTime(messageTimestamp(thread.lastMessage))}
+            </span>
+            {isUnread && unreadCount > 0 ? (
+              <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-[10px] font-medium leading-none text-white">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            ) : null}
+          </div>
+        </div>
+        <p
+          className={cn(
+            "mt-1 truncate text-xs text-(--color-tc-30)",
+            isUnread && "font-medium text-(--color-tc-40)"
+          )}
+        >
+          {messagePreview(thread.lastMessage.body, thread.lastMessage.channel)}
+        </p>
+        <div className="mt-1.5 flex items-center gap-2 text-[10px] text-(--color-tc-30)">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-medium",
+              channelBadgeClass(thread.lastMessage.channel, thread.lastMessage.direction)
+            )}
+          >
+            <ChannelIcon className="size-3" aria-hidden />
+            {thread.lastMessage.channel}
+          </span>
+          {addressLabel && (
+            <span className="truncate text-(--color-tc-40)">{addressLabel}</span>
+          )}
+          {senderName && <span className="truncate">{senderName}</span>}
+          <span>{thread.messageCount} msgs</span>
+        </div>
+      </button>
+      <div className="absolute right-1.5 top-2.5">
+        <ActionDropdown
+          icon="vertical"
+          size="sm"
+          ariaLabel={`Actions for ${thread.customerName}`}
+          actions={actions}
+          onActionClick={onAction}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function InboxView({
   initialThreads = null,
   initialHasMore = false,
@@ -88,7 +296,9 @@ export default function InboxView({
 }) {
   const searchParams = useSearchParams();
   const deepLinkLeadId = searchParams.get("leadId");
-  const [threads, setThreads] = useState<InboxThread[]>(() => initialThreads ?? []);
+  const [threads, setThreads] = useState<InboxThread[]>(() =>
+    initialThreads ? sortInboxThreads(initialThreads) : []
+  );
   const [selected, setSelected] = useState<InboxThread | null>(null);
   const [loading, setLoading] = useState(() => !initialThreads);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -97,26 +307,44 @@ export default function InboxView({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
   const [mobileShowThread, setMobileShowThread] = useState(false);
-  const [leadPanelOpen, setLeadPanelOpen] = useState(false);
+  const [leadPanel, setLeadPanel] = useState<{ leadId: string; title: string } | null>(null);
+  const [pinLimitThread, setPinLimitThread] = useState<InboxThread | null>(null);
   const [customerPhone, setCustomerPhone] = useState<string | null>(null);
+  const reduceMotion = useReducedMotion();
   const skipInitialFetch = useRef(Boolean(initialThreads));
   const listRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
   const handledDeepLinkRef = useRef<string | null>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const threadsRef = useRef(threads);
+  threadsRef.current = threads;
+  const layoutTransition = reduceMotion ? { duration: 0 } : INBOX_LAYOUT;
 
   const loadThreads = useCallback(
     async (opts: { cursor: string | null; query: string; append: boolean }) => {
-      const result = await api.getInbox({
-        cursor: opts.cursor,
-        limit: PAGE_SIZE,
-        query: opts.query || undefined,
-      });
+      if (!opts.append) {
+        searchAbortRef.current?.abort();
+        searchAbortRef.current = new AbortController();
+      }
+      const signal = opts.append ? undefined : searchAbortRef.current?.signal;
+      const result = await api.getInbox(
+        {
+          cursor: opts.cursor,
+          limit: PAGE_SIZE,
+          query: opts.query || undefined,
+        },
+        signal ? { signal } : undefined
+      );
 
       setThreads((prev) => {
-        if (!opts.append) return result.items;
-        const seen = new Set(prev.map((thread) => thread.threadKey));
-        return [...prev, ...result.items.filter((thread) => !seen.has(thread.threadKey))];
+        const next = opts.append
+          ? (() => {
+              const seen = new Set(prev.map((thread) => thread.threadKey));
+              return [...prev, ...result.items.filter((thread) => !seen.has(thread.threadKey))];
+            })()
+          : result.items;
+        return sortInboxThreads(next);
       });
       setCursor(result.nextCursor);
       setHasMore(result.hasMore);
@@ -134,12 +362,11 @@ export default function InboxView({
     let cancelled = false;
     setLoading(true);
     void loadThreads({ cursor: null, query: activeQuery, append: false })
-      .catch(() => {
-        if (!cancelled) {
-          setThreads([]);
-          setHasMore(false);
-          setCursor(null);
-        }
+      .catch((err) => {
+        if (cancelled || isAbortError(err)) return;
+        setThreads([]);
+        setHasMore(false);
+        setCursor(null);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -147,13 +374,14 @@ export default function InboxView({
 
     return () => {
       cancelled = true;
+      searchAbortRef.current?.abort();
     };
   }, [activeQuery, loadThreads]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
       setActiveQuery(searchQuery.trim());
-    }, 300);
+    }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(handle);
   }, [searchQuery]);
 
@@ -179,7 +407,7 @@ export default function InboxView({
   });
 
   useEffect(() => {
-    setLeadPanelOpen(false);
+    setLeadPanel(null);
   }, [selected?.leadId]);
 
   // Page one holds the newest threads, so refetching it is enough to surface new arrivals
@@ -193,7 +421,10 @@ export default function InboxView({
         .then((result) => {
           setThreads((prev) => {
             const refreshedKeys = new Set(result.items.map((thread) => thread.threadKey));
-            return [...result.items, ...prev.filter((t) => !refreshedKeys.has(t.threadKey))];
+            return sortInboxThreads([
+              ...result.items,
+              ...prev.filter((t) => !refreshedKeys.has(t.threadKey)),
+            ]);
           });
         })
         .catch(() => {
@@ -204,16 +435,20 @@ export default function InboxView({
     return () => window.clearInterval(timer);
   }, [activeQuery]);
 
-  const clearUnread = useCallback((leadId: string) => {
+  const patchThread = useCallback((leadId: string, patch: Partial<InboxThread>) => {
     setThreads((prev) =>
-      prev.map((thread) =>
-        thread.leadId === leadId ? { ...thread, unread: false, unreadCount: 0 } : thread
+      sortInboxThreads(
+        prev.map((thread) => (thread.leadId === leadId ? { ...thread, ...patch } : thread))
       )
     );
     setSelected((prev) =>
-      prev?.leadId === leadId ? { ...prev, unread: false, unreadCount: 0 } : prev
+      prev?.leadId === leadId ? { ...prev, ...patch } : prev
     );
   }, []);
+
+  const clearUnread = useCallback((leadId: string) => {
+    patchThread(leadId, { unread: false, unreadCount: 0 });
+  }, [patchThread]);
 
   function prefetchThread(leadId: string | null | undefined) {
     if (!leadId) return;
@@ -224,6 +459,99 @@ export default function InboxView({
     if (thread.leadId) prefetchThread(thread.leadId);
     setSelected(thread);
     setMobileShowThread(true);
+  }
+
+  function openLeadPanel(thread: InboxThread) {
+    if (!thread.leadId) return;
+    void prefetchLead(thread.leadId);
+    setLeadPanel({ leadId: thread.leadId, title: threadPanelTitle(thread) });
+  }
+
+  async function handleThreadAction(thread: InboxThread, actionId: string) {
+    const leadId = thread.leadId;
+    if (!leadId) return;
+
+    if (actionId === "open-lead") {
+      openLeadPanel(thread);
+      return;
+    }
+
+    if (actionId === "copy-phone") {
+      const phone = thread.customerPhone?.trim();
+      if (phone) void copyText(phone, "Phone copied");
+      return;
+    }
+
+    if (actionId === "copy-email") {
+      const email = thread.customerEmail?.trim();
+      if (email) void copyText(email, "Email copied");
+      return;
+    }
+
+    if (actionId === "toggle-read") {
+      const markUnread = !thread.unread;
+      patchThread(leadId, {
+        unread: markUnread,
+        unreadCount: markUnread ? Math.max(1, thread.unreadCount ?? 0) : 0,
+      });
+      try {
+        if (markUnread) await api.markInboxThreadUnread(leadId);
+        else await api.markInboxThreadRead(leadId);
+        refreshInboxUnreadCount();
+        toast.success(markUnread ? "Marked as unread" : "Marked as read");
+      } catch {
+        patchThread(leadId, { unread: thread.unread, unreadCount: thread.unreadCount ?? 0 });
+        toast.error(markUnread ? "Couldn’t mark as unread" : "Couldn’t mark as read");
+      }
+      return;
+    }
+
+    if (actionId === "toggle-pin") {
+      void setThreadPinned(thread, !thread.pinned);
+    }
+  }
+
+  async function setThreadPinned(
+    thread: InboxThread,
+    pinned: boolean,
+    opts?: { skipLimitCheck?: boolean }
+  ): Promise<boolean> {
+    const leadId = thread.leadId;
+    if (!leadId) return false;
+
+    if (pinned && !thread.pinned && !opts?.skipLimitCheck) {
+      const pinnedCount = threadsRef.current.filter(
+        (item) => item.pinned && item.leadId !== leadId
+      ).length;
+      if (pinnedCount >= INBOX_PIN_LIMIT) {
+        setPinLimitThread(thread);
+        return false;
+      }
+    }
+
+    patchThread(leadId, { pinned });
+    try {
+      await api.pinInboxThread(leadId, pinned);
+      toast.success(pinned ? "Pinned to top" : "Unpinned");
+      return true;
+    } catch (err) {
+      patchThread(leadId, { pinned: Boolean(thread.pinned) });
+      if (apiErrorCode(err) === "PIN_LIMIT") {
+        setPinLimitThread(thread);
+        return false;
+      }
+      toast.error(pinned ? "Couldn’t pin conversation" : "Couldn’t unpin conversation");
+      return false;
+    }
+  }
+
+  async function unpinToMakeRoom(pinnedThread: InboxThread) {
+    const pending = pinLimitThread;
+    if (!pending) return;
+    const unpinned = await setThreadPinned(pinnedThread, false);
+    if (!unpinned) return;
+    setPinLimitThread(null);
+    await setThreadPinned(pending, true, { skipLimitCheck: true });
   }
 
   useEffect(() => {
@@ -271,7 +599,9 @@ export default function InboxView({
         const thread = result.items[0];
         if (cancelled || !thread) return;
         setThreads((prev) =>
-          prev.some((t) => t.threadKey === thread.threadKey) ? prev : [thread, ...prev]
+          sortInboxThreads(
+            prev.some((t) => t.threadKey === thread.threadKey) ? prev : [thread, ...prev]
+          )
         );
         openThread(thread);
       })
@@ -314,22 +644,32 @@ export default function InboxView({
     }
   }
 
-  const showListLoading = loading && threads.length === 0;
-  const leadPanelTitle = selected
-    ? `${selected.customerName}${selected.propertyPostcode ? ` · ${selected.propertyPostcode}` : ""}`
-    : undefined;
+  const typedQuery = searchQuery.trim();
+  const searchPending = typedQuery !== activeQuery;
+  const displayedThreads = useMemo(() => {
+    if (typedQuery && searchPending) {
+      return threads.filter((thread) => threadMatchesQuery(thread, typedQuery));
+    }
+    return threads;
+  }, [searchPending, threads, typedQuery]);
+
+  const showListLoading = displayedThreads.length === 0 && (loading || searchPending);
 
   const emptyMessage = useMemo(() => {
-    if (threads.length === 0 && activeQuery) return "No conversations match your search.";
-    if (threads.length === 0) return "No client conversations yet.";
+    if (showListLoading) return null;
+    if (displayedThreads.length === 0 && typedQuery) return "No conversations match your search.";
+    if (displayedThreads.length === 0) return "No client conversations yet.";
     return null;
-  }, [activeQuery, threads.length]);
+  }, [displayedThreads.length, showListLoading, typedQuery]);
+
+  const pinnedThreads = useMemo(() => threads.filter((thread) => thread.pinned), [threads]);
 
   return (
     <>
     <div className="flex min-h-0 flex-1 overflow-hidden">
-      <div
+      <motion.div
         ref={listRef}
+        layoutScroll
         className={cn(
           "min-h-0 w-80 max-w-full shrink-0 overflow-y-auto border-r border-(--color-tc-20) bg-white max-md:w-full",
           mobileShowThread && "max-md:hidden"
@@ -347,6 +687,7 @@ export default function InboxView({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search conversations…"
+              aria-busy={searchPending || loading}
               className="h-9 w-full min-w-0 rounded-lg border border-(--color-tc-20) bg-(--color-nc-10) py-2 pl-9 pr-3 text-sm text-(--color-tc-40) outline-none placeholder:text-(--color-tc-30) focus:ring-2 focus:ring-(--color-primary)/20"
             />
           </div>
@@ -362,87 +703,19 @@ export default function InboxView({
           <div className="px-4 py-6 text-sm text-(--color-tc-30)">{emptyMessage}</div>
         ) : null}
 
-        {threads.map((thread) => {
-          const ChannelIcon = channelIcon(thread.lastMessage.channel);
-          const isSelected = selected?.threadKey === thread.threadKey;
-          const isUnread = Boolean(thread.unread) && !isSelected;
-          const unreadCount = thread.unreadCount ?? 0;
-          const addressLabel = counterpartLabel(thread.lastMessage);
-          const senderName =
-            thread.lastMessage.direction === "OUTBOUND"
-              ? thread.lastMessage.author?.fullName?.trim()
-              : undefined;
-
-          return (
-            <button
-              key={thread.threadKey}
-              type="button"
-              onClick={() => openThread(thread)}
-              onMouseEnter={() => prefetchThread(thread.leadId)}
-              onFocus={() => prefetchThread(thread.leadId)}
-              className={cn(
-                "w-full border-b border-(--color-tc-20) border-l-2 border-l-transparent px-4 py-3 text-left transition hover:bg-(--color-nc-10)",
-                isUnread && "border-l-brand bg-brand-muted/25",
-                isSelected && "border-l-brand bg-brand-muted/70 hover:bg-brand-muted/70"
-              )}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={cn(
-                      "truncate font-medium text-(--color-tc-40)",
-                      isUnread && "font-semibold"
-                    )}
-                  >
-                    {thread.customerName}
-                  </p>
-                  {thread.propertyPostcode && (
-                    <p className="mt-0.5 truncate text-xs text-(--color-tc-30)">{thread.propertyPostcode}</p>
-                  )}
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span
-                    className={cn(
-                      "text-[10px] text-(--color-tc-30)",
-                      isUnread && "font-semibold text-brand"
-                    )}
-                  >
-                    {formatInboxListTime(messageTimestamp(thread.lastMessage))}
-                  </span>
-                  {isUnread && unreadCount > 0 ? (
-                    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-[10px] font-medium leading-none text-white">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-              <p
-                className={cn(
-                  "mt-1 truncate text-xs text-(--color-tc-30)",
-                  isUnread && "font-medium text-(--color-tc-40)"
-                )}
-              >
-                {messagePreview(thread.lastMessage.body, thread.lastMessage.channel)}
-              </p>
-              <div className="mt-1.5 flex items-center gap-2 text-[10px] text-(--color-tc-30)">
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-medium",
-                    channelBadgeClass(thread.lastMessage.channel, thread.lastMessage.direction)
-                  )}
-                >
-                  <ChannelIcon className="size-3" aria-hidden />
-                  {thread.lastMessage.channel}
-                </span>
-                {addressLabel && (
-                  <span className="truncate text-(--color-tc-40)">{addressLabel}</span>
-                )}
-                {senderName && <span className="truncate">{senderName}</span>}
-                <span>{thread.messageCount} msgs</span>
-              </div>
-            </button>
-          );
-        })}
+        <LayoutGroup>
+          {displayedThreads.map((thread) => (
+            <motion.div key={thread.threadKey} layout="position" transition={layoutTransition}>
+              <InboxThreadRow
+                thread={thread}
+                isSelected={selected?.threadKey === thread.threadKey}
+                onOpen={() => openThread(thread)}
+                onPrefetch={() => prefetchThread(thread.leadId)}
+                onAction={(actionId) => void handleThreadAction(thread, actionId)}
+              />
+            </motion.div>
+          ))}
+        </LayoutGroup>
 
         {hasMore ? <div ref={sentinelRef} className="h-8" aria-hidden /> : null}
         {loadingMore ? (
@@ -450,7 +723,7 @@ export default function InboxView({
             <LoadingSpinner />
           </div>
         ) : null}
-      </div>
+      </motion.div>
 
       <div
         className={cn(
@@ -486,7 +759,7 @@ export default function InboxView({
                     type="button"
                     size="small"
                     className="w-auto"
-                    onClick={() => setLeadPanelOpen(true)}
+                    onClick={() => openLeadPanel(selected)}
                   >
                     View lead
                   </SecondaryButton>
@@ -517,16 +790,55 @@ export default function InboxView({
     </div>
 
     <LeadDetailPanel
-      leadId={selected?.leadId ?? null}
-      isOpen={leadPanelOpen}
-      onClose={() => setLeadPanelOpen(false)}
-      title={leadPanelTitle}
+      leadId={leadPanel?.leadId ?? null}
+      isOpen={Boolean(leadPanel)}
+      onClose={() => setLeadPanel(null)}
+      title={leadPanel?.title}
       onDeleted={() => {
-        setLeadPanelOpen(false);
-        setSelected(null);
+        const deletedId = leadPanel?.leadId;
+        setLeadPanel(null);
+        if (selected?.leadId === deletedId) setSelected(null);
         void loadThreads({ cursor: null, query: activeQuery, append: false });
       }}
     />
+
+    <CrmModal
+      isOpen={Boolean(pinLimitThread)}
+      title="Unpin one first"
+      description={`You can pin up to ${INBOX_PIN_LIMIT} conversations. Unpin one to pin ${pinLimitThread?.customerName ?? "this one"}.`}
+      onClose={() => setPinLimitThread(null)}
+      size="sm"
+      footer={
+        <SecondaryButton type="button" className="w-auto" onClick={() => setPinLimitThread(null)}>
+          Cancel
+        </SecondaryButton>
+      }
+    >
+      {pinnedThreads.length === 0 ? (
+        <p className="text-sm text-ink-muted">Unpin one from the top of the inbox, then try again.</p>
+      ) : (
+        <ul className="divide-y divide-line">
+          {pinnedThreads.map((thread) => (
+            <li key={thread.threadKey} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+              <div className="min-w-0">
+                <p className="truncate text-sm text-ink">{thread.customerName}</p>
+                {thread.propertyPostcode ? (
+                  <p className="truncate text-xs text-ink-muted">{thread.propertyPostcode}</p>
+                ) : null}
+              </div>
+              <SecondaryButton
+                type="button"
+                size="small"
+                className="w-auto shrink-0"
+                onClick={() => void unpinToMakeRoom(thread)}
+              >
+                Unpin
+              </SecondaryButton>
+            </li>
+          ))}
+        </ul>
+      )}
+    </CrmModal>
     </>
   );
 }

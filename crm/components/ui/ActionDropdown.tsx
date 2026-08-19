@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type DropdownAction = {
@@ -15,6 +15,9 @@ export type DropdownAction = {
 type ActionDropdownProps = {
   actions: DropdownAction[];
   onActionClick: (actionId: string) => void;
+  icon?: "horizontal" | "vertical";
+  size?: "md" | "sm";
+  ariaLabel?: string;
 };
 
 type MenuPosition = {
@@ -25,20 +28,28 @@ type MenuPosition = {
 
 const MENU_WIDTH = 208; // w-52
 const MENU_GAP = 8;
-const MENU_ESTIMATED_HEIGHT = 220;
 
-export default function ActionDropdown({ actions, onActionClick }: ActionDropdownProps) {
+export default function ActionDropdown({
+  actions,
+  onActionClick,
+  icon = "horizontal",
+  size = "md",
+  ariaLabel = "Row actions",
+}: ActionDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState<MenuPosition | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const Icon = icon === "vertical" ? MoreVertical : MoreHorizontal;
+  const compact = size === "sm";
+  const estimatedHeight = 16 + actions.length * 46;
 
   function updatePosition() {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
-    const openUp = spaceBelow < MENU_ESTIMATED_HEIGHT && rect.top > MENU_ESTIMATED_HEIGHT;
+    const openUp = spaceBelow < estimatedHeight && rect.top > estimatedHeight;
     const left = Math.min(
       Math.max(MENU_GAP, rect.right - MENU_WIDTH),
       window.innerWidth - MENU_WIDTH - MENU_GAP,
@@ -84,20 +95,27 @@ export default function ActionDropdown({ actions, onActionClick }: ActionDropdow
   }, [isOpen]);
 
   return (
-    <div ref={dropdownRef} className="relative inline-block">
+    <div
+      ref={dropdownRef}
+      className="relative inline-block"
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
+    >
       <button
         ref={buttonRef}
         type="button"
         onClick={() => setIsOpen((open) => !open)}
-        aria-label="Row actions"
+        aria-label={ariaLabel}
         aria-expanded={isOpen}
         className={cn(
-          "group flex size-8 items-center justify-center rounded-lg border border-transparent text-ink-subtle outline-none transition-all duration-200",
+          "flex items-center justify-center rounded-lg border border-transparent text-ink-subtle outline-none transition-all duration-200",
+          compact ? "size-6" : "size-8",
           "hover:border-line hover:bg-sidebar hover:text-ink",
           isOpen && "border-line bg-sidebar text-ink",
         )}
       >
-        <MoreHorizontal className="size-4" strokeWidth={1.75} />
+        <Icon className={compact ? "size-3.5" : "size-4"} strokeWidth={1.75} />
       </button>
 
       {isOpen && position
@@ -122,7 +140,7 @@ export default function ActionDropdown({ actions, onActionClick }: ActionDropdow
                       onActionClick(action.id);
                     }}
                     className={cn(
-                      "group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left outline-none transition-colors duration-150",
+                      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left outline-none transition-colors duration-150",
                       isDanger ? "hover:bg-orange-50" : "hover:bg-sidebar",
                     )}
                   >

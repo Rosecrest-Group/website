@@ -2,11 +2,14 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { api } from "@/crm/lib/api";
 import {
+  canBypassJobQc,
   canEditInspectionDate,
   canManageJobAccessDetails,
   canMutateLeads,
+  canTickJobQc,
   canTickPreSiteCheckpoints,
   canViewJobMoney,
 } from "@/crm/lib/rbac";
@@ -22,7 +25,15 @@ import SelectField from "@/crm/components/ui/SelectField";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import ConfirmModal from "@/crm/components/ui/ConfirmModal";
 import { ArrowLeft, Building2, CalendarDays, CheckSquare, ClipboardList, FileText, KeyRound, UserRound, Wallet } from "lucide-react";
-import { canonicalSurveyStage, SURVEY_JOB_STAGES } from "@/crm/lib/jobStages";
+import {
+  canonicalSurveyStage,
+  formatJobStageLabel,
+  stageMoveEmailWarning,
+  SURVEY_JOB_STAGES,
+  surveyorMaySetSurveyStage,
+} from "@/crm/lib/jobStages";
+import { isJobQcComplete, qcDeliverableLabel, QC_INCOMPLETE_MESSAGE } from "@/crm/lib/jobQc";
+import { doneTopProgress, startTopProgress } from "@/crm/lib/topProgress";
 
 function paymentStatusVariant(status: string): "completed" | "pending" | "in-review" | "failed" {
   if (status === "PAID") return "completed";
@@ -144,6 +155,9 @@ export default function JobDetail({ id }: { id: string }) {
   const [accessSaved, setAccessSaved] = useState(false);
   const [savingAccess, setSavingAccess] = useState(false);
   const [confirmingAccess, setConfirmingAccess] = useState(false);
+  const [pendingStage, setPendingStage] = useState<string | null>(null);
+  const [stageSaving, setStageSaving] = useState(false);
+  const [justMovedStage, setJustMovedStage] = useState<string | null>(null);
 
   function reload(silent = true) {
     if (!silent) setLoading(true);
@@ -182,6 +196,8 @@ export default function JobDetail({ id }: { id: string }) {
   const canManageAccess = role ? canManageJobAccessDetails(role) : false;
   const canSetInspectionDate = role ? canEditInspectionDate(role) : false;
   const canTickCheckpoints = role ? canTickPreSiteCheckpoints(role) : false;
+  const canTickQc = role ? canTickJobQc(role) : false;
+  const bypassQc = role ? canBypassJobQc(role) : false;
 
   async function createLink() {
     const r = await api.createPaymentLink(id);
@@ -282,15 +298,65 @@ export default function JobDetail({ id }: { id: string }) {
     "COMPLETED",
   ] as const;
 
-  async function updateTradeStage(stage: string) {
-    const previous = job;
-    setJob((j) => (j ? { ...j, stage } : j));
+  async function requestStageMove(stage: string) {
+    if (!job) return;
+    if (job.jobType === "TRADE_WORK") {
+      if (job.stage === stage) return;
+      setStageError(null);
+      setPendingStage(stage);
+      return;
+    }
+    if (canonicalSurveyStage(job.stage) === stage) return;
+    setStageError(null);
+    if (stage === "ACCESS_REQUESTED") {
+      if (!job.assignedTo) {
+        setStageError("Assign a surveyor before moving to Access Requested");
+        return;
+      }
+      if (!job.inspectionDate || !job.inspectionWindow?.trim()) {
+        setStageError(
+          "Set proposed inspection date and arrival window before Access Requested — they go in the agent email"
+        );
+        return;
+      }
+    }
+    if (stage === "REPORT_DELIVERED" && !hasReportDocument) {
+      setStageError(
+        "Upload a Report document before moving to Report Delivered — it is attached to the client email"
+      );
+      return;
+    }
+    if (stage === "REPORT_DELIVERED" && !bypassQc && !isJobQcComplete(job)) {
+      setStageError(QC_INCOMPLETE_MESSAGE);
+      return;
+    }
+    setPendingStage(stage);
+  }
+
+  async function confirmStageMove() {
+    if (!pendingStage || stageSaving) return;
+    const stage = pendingStage;
+    setStageSaving(true);
+    startTopProgress();
     try {
       await api.updateJobStage(id, stage);
+      setPendingStage(null);
+      setJustMovedStage(stage);
+      toast.success(`Moved to ${formatJobStageLabel(stage, job?.jobType)}`);
+      window.setTimeout(() => setJustMovedStage(null), 1400);
       await reload();
-    } catch {
-      setJob(previous);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not update stage";
+      setStageError(msg);
+      toast.error(msg);
+    } finally {
+      doneTopProgress();
+      setStageSaving(false);
     }
+  }
+
+  async function updateTradeStage(stage: string) {
+    void requestStageMove(stage);
   }
 
   async function saveWorkDates() {
@@ -390,38 +456,6 @@ export default function JobDetail({ id }: { id: string }) {
     reload();
   }
 
-  async function updateSurveyStage(stage: string) {
-    setStageError(null);
-    if (stage === "ACCESS_REQUESTED") {
-      if (!job?.assignedTo) {
-        setStageError("Assign a surveyor before moving to Access Requested");
-        return;
-      }
-      if (!job.inspectionDate || !job.inspectionWindow?.trim()) {
-        setStageError(
-          "Set proposed inspection date and arrival window before Access Requested — they go in the agent email"
-        );
-        return;
-      }
-    }
-    if (stage === "REPORT_DELIVERED" && !hasReportDocument) {
-      setStageError(
-        "Upload a Report document before moving to Report Delivered — it is attached to the client email"
-      );
-      return;
-    }
-    const previous = job;
-    setJob((j) => (j ? { ...j, stage } : j));
-    try {
-      await api.updateJobStage(id, stage);
-      await reload();
-    } catch (e) {
-      setJob(previous);
-      const msg = e instanceof Error ? e.message : "Could not update stage";
-      setStageError(msg);
-    }
-  }
-
   async function saveInspectionDetails() {
     if (!canSetInspectionDate) return;
     setInspectionError(null);
@@ -446,6 +480,21 @@ export default function JobDetail({ id }: { id: string }) {
   async function toggleDataCapture() {
     await api.updateJob(id, { dataCaptureComplete: !job?.dataCaptureComplete });
     reload();
+  }
+
+  async function toggleQcField(
+    field: "qcOttoReviewComplete" | "qcRicsPassConfirmed" | "qcLevelDeliverableComplete",
+    value: boolean
+  ) {
+    if (!canTickQc) return;
+    setJob((j) => (j ? { ...j, [field]: value } : j));
+    try {
+      await api.updateJob(id, { [field]: value });
+      await reload();
+    } catch (e) {
+      await reload();
+      toast.error(e instanceof Error ? e.message : "Could not update QC check");
+    }
   }
 
   async function toggleSurveyorCheckpoint(
@@ -483,7 +532,20 @@ export default function JobDetail({ id }: { id: string }) {
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-(--color-tc-40)">{job.jobNumber}</h1>
+          <h1 className="flex flex-wrap items-baseline gap-x-2 text-2xl font-bold leading-none text-(--color-tc-40)">
+            <span>{job.jobNumber}</span>
+            {job.leadId ? (
+              <>
+                <span className="font-normal">—</span>
+                <Link
+                  href={`/crm/leads/${job.leadId}`}
+                  className="font-medium text-brand hover:underline"
+                >
+                  View lead
+                </Link>
+              </>
+            ) : null}
+          </h1>
           <p className="mt-1 text-sm text-(--color-tc-30)">
             {job.propertyAddress}, {job.propertyPostcode}
           </p>
@@ -494,9 +556,6 @@ export default function JobDetail({ id }: { id: string }) {
           )}
         </div>
         <div className="flex flex-col items-end gap-2">
-          {showMoney && (
-            <StatusPill variant={paymentStatusVariant(job.paymentStatus)} label={job.paymentStatus} />
-          )}
           {job.customer?.phone && (
             <PhoneButton
               number={job.customer.phone}
@@ -506,6 +565,9 @@ export default function JobDetail({ id }: { id: string }) {
                 customerName: `${job.customer.firstName} ${job.customer.lastName}`,
               }}
             />
+          )}
+          {showMoney && (
+            <StatusPill variant={paymentStatusVariant(job.paymentStatus)} label={job.paymentStatus} />
           )}
         </div>
       </div>
@@ -521,9 +583,16 @@ export default function JobDetail({ id }: { id: string }) {
                     key={s}
                     type="button"
                     size="small"
-                    style={job.stage === s ? activeStageStyle : undefined}
+                    style={
+                      job.stage === s
+                        ? activeStageStyle
+                        : justMovedStage === s
+                          ? { boxShadow: "0 0 0 2px var(--color-primary)" }
+                          : undefined
+                    }
                     className="w-auto"
                     onClick={() => updateTradeStage(s)}
+                    disabled={job.stage === s}
                   >
                     {s.replace(/_/g, " ")}
                   </SecondaryButton>
@@ -912,8 +981,8 @@ export default function JobDetail({ id }: { id: string }) {
                   <div>
                     <h3 className="text-sm font-medium text-ink">Stage</h3>
                     <p className="text-xs text-ink-muted">
-                      {canManageAccess
-                        ? "Click a step to move the job forward — only that stage’s tasks show below"
+                      {canManageAccess || role === "SURVEYOR"
+                        ? "Click a step to move the job — you’ll confirm before it saves"
                         : "Current job stage"}
                     </p>
                   </div>
@@ -923,19 +992,25 @@ export default function JobDetail({ id }: { id: string }) {
                         const currentIndex = surveyStageIndex(job.stage);
                         const isCurrent = canonicalSurveyStage(job.stage) === s;
                         const isDone = currentIndex > i;
+                        const surveyorCanClick =
+                          role === "SURVEYOR" && surveyorMaySetSurveyStage(job.stage, s);
+                        const canClick = !isCurrent && (canManageAccess || surveyorCanClick);
                         const needsReportFirst = s === "REPORT_DELIVERED" && !hasReportDocument;
                         const needsInspectionFirst =
                           s === "ACCESS_REQUESTED" &&
                           (!job.inspectionDate || !job.inspectionWindow?.trim());
+                        const justMoved = justMovedStage === s && isCurrent;
                         return (
                           <li key={s} className="flex items-center gap-1.5">
                             <button
                               type="button"
-                              onClick={() => canManageAccess && updateSurveyStage(s)}
-                              disabled={!canManageAccess}
+                              onClick={() => canClick && void requestStageMove(s)}
+                              disabled={!canClick}
                               title={
-                                !canManageAccess
-                                  ? "Ops moves the job stage."
+                                isCurrent
+                                  ? "Current stage"
+                                  : !canClick
+                                  ? "Ops moves this stage."
                                   : needsReportFirst
                                   ? "Upload a Report document first — it is attached to the client email"
                                   : needsInspectionFirst
@@ -949,10 +1024,9 @@ export default function JobDetail({ id }: { id: string }) {
                                   : isDone
                                     ? "border-brand-light/40 bg-brand-muted text-brand"
                                     : "border-line bg-surface text-ink-muted",
-                                canManageAccess && !isCurrent
-                                  ? "hover:border-brand-light hover:text-ink"
-                                  : "",
-                                !canManageAccess ? "cursor-not-allowed" : "",
+                                canClick ? "hover:border-brand-light hover:text-ink" : "",
+                                !canClick ? "cursor-not-allowed" : "",
+                                justMoved ? "ring-2 ring-brand ring-offset-2" : "",
                                 (needsReportFirst || needsInspectionFirst) && !isCurrent
                                   ? "opacity-60"
                                   : "",
@@ -981,7 +1055,7 @@ export default function JobDetail({ id }: { id: string }) {
                       })}
                     </ol>
                   </div>
-                  {canManageAccess && panels.documents && !hasReportDocument && (
+                  {panels.documents && !hasReportDocument && (
                       <p className="text-xs text-amber-700">
                         Upload a Report document before Report Delivered — the issued email attaches it
                         automatically.
@@ -1136,7 +1210,7 @@ export default function JobDetail({ id }: { id: string }) {
                     <div>
                       <h3 className="text-sm font-medium text-ink">After inspection</h3>
                       <p className="text-xs text-ink-muted">
-                        Mark when site data is captured on the surveyor’s reporting system. The report PDF is uploaded later.
+                        Tick when inspection data is on OTTO (not this CRM). QC must be done before the report PDF is uploaded.
                       </p>
                     </div>
                   </div>
@@ -1147,8 +1221,43 @@ export default function JobDetail({ id }: { id: string }) {
                       onChange={toggleDataCapture}
                       className="size-4 rounded border-line text-brand focus:ring-brand-muted"
                     />
-                    Data captured on surveyor’s reporting system
+                    Data captured on surveyor’s reporting system (OTTO)
                   </label>
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-ink">QC before upload</p>
+                    <label className={`flex items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink ${canTickQc ? "cursor-pointer" : "cursor-not-allowed opacity-80"}`}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(job.qcOttoReviewComplete)}
+                        disabled={!canTickQc}
+                        onChange={(e) => void toggleQcField("qcOttoReviewComplete", e.target.checked)}
+                        className="size-4 rounded border-line text-brand focus:ring-brand-muted"
+                      />
+                      OTTO technical review completed
+                    </label>
+                    <label className={`flex items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink ${canTickQc ? "cursor-pointer" : "cursor-not-allowed opacity-80"}`}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(job.qcRicsPassConfirmed)}
+                        disabled={!canTickQc}
+                        onChange={(e) => void toggleQcField("qcRicsPassConfirmed", e.target.checked)}
+                        className="size-4 rounded border-line text-brand focus:ring-brand-muted"
+                      />
+                      95% RICS pass rate
+                    </label>
+                    {qcDeliverableLabel(job.surveyLevel) ? (
+                      <label className={`flex items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink ${canTickQc ? "cursor-pointer" : "cursor-not-allowed opacity-80"}`}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(job.qcLevelDeliverableComplete)}
+                          disabled={!canTickQc}
+                          onChange={(e) => void toggleQcField("qcLevelDeliverableComplete", e.target.checked)}
+                          className="size-4 rounded border-line text-brand focus:ring-brand-muted"
+                        />
+                        {qcDeliverableLabel(job.surveyLevel)}
+                      </label>
+                    ) : null}
+                  </div>
                 </section>
                 )}
 
@@ -1266,6 +1375,10 @@ export default function JobDetail({ id }: { id: string }) {
               <CrmPanel title="Documents">
                 <div className="space-y-4">
                   {panels.documentsUpload && (
+                    <div className="space-y-3">
+                      {role === "SURVEYOR" && !bypassQc && !isJobQcComplete(job) ? (
+                        <p className="text-xs text-amber-700">{QC_INCOMPLETE_MESSAGE}</p>
+                      ) : (
                     <div className="flex flex-wrap items-end gap-3">
                       <SelectField
                         label="Type"
@@ -1301,6 +1414,8 @@ export default function JobDetail({ id }: { id: string }) {
                       >
                         {uploadingDoc ? "Uploading…" : "Upload"}
                       </SecondaryButton>
+                    </div>
+                      )}
                     </div>
                   )}
                   {docError && <p className="text-sm text-red-600">{docError}</p>}
@@ -1381,6 +1496,29 @@ export default function JobDetail({ id }: { id: string }) {
           </CrmPanel>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={Boolean(pendingStage)}
+        title={pendingStage ? `Move to ${formatJobStageLabel(pendingStage, job?.jobType)}?` : "Move stage?"}
+        description={
+          pendingStage
+            ? [
+                `This moves the job to ${formatJobStageLabel(pendingStage, job?.jobType)}.`,
+                stageMoveEmailWarning(pendingStage),
+              ]
+                .filter(Boolean)
+                .join(" ")
+            : undefined
+        }
+        confirmLabel="Move stage"
+        loading={stageSaving}
+        error={stageError ?? undefined}
+        onConfirm={() => void confirmStageMove()}
+        onCancel={() => {
+          if (stageSaving) return;
+          setPendingStage(null);
+        }}
+      />
 
       <ConfirmModal
         isOpen={showMoney && markPaidConfirmOpen}

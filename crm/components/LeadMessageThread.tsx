@@ -37,7 +37,10 @@ import MessageRichCompose, {
   getEmailPayload,
   type MessageRichComposeHandle,
 } from "@/crm/components/ui/MessageRichCompose";
-import ChatComposeField from "@/crm/components/ui/ChatComposeField";
+import ChatComposeField, {
+  type PendingComposeAttachment,
+} from "@/crm/components/ui/ChatComposeField";
+import ChatMessageAttachments from "@/crm/components/ui/ChatMessageAttachments";
 import {
   formatChatDateSeparator,
   formatChatTime,
@@ -66,6 +69,7 @@ import {
   prefetchLeadThreadWithActivities,
 } from "@/crm/lib/loadLeadThread";
 import { ensureRecordThread } from "@/crm/lib/recordThread";
+import { MAX_CHAT_ATTACHMENTS, validateChatAttachmentFile } from "@/crm/lib/chatAttachments";
 import {
   getCachedConversationThread,
   setCachedConversationThread,
@@ -329,6 +333,85 @@ function renderNoteBody(
 /** ~2 lines of text-sm / leading-relaxed — preview height for long email bubbles. */
 const EMAIL_COLLAPSED_MAX_PX = 52;
 
+type LocalPendingAttachment = PendingComposeAttachment & { file: File };
+
+function CollapsiblePlainBody({
+  children,
+  fadeFrom,
+}: {
+  children: ReactNode;
+  fadeFrom: string;
+}) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const [fullHeight, setFullHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      const next = el.scrollHeight;
+      setFullHeight(next);
+      setOverflows(next > EMAIL_COLLAPSED_MAX_PX + 4);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [children]);
+
+  const collapsed = overflows && !expanded;
+
+  return (
+    <div className="relative">
+      <div
+        className={cn(
+          "overflow-hidden transition-[max-height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          overflows && "cursor-pointer"
+        )}
+        style={{
+          maxHeight: overflows
+            ? collapsed
+              ? EMAIL_COLLAPSED_MAX_PX
+              : Math.max(fullHeight, EMAIL_COLLAPSED_MAX_PX)
+            : undefined,
+        }}
+        onClick={overflows ? () => setExpanded((value) => !value) : undefined}
+        aria-expanded={overflows ? expanded : undefined}
+      >
+        <div ref={contentRef}>{children}</div>
+      </div>
+      {overflows && (
+        <button
+          type="button"
+          className={cn(
+            "flex w-full items-center justify-center text-current/55 transition-colors hover:text-current/80",
+            collapsed
+              ? cn("absolute inset-x-0 bottom-0 bg-linear-to-t to-transparent pt-7 pb-0.5", fadeFrom)
+              : "mt-1.5 pt-0.5"
+          )}
+          onClick={(event) => {
+            event.stopPropagation();
+            setExpanded((value) => !value);
+          }}
+          aria-label={expanded ? "Collapse" : "Expand"}
+        >
+          <ChevronDown
+            className={cn(
+              "size-4 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+              expanded && "rotate-180"
+            )}
+            aria-hidden
+          />
+        </button>
+      )}
+    </div>
+  );
+}
+
 function CollapsibleEmailBody({ body, isOutbound }: { body: string; isOutbound: boolean }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
@@ -566,11 +649,19 @@ function PaymentReceivedThreadBanner({ activity }: { activity: Activity }) {
   );
 }
 
+function asFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) {
+    return Number(value);
+  }
+  return null;
+}
+
 function formatCallDuration(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds));
   const mins = Math.floor(total / 60);
   const secs = total % 60;
-  return `${mins}:${String(secs).padStart(2, "0")}`;
+  return `${mins}m ${String(secs).padStart(2, "0")}s`;
 }
 
 function callNumberFromMeta(
@@ -593,7 +684,12 @@ function CallThreadBanner({ activity }: { activity: Activity }) {
   const isOutbound = directionRaw !== "inbound";
   const direction: "inbound" | "outbound" = isOutbound ? "outbound" : "inbound";
   const outcome = typeof meta.outcome === "string" ? meta.outcome.toLowerCase() : "";
-  const isInitiated = activity.type.includes("initiated");
+  const durationSeconds =
+    asFiniteNumber(meta.durationSeconds) ?? asFiniteNumber(meta.duration);
+  const isInitiated =
+    activity.type.includes("initiated") &&
+    durationSeconds == null &&
+    Date.now() - new Date(activity.createdAt).getTime() < 3 * 60 * 1000;
   const missed =
     outcome === "no_answer" ||
     outcome === "missed" ||
@@ -601,28 +697,35 @@ function CallThreadBanner({ activity }: { activity: Activity }) {
     outcome === "cancelled" ||
     outcome === "canceled";
 
-  const durationSeconds =
-    typeof meta.durationSeconds === "number"
-      ? meta.durationSeconds
-      : typeof meta.duration === "number"
-        ? meta.duration
-        : null;
   const duration =
-    durationSeconds != null && durationSeconds > 0
+    durationSeconds != null && (durationSeconds > 0 || !isInitiated)
       ? formatCallDuration(durationSeconds)
-      : durationSeconds === 0 && !isInitiated
-        ? "0:00"
-        : null;
+      : null;
 
   const number = callNumberFromMeta(meta, direction);
   const recordingUrl = typeof meta.recordingUrl === "string" ? meta.recordingUrl : null;
-  const transcript = typeof meta.transcript === "string" ? meta.transcript : null;
+  const transcript =
+    typeof meta.transcript === "string" && meta.transcript.trim()
+      ? meta.transcript
+      : null;
+  const recap =
+    typeof meta.recapSummary === "string" && meta.recapSummary.trim()
+      ? meta.recapSummary
+      : typeof meta.summary === "string" && meta.summary.trim()
+        ? meta.summary
+        : null;
+  const transcriptBody = transcript ?? recap;
+  const transcriptLabel = transcript ? "Call transcript" : "Call recap";
   const time = formatChatTime(activity.createdAt);
 
   const label = missed
     ? isOutbound
-      ? "Missed outgoing call"
-      : "Missed incoming call"
+      ? outcome === "busy"
+        ? "Busy"
+        : outcome === "cancelled" || outcome === "canceled"
+          ? "Cancelled"
+          : "No answer"
+      : "Missed call"
     : isInitiated
       ? isOutbound
         ? "Outgoing call…"
@@ -631,7 +734,7 @@ function CallThreadBanner({ activity }: { activity: Activity }) {
         ? "Outgoing call"
         : "Incoming call";
 
-  const Icon = missed ? PhoneMissed : isOutbound ? PhoneOutgoing : PhoneIncoming;
+  const Icon = missed && !isOutbound ? PhoneMissed : isOutbound ? PhoneOutgoing : PhoneIncoming;
 
   const colors = missed
     ? {
@@ -683,35 +786,57 @@ function CallThreadBanner({ activity }: { activity: Activity }) {
           </span>
         ) : null}
         {duration ? (
-          <span className={cn("text-[11px] font-semibold tabular-nums", colors.muted)}>{duration}</span>
+          <span
+            title="Call duration"
+            className={cn("text-[11px] font-semibold tabular-nums", colors.muted)}
+          >
+            {duration}
+          </span>
         ) : null}
-        <span className={cn("text-[11px] font-medium", colors.muted)}>{time}</span>
+        <span title="Time of call" className={cn("text-[11px] font-medium tabular-nums", colors.muted)}>
+          {time}
+        </span>
       </div>
 
-      {(recordingUrl || transcript) && (
-        <div className="flex flex-wrap items-center justify-center gap-2 text-[11px]">
-          {recordingUrl ? (
-            <a
-              href={recordingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-(--color-primary) hover:underline"
+      {recordingUrl ? (
+        <a
+          href={recordingUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] font-medium text-(--color-primary) hover:underline"
+        >
+          Listen to recording
+        </a>
+      ) : null}
+
+      {transcriptBody ? (
+        <div className="w-full max-w-[min(100%,36rem)]">
+          <div
+            className={cn(
+              "rounded-xl border px-4 py-3 shadow-sm",
+              isOutbound
+                ? "border-sky-200/90 bg-sky-50/90 text-sky-950"
+                : "border-emerald-200/90 bg-emerald-50/90 text-emerald-950"
+            )}
+          >
+            <div
+              className={cn(
+                "mb-1.5 flex flex-wrap items-center gap-2 text-xs",
+                isOutbound ? "text-sky-900/70" : "text-emerald-900/70"
+              )}
             >
-              Listen to recording
-            </a>
-          ) : null}
-          {transcript ? (
-            <details className="max-w-md">
-              <summary className="cursor-pointer font-medium text-(--color-tc-30)">
-                View transcript
-              </summary>
-              <p className="mt-1 whitespace-pre-wrap rounded-lg border border-(--color-tc-20) bg-white px-3 py-2 text-left text-xs leading-relaxed text-(--color-tc-40)">
-                {transcript}
-              </p>
-            </details>
-          ) : null}
+              <span className={cn("font-semibold", isOutbound ? "text-sky-950" : "text-emerald-950")}>
+                {transcriptLabel}
+              </span>
+              {duration ? <span>{duration}</span> : null}
+              <span>{time}</span>
+            </div>
+            <CollapsiblePlainBody fadeFrom={isOutbound ? "from-sky-50" : "from-emerald-50"}>
+              <p className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed">{transcriptBody}</p>
+            </CollapsiblePlainBody>
+          </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -745,13 +870,20 @@ function NoteThreadBubble({
               On: {refLabel}
             </p>
           ) : null}
-          <p className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-rose-950">
-            {note.isDeleted ? (
-              <span className="italic text-rose-900/60">[Note deleted]</span>
-            ) : (
-              renderNoteBody(note.body, note.mentions)
-            )}
-          </p>
+          <CollapsiblePlainBody fadeFrom="from-rose-50">
+            <p className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-rose-950">
+              {note.isDeleted ? (
+                <span className="italic text-rose-900/60">[Note deleted]</span>
+              ) : (
+                renderNoteBody(note.body, note.mentions)
+              )}
+            </p>
+          </CollapsiblePlainBody>
+          {!note.isDeleted && note.attachments?.length ? (
+            <div className="mt-2">
+              <ChatMessageAttachments attachments={note.attachments} isMine={false} />
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -980,6 +1112,7 @@ export default function LeadMessageThread({
   const [plainBody, setPlainBody] = useState("");
   const [htmlBody, setHtmlBody] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
+  const [noteAttachments, setNoteAttachments] = useState<LocalPendingAttachment[]>([]);
   const [commentDraft, setCommentDraft] = useState("");
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionSuggestions, setMentionSuggestions] = useState<MentionSuggestion | null>(null);
@@ -1405,7 +1538,8 @@ export default function LeadMessageThread({
 
   async function handleSendNote() {
     const text = noteDraft.trim();
-    if (!text || sending) return;
+    const attachmentsToSend = [...noteAttachments];
+    if ((!text && attachmentsToSend.length === 0) || sending) return;
 
     const referenced = targetMessage;
     const tempId = `pending-${crypto.randomUUID()}`;
@@ -1425,6 +1559,7 @@ export default function LeadMessageThread({
     });
     setError("");
     setNoteDraft("");
+    setNoteAttachments([]);
     clearComposeTarget();
     setSending(true);
     onSent?.();
@@ -1434,9 +1569,14 @@ export default function LeadMessageThread({
         conversationId
           ? { id: conversationId }
           : await ensureRecordThread({ leadId });
+      const attachmentIds: string[] = [];
+      for (const attachment of attachmentsToSend) {
+        attachmentIds.push(await api.uploadConversationAttachment(thread.id, attachment.file));
+      }
       const created = await api.sendConversationMessage(thread.id, {
-        body: text,
+        body: text || undefined,
         referencedMessageId: referenced?.id,
+        attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
       });
       setNotes((prev) => {
         const next = [...prev.filter((n) => n.id !== tempId && n.id !== created.id), created];
@@ -1458,6 +1598,7 @@ export default function LeadMessageThread({
         return next;
       });
       setNoteDraft(text);
+      setNoteAttachments(attachmentsToSend);
       if (referenced) setTargetMessage(referenced);
       const message = e instanceof Error ? e.message : "Failed to post note";
       setError(message);
@@ -1908,6 +2049,33 @@ export default function LeadMessageThread({
                   onSend={() => void handleSendNote()}
                   sending={sending}
                   placeholder={composePlaceholder}
+                  attachments={noteAttachments}
+                  onAddAttachments={(files) => {
+                    const remaining = MAX_CHAT_ATTACHMENTS - noteAttachments.length;
+                    if (remaining <= 0) return;
+                    const next: LocalPendingAttachment[] = [];
+                    for (const file of Array.from(files).slice(0, remaining)) {
+                      if (validateChatAttachmentFile(file)) continue;
+                      next.push({
+                        id: crypto.randomUUID(),
+                        file,
+                        filename: file.name,
+                        mimeType: file.type,
+                        sizeBytes: file.size,
+                        previewUrl: file.type.startsWith("image/")
+                          ? URL.createObjectURL(file)
+                          : undefined,
+                      });
+                    }
+                    if (next.length > 0) setNoteAttachments((prev) => [...prev, ...next]);
+                  }}
+                  onRemoveAttachment={(id) => {
+                    setNoteAttachments((prev) => {
+                      const removed = prev.find((item) => item.id === id);
+                      if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+                      return prev.filter((item) => item.id !== id);
+                    });
+                  }}
                   onKeyDown={(event) => {
                     if (
                       event.key !== "Enter" ||

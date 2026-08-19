@@ -69,6 +69,10 @@ export function canAccessAdminSettings(role: UserRole): boolean {
   return hasExactRole(role, ADMIN_SETTINGS_ROLES);
 }
 
+export function canSkipWorkflowWait(role: UserRole): boolean {
+  return hasExactRole(role, ADMIN_SETTINGS_ROLES);
+}
+
 export function canViewAuditLog(role: UserRole): boolean {
   return role === "SUPER_ADMIN";
 }
@@ -97,6 +101,16 @@ export function canTickPreSiteCheckpoints(role: UserRole): boolean {
   return role === "SURVEYOR";
 }
 
+/** QC ticks: assigned surveyor, or ops if the surveyor is sick. */
+export function canTickJobQc(role: UserRole): boolean {
+  return role === "SURVEYOR" || hasExactRole(role, LEAD_ACCESS_ROLES);
+}
+
+/** Ops/admin may upload and Report Delivered without QC ticks. */
+export function canBypassJobQc(role: UserRole): boolean {
+  return hasExactRole(role, LEAD_ACCESS_ROLES);
+}
+
 /** Default home when a role hits a forbidden path. */
 export function defaultLandingPath(role: UserRole): string {
   if (role === "SURVEYOR" || role === "TRADE_OPERATIVE" || role === "QC") {
@@ -116,7 +130,11 @@ function pathAllowed(role: UserRole, pathname: string): boolean {
     return canAccessAdminSettings(role);
   }
 
-  if (pathname.startsWith(`${CRM_BASE_PATH}/leads`) || pathname.startsWith(`${CRM_BASE_PATH}/inbox`)) {
+  if (
+    pathname.startsWith(`${CRM_BASE_PATH}/leads`) ||
+    pathname.startsWith(`${CRM_BASE_PATH}/inbox`) ||
+    pathname.startsWith(`${CRM_BASE_PATH}/calls`)
+  ) {
     return canReadLeads(role);
   }
   if (pathname.startsWith(`${CRM_BASE_PATH}/customers`)) {

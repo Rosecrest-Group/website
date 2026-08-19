@@ -337,7 +337,9 @@ export default function IntegrationsAdmin() {
                   <li>Enable calling per user below — they sign in once in the Dialpad sidebar.</li>
                   <li>
                     Click Call on any lead — audio and controls stay in the CRM via the embedded
-                    softphone.
+                    softphone. Hangup events fill in duration; Call AI transcripts appear under
+                    the call once Dialpad sends <code className="rounded bg-white px-1">call_transcription</code>{" "}
+                    (set <code className="rounded bg-white px-1">DIALPAD_API_KEY</code> to fetch them).
                   </li>
                 </ol>
               </div>

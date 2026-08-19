@@ -26,3 +26,31 @@ export function formatJobStageLabel(stage: string, jobType?: string | null): str
   const value = jobType === "TRADE_WORK" ? stage : canonicalSurveyStage(stage);
   return value.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+export const SURVEYOR_SETTABLE_STAGES = ["INSPECTION_COMPLETE", "REPORT_DELIVERED"] as const;
+
+/**
+ * Assigned surveyor may set Inspection Complete / Report Delivered once the
+ * job is at Inspection Booked or later. Paid / Access stay ops-only.
+ */
+export function surveyorMaySetSurveyStage(currentStage: string, targetStage: string): boolean {
+  const current = canonicalSurveyStage(currentStage);
+  const target = canonicalSurveyStage(targetStage);
+  const bookedIdx = SURVEY_JOB_STAGES.indexOf("INSPECTION_BOOKED");
+  const currentIdx = SURVEY_JOB_STAGES.indexOf(current as SurveyJobStage);
+  if (currentIdx < bookedIdx) return false;
+  return (SURVEYOR_SETTABLE_STAGES as readonly string[]).includes(target);
+}
+
+export function stageMoveEmailWarning(stage: string): string | null {
+  if (stage === "ACCESS_REQUESTED") {
+    return "This emails the estate agent or vendor to request access.";
+  }
+  if (stage === "INSPECTION_COMPLETE") {
+    return "This emails the client that the inspection is done.";
+  }
+  if (stage === "REPORT_DELIVERED") {
+    return "This emails the client with the report PDF attached.";
+  }
+  return null;
+}

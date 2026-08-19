@@ -90,6 +90,7 @@ export const CRM_NAV_SECTIONS: CrmNavSection[] = [
     items: [
       { label: "Dashboard", href: CRM_BASE_PATH },
       { label: "Inbox", href: `${CRM_BASE_PATH}/inbox` },
+      { label: "Calls", href: `${CRM_BASE_PATH}/calls` },
       { label: "Contacts", href: `${CRM_BASE_PATH}/customers` },
     ],
   },

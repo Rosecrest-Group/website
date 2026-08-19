@@ -38,6 +38,8 @@ import type {
 
   MessageTemplate,
 
+  NextWorkflowStep,
+
   Paginated,
 
   SurveyLevel,
@@ -58,6 +60,7 @@ import type {
   DialpadIntegrationStatus,
   DialpadConfig,
   DialpadCallInitiateResult,
+  DialpadCallsResult,
 
   InternalConversationSummary,
 
@@ -419,6 +422,28 @@ export const api = {
   getDialpadIntegrationStatus: () => request<DialpadIntegrationStatus>("/admin/integrations/dialpad"),
 
   getDialpadConfig: () => request<DialpadConfig>("/dialpad/config"),
+
+  listDialpadCalls: (
+    params?: {
+      page?: number;
+      limit?: number;
+      query?: string;
+      direction?: "inbound" | "outbound";
+      status?: "all" | "missed" | "answered" | "voicemail" | "live";
+      mine?: boolean;
+    },
+    init?: RequestInit
+  ) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.limit) qs.set("limit", String(params.limit));
+    if (params?.query) qs.set("query", params.query);
+    if (params?.direction) qs.set("direction", params.direction);
+    if (params?.status && params.status !== "all") qs.set("status", params.status);
+    if (params?.mine) qs.set("mine", "true");
+    const q = qs.toString();
+    return request<DialpadCallsResult>(`/dialpad/calls${q ? `?${q}` : ""}`, init);
+  },
 
   initiateDialpadCall: (payload: { to: string; leadId?: string; jobId?: string }) =>
     request<DialpadCallInitiateResult>("/dialpad/calls/initiate", {
@@ -824,6 +849,11 @@ export const api = {
 
     request<Lead>(`/leads/${id}/stop-cadence`, { method: "POST", body: JSON.stringify({ reason }) }),
 
+  advanceLeadWorkflow: (id: string) =>
+    request<{ nextWorkflowStep: NextWorkflowStep | null }>(`/leads/${id}/advance-workflow`, {
+      method: "POST",
+    }),
+
   pauseCadence: (id: string) => request<{ paused: boolean }>(`/leads/${id}/pause-cadence`, { method: "POST" }),
 
   resumeCadence: (id: string) => request<{ resumed: boolean }>(`/leads/${id}/resume-cadence`, { method: "POST" }),
@@ -944,7 +974,7 @@ export const api = {
     limit?: number;
     query?: string;
     leadId?: string;
-  }) => {
+  }, init?: RequestInit) => {
     const qs = new URLSearchParams();
     if (params?.cursor) qs.set("cursor", params.cursor);
     if (params?.limit) qs.set("limit", String(params.limit));
@@ -956,7 +986,7 @@ export const api = {
       limit: number;
       hasMore: boolean;
       nextCursor: string | null;
-    }>(`/messages/inbox${q ? `?${q}` : ""}`);
+    }>(`/messages/inbox${q ? `?${q}` : ""}`, init);
   },
 
   getInboxUnreadCount: () =>
@@ -965,6 +995,17 @@ export const api = {
   markInboxThreadRead: (leadId: string) =>
     request<{ leadId: string; readAt: string }>(`/messages/inbox/${leadId}/read`, {
       method: "POST",
+    }),
+
+  markInboxThreadUnread: (leadId: string) =>
+    request<{ leadId: string; unread: true }>(`/messages/inbox/${leadId}/unread`, {
+      method: "POST",
+    }),
+
+  pinInboxThread: (leadId: string, pinned: boolean) =>
+    request<{ leadId: string; pinned: boolean }>(`/messages/inbox/${leadId}/pin`, {
+      method: "POST",
+      body: JSON.stringify({ pinned }),
     }),
 
   sendMessage: (payload: {

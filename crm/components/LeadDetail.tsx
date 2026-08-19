@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
-import type { CadenceStep, LeadDetail as LeadDetailType, SurveyLevel } from "@/crm/types";
+import type { LeadDetail as LeadDetailType, SurveyLevel } from "@/crm/types";
 import { getCachedLead, setCachedLead } from "@/crm/lib/leadDetailCache";
 import {
   BEDROOM_BAND_LABELS,
@@ -28,12 +28,15 @@ import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import TextField from "@/crm/components/ui/TextField";
 import SelectField from "@/crm/components/ui/SelectField";
 import ConfirmModal from "@/crm/components/ui/ConfirmModal";
+import { toast } from "sonner";
 import InternalConversationPanel, { prefetchInternalThread } from "@/crm/components/InternalConversationPanel";
 import LeadMessageThread from "@/crm/components/LeadMessageThread";
 import ActivityFeed from "@/crm/components/ActivityFeed";
 import LeadTags from "@/crm/components/LeadTags";
 import { useCrmTopBar } from "@/crm/lib/crmTopBarContext";
 import { filterLeadThreadActivities } from "@/crm/lib/threadActivities";
+import { getCachedCurrentUser } from "@/crm/lib/currentUserCache";
+import { canSkipWorkflowWait } from "@/crm/lib/rbac";
 
 function formatRelative(dateStr: string) {
   const d = new Date(dateStr);
@@ -58,13 +61,34 @@ function paymentStatusSub(lead: LeadDetailType): string {
   return "Stripe link sent · not clicked";
 }
 
-function nextWorkflowStepText(lead: LeadDetailType, currentStep?: CadenceStep): string {
+function nextWorkflowStepText(lead: LeadDetailType): string {
   if (lead.cadenceStopped || lead.stage === "LOST" || lead.stage === "CONVERTED") {
     return "No further messages scheduled";
   }
-  if (currentStep?.name) return currentStep.name;
+  if (lead.nextWorkflowStep?.label) return lead.nextWorkflowStep.label;
+  const currentCadenceStep = lead.journey?.find((s) => s.status === "current");
+  if (currentCadenceStep?.name) return currentCadenceStep.name;
   if (lead.cadenceRun?.nextRunAt) return "Scheduled follow-up";
-  return "Workflow will send the next message on schedule";
+  return "No active workflow";
+}
+
+function formatSchedule(iso: string): string {
+  const d = new Date(iso);
+  const diff = d.getTime() - Date.now();
+  const hours = Math.round(Math.abs(diff) / (1000 * 60 * 60));
+  const days = Math.floor(hours / 24);
+  const remHours = hours % 24;
+  const rel =
+    diff >= 0
+      ? days >= 1
+        ? `in ${days}d ${remHours}h`
+        : hours >= 1
+          ? `in ${hours}h`
+          : "soon"
+      : days >= 1
+        ? `${days}d overdue`
+        : "due now";
+  return `${rel} · ${d.toLocaleString()}`;
 }
 
 export default function LeadDetail({
@@ -100,6 +124,13 @@ export default function LeadDetail({
   const [markingWon, setMarkingWon] = useState(false);
   const [markWonError, setMarkWonError] = useState<string | null>(null);
   const [markWonAmount, setMarkWonAmount] = useState("");
+  const [canAdvanceWorkflow, setCanAdvanceWorkflow] = useState(() => {
+    const role = getCachedCurrentUser()?.role;
+    return role ? canSkipWorkflowWait(role) : false;
+  });
+  const [showAdvanceWorkflow, setShowAdvanceWorkflow] = useState(false);
+  const [advancingWorkflow, setAdvancingWorkflow] = useState(false);
+  const [advanceWorkflowError, setAdvanceWorkflowError] = useState<string | null>(null);
 
   function reload(options?: { silent?: boolean }) {
     if (!options?.silent) setLoading(true);
@@ -142,6 +173,13 @@ export default function LeadDetail({
   }, [id, lead?.stage, lead?.paymentLinkClickedAt, lead?.quotedAmount]);
 
   useEffect(() => {
+    api
+      .getMe()
+      .then((me) => setCanAdvanceWorkflow(canSkipWorkflowWait(me.role)))
+      .catch(() => setCanAdvanceWorkflow(false));
+  }, []);
+
+  useEffect(() => {
     if (embedded) return;
     const customer = lead?.customer;
     const name = customer ? `${customer.firstName} ${customer.lastName}` : undefined;
@@ -158,6 +196,22 @@ export default function LeadDetail({
       alert(e instanceof Error ? e.message : "Failed");
     } finally {
       setStoppingAutomation(false);
+    }
+  }
+
+  async function triggerNextWorkflowStep() {
+    setAdvancingWorkflow(true);
+    setAdvanceWorkflowError(null);
+    try {
+      const sent = nextStep?.detail || nextStep?.label;
+      await api.advanceLeadWorkflow(id);
+      setShowAdvanceWorkflow(false);
+      toast.success(sent ? `Next step triggered · ${sent}` : "Next step triggered");
+      reload({ silent: true });
+    } catch (e) {
+      setAdvanceWorkflowError(e instanceof Error ? e.message : "Failed to send the next step");
+    } finally {
+      setAdvancingWorkflow(false);
     }
   }
 
@@ -235,8 +289,16 @@ export default function LeadDetail({
     }
   }
 
-  const currentStep = lead?.journey.find((s) => s.status === "current");
-  const nextRun = lead?.cadenceRun?.nextRunAt;
+  const automationActive = Boolean(
+    lead && !lead.cadenceStopped && lead.stage !== "LOST" && lead.stage !== "CONVERTED"
+  );
+  const nextStep = automationActive && lead ? lead.nextWorkflowStep : null;
+  const nextRun =
+    nextStep?.scheduledAt ?? (automationActive && lead ? lead.cadenceRun?.nextRunAt : null);
+  const canTriggerNextStep =
+    canAdvanceWorkflow &&
+    Boolean(nextStep?.canSkipWait) &&
+    Boolean(nextStep?.scheduledAt && new Date(nextStep.scheduledAt).getTime() > Date.now());
   const canStopAutomation =
     lead &&
     lead.stage !== "CONVERTED" &&
@@ -549,11 +611,34 @@ export default function LeadDetail({
           </div>
 
           <CrmPanel title="Next workflow step">
-            <p className="font-medium text-(--color-tc-40)">{nextWorkflowStepText(lead, currentStep)}</p>
+            <p className="font-medium text-(--color-tc-40)">{nextWorkflowStepText(lead)}</p>
+            {nextStep?.detail && (
+              <p className="mt-1 text-sm text-(--color-tc-40)">{nextStep.detail}</p>
+            )}
+            {nextStep?.recipient && (
+              <p className="mt-1 text-xs text-(--color-tc-30)">To {nextStep.recipient}</p>
+            )}
             {nextRun && (
               <p className="mt-2 text-xs text-(--color-tc-30)">
-                Next: {new Date(nextRun).toLocaleString()}
+                Next: {formatSchedule(nextRun)}
               </p>
+            )}
+            {nextStep?.workflowName && (
+              <p className="mt-1 text-xs text-(--color-tc-30)">{nextStep.workflowName}</p>
+            )}
+            {canTriggerNextStep && (
+              <SecondaryButton
+                type="button"
+                size="small"
+                className="mt-3 w-full"
+                disabled={advancingWorkflow}
+                onClick={() => {
+                  setAdvanceWorkflowError(null);
+                  setShowAdvanceWorkflow(true);
+                }}
+              >
+                Trigger next step
+              </SecondaryButton>
             )}
           </CrmPanel>
 
@@ -797,6 +882,31 @@ export default function LeadDetail({
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showAdvanceWorkflow}
+        title="Send this step now?"
+        description={
+          nextStep
+            ? `Send ${nextStep.detail || nextStep.label}${
+                nextStep.recipient ? ` to ${nextStep.recipient}` : ""
+              } now, instead of waiting.`
+            : undefined
+        }
+        confirmLabel="Send now"
+        loading={advancingWorkflow}
+        error={advanceWorkflowError ?? undefined}
+        onConfirm={() => void triggerNextWorkflowStep()}
+        onCancel={() => {
+          if (advancingWorkflow) return;
+          setShowAdvanceWorkflow(false);
+          setAdvanceWorkflowError(null);
+        }}
+      >
+        <p className="text-sm text-ink-muted">
+          Later steps still fire at their originally scheduled times.
+        </p>
+      </ConfirmModal>
 
       <ConfirmModal
         isOpen={markWonConfirmOpen}

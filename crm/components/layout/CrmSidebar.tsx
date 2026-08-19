@@ -12,6 +12,7 @@ import {
   GitBranch,
   Inbox,
   LayoutDashboard,
+  Phone,
   LogOut,
   MessagesSquare,
   PoundSterling,
@@ -51,6 +52,7 @@ import { cn } from "@/lib/utils";
 const NAV_ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
   inbox: Inbox,
+  calls: Phone,
   conversations: MessagesSquare,
   team: UserCog,
   customers: Users,
@@ -74,6 +76,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
 const HREF_ICON: Record<string, string> = {
   [CRM_BASE_PATH]: "dashboard",
   [`${CRM_BASE_PATH}/inbox`]: "inbox",
+  [`${CRM_BASE_PATH}/calls`]: "calls",
   [`${CRM_BASE_PATH}/conversations`]: "conversations",
   [`${CRM_BASE_PATH}/settings/team`]: "team",
   [`${CRM_BASE_PATH}/customers`]: "customers",

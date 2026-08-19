@@ -339,6 +339,17 @@ function parseActorAction(
     };
   }
 
+  if (activity.type === "workflow.wait_skipped") {
+    const sent =
+      (typeof activity.metadata?.detail === "string" && activity.metadata.detail.trim()) ||
+      (typeof activity.metadata?.stepLabel === "string" && activity.metadata.stepLabel.trim()) ||
+      "";
+    return {
+      actor: displayActor(activity.author, currentUserId),
+      action: sent ? `skipped the wait · sent ${sent}` : "skipped the wait and sent the next step now",
+    };
+  }
+
   if (activity.type === "stage.changed") {
     const stage = desc.replace(/^Stage (changed to\s+)?/i, "").trim();
     return { actor: "Stage", action: stage ? `moved to ${stage}` : "updated" };

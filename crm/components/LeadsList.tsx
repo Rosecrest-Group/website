@@ -182,13 +182,6 @@ export default function LeadsList({
       ),
     },
     {
-      key: "propertyPostcode",
-      header: "Property",
-      render: (value) => (
-        <span className="text-sm text-ink-muted">{(value as string) || "—"}</span>
-      ),
-    },
-    {
       key: "stage",
       header: "Stage",
       render: (value) => (

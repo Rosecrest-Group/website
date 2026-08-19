@@ -20,9 +20,16 @@ import {
   Tag,
   Users,
   PoundSterling,
+  Repeat,
+  CalendarRange,
   Clock,
   Globe,
   MapPin,
+  Banknote,
+  Layers,
+  Target,
+  Send,
+  Percent,
 } from "lucide-react";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import {
@@ -153,6 +160,16 @@ export default function CrmAnalytics() {
       align: "right",
       render: (value) => (
         <span className="text-sm font-medium text-ink tabular-nums">{value as number}</span>
+      ),
+    },
+    {
+      key: "wonRevenue",
+      header: "Won £",
+      align: "right",
+      render: (value) => (
+        <span className="text-sm font-medium text-ink tabular-nums">
+          {pounds(value as number)}
+        </span>
       ),
     },
     {
@@ -291,6 +308,69 @@ export default function CrmAnalytics() {
             subtitle={`${sales?.lostRate30d ?? 0}% of leads`}
             trend={vsPeriodTrend(deltas?.lost, comparisonLabel, true)}
             action={{ label: "View lost", href: "/crm/leads?stage=LOST" }}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatsCard
+            title="MRR"
+            value={pounds(sales?.mrr ?? 0)}
+            icon={<Repeat />}
+            iconTint="success"
+            subtitle={`Run-rate from ${periodShort}`}
+            trend={vsPeriodTrend(deltas?.mrr, comparisonLabel)}
+          />
+          <StatsCard
+            title="ARR"
+            value={pounds(sales?.arr ?? 0)}
+            icon={<CalendarRange />}
+            iconTint="success"
+            subtitle="MRR × 12"
+            trend={vsPeriodTrend(deltas?.arr, comparisonLabel)}
+          />
+          <StatsCard
+            title={`Avg won · ${periodShort}`}
+            value={won > 0 ? pounds(sales?.avgWonValue ?? 0) : "—"}
+            icon={<Banknote />}
+            iconTint="success"
+            subtitle={won > 0 ? `${won} won` : "No wins in period"}
+            trend={vsPeriodTrend(deltas?.avgWonValue, comparisonLabel)}
+          />
+          <StatsCard
+            title={`Pipeline · ${periodShort}`}
+            value={pounds(sales?.opportunityValue ?? 0)}
+            icon={<Layers />}
+            iconTint="info"
+            subtitle={`${sales?.activeLeads ?? 0} open`}
+            trend={vsPeriodTrend(deltas?.opportunity, comparisonLabel)}
+            action={{ label: "View leads", href: "/crm/leads" }}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatsCard
+            title={`Forecast · ${periodShort}`}
+            value={pounds(sales?.forecast ?? 0)}
+            icon={<Target />}
+            iconTint="info"
+            subtitle={`Pipeline × ${sales?.conversionRate30d ?? 0}%`}
+            trend={vsPeriodTrend(deltas?.forecast, comparisonLabel)}
+          />
+          <StatsCard
+            title={`Quote rate · ${periodShort}`}
+            value={`${sales?.quoteRate ?? 0}%`}
+            icon={<Send />}
+            iconTint="primary"
+            subtitle={`${sales?.quotedCount ?? 0} quoted`}
+            trend={vsPeriodTrend(deltas?.quoteRate, comparisonLabel)}
+          />
+          <StatsCard
+            title={`Quote to win · ${periodShort}`}
+            value={`${sales?.quoteToWinRate ?? 0}%`}
+            icon={<Percent />}
+            iconTint="success"
+            subtitle={`${won} won / ${sales?.quotedCount ?? 0} quoted`}
+            trend={vsPeriodTrend(deltas?.quoteToWinRate, comparisonLabel)}
           />
         </div>
 
