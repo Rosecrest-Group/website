@@ -17,15 +17,17 @@ const TYPE_LABELS: Record<UserNotificationItem["type"], string> = {
   MESSAGE: "Message",
   MENTION: "Mention",
   ASSIGNMENT: "Assignment",
+  REMINDER: "Reminder",
 };
 
 const TYPE_PILL: Record<
   UserNotificationItem["type"],
-  "awaiting" | "pending" | "in-review"
+  "awaiting" | "pending" | "in-review" | "failed"
 > = {
   MESSAGE: "awaiting",
   MENTION: "pending",
   ASSIGNMENT: "in-review",
+  REMINDER: "failed",
 };
 
 function formatWhen(iso: string) {

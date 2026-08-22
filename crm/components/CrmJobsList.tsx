@@ -7,7 +7,6 @@ import { getCachedCurrentUser } from "@/crm/lib/currentUserCache";
 import { getListPageCache, setListPageCache } from "@/crm/lib/listPageCache";
 import { canViewJobMoney } from "@/crm/lib/rbac";
 import type { Job, UserRole } from "@/crm/types";
-import { BEDROOM_BAND_LABELS } from "@/crm/lib/constants";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import Table, { type Column } from "@/crm/components/ui/Table";
@@ -55,15 +54,12 @@ export default function CrmJobsList({
   const filtered = search.trim()
     ? jobs.filter((job) => {
         const q = search.toLowerCase();
-        const rooms = job.bedroomBand
-          ? (BEDROOM_BAND_LABELS[job.bedroomBand] ?? job.bedroomBand).toLowerCase()
-          : "";
         return (
           job.jobNumber?.toLowerCase().includes(q) ||
           leadName(job).toLowerCase().includes(q) ||
+          job.assignedTo?.fullName?.toLowerCase().includes(q) ||
           job.propertyAddress?.toLowerCase().includes(q) ||
           job.propertyPostcode?.toLowerCase().includes(q) ||
-          rooms.includes(q) ||
           job.stage?.toLowerCase().includes(q)
         );
       })
@@ -75,6 +71,7 @@ export default function CrmJobsList({
     {
       key: "jobNumber",
       header: "Job #",
+      width: "9.5rem",
       render: (value) => (
         <span className="text-sm font-medium text-ink tabular-nums">{value as string}</span>
       ),
@@ -82,31 +79,41 @@ export default function CrmJobsList({
     {
       key: "customer",
       header: "Lead",
+      className: "min-w-0 overflow-hidden",
       render: (_, row) => (
-        <span className="text-sm font-medium text-ink">{leadName(row) || "—"}</span>
+        <span className="block truncate text-sm font-medium text-ink">
+          {leadName(row) || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "assignedTo",
+      header: "Assigned to",
+      className: "min-w-0 overflow-hidden",
+      width: "11rem",
+      render: (_, row) => (
+        <span className="block truncate text-sm text-ink-muted">
+          {row.assignedTo?.fullName ?? "Unassigned"}
+        </span>
       ),
     },
     {
       key: "propertyAddress",
       header: "Property",
+      className: "min-w-0 overflow-hidden",
       render: (value) => (
-        <span className="block max-w-[240px] truncate text-sm text-ink-muted">
+        <span
+          title={(value as string) || undefined}
+          className="block truncate text-sm text-ink-muted"
+        >
           {(value as string) || "—"}
-        </span>
-      ),
-    },
-    {
-      key: "bedroomBand",
-      header: "Rooms",
-      render: (value) => (
-        <span className="text-sm text-ink-muted">
-          {value ? BEDROOM_BAND_LABELS[value as string] ?? (value as string) : "—"}
         </span>
       ),
     },
     {
       key: "stage",
       header: "Stage",
+      width: "12rem",
       render: (value, row) => (
         <StatusPill
           variant={jobStageToPillVariant(value as string)}
@@ -120,6 +127,7 @@ export default function CrmJobsList({
             key: "agreedAmount",
             header: "Amount",
             align: "right" as const,
+            width: "6.5rem",
             render: (value: unknown) => (
               <span className="text-sm font-medium text-ink tabular-nums">
                 £{value as number}
@@ -139,6 +147,7 @@ export default function CrmJobsList({
       ) : (
         <Table
           title="All jobs"
+          fixedLayout
           search={search}
           onSearchChange={setSearch}
           searchPlaceholder="Search jobs…"

@@ -15,22 +15,27 @@ import {
   User,
 } from "lucide-react";
 import { toast } from "sonner";
+import ActivityFeed from "@/crm/components/ActivityFeed";
+import CreateTaskModal from "@/crm/components/CreateTaskModal";
 import LeadDetailPanel from "@/crm/components/LeadDetailPanel";
+import LeadInternalNotesPanel from "@/crm/components/LeadInternalNotesPanel";
 import LeadMessageThread from "@/crm/components/LeadMessageThread";
 import ActionDropdown, { type DropdownAction } from "@/crm/components/ui/ActionDropdown";
 import CrmModal from "@/crm/components/ui/CrmModal";
+import CurvedContainer from "@/crm/components/ui/CurvedContainer";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import PhoneButton from "@/crm/components/PhoneButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import { api } from "@/crm/lib/api";
 import { formatInboxListTime, messageTimestamp } from "@/crm/lib/formatChatTime";
-import { getCachedLead, prefetchLead } from "@/crm/lib/leadDetailCache";
+import { getCachedLead, prefetchLead, setCachedLead } from "@/crm/lib/leadDetailCache";
 import { isHtmlContent } from "@/crm/lib/messageFormatting";
 import { useInfiniteScroll } from "@/crm/lib/useInfiniteScroll";
 import { MESSAGE_FIRST_PAGE_SIZE } from "@/crm/lib/leadMessageCache";
 import { prefetchLeadThreadWithActivities } from "@/crm/lib/loadLeadThread";
+import { leadToTaskLabel } from "@/crm/lib/taskForm";
 import { refreshInboxUnreadCount } from "@/crm/lib/useInboxUnreadCount";
-import type { InboxThread, Message } from "@/crm/types";
+import type { InboxThread, LeadDetail, Message } from "@/crm/types";
 import { cn } from "@/lib/utils";
 
 const INBOX_THREAD_MESSAGES: Message[] = [];
@@ -38,6 +43,18 @@ const PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 200;
 const INBOX_PIN_LIMIT = 3;
 const INBOX_LAYOUT = { type: "spring", stiffness: 380, damping: 34, mass: 0.75 } as const;
+const INBOX_PANE = { type: "tween", duration: 0.38, ease: [0.32, 0.72, 0, 1] } as const;
+const INBOX_PANES = ["messages", "internal", "activity"] as const;
+type InboxPane = (typeof INBOX_PANES)[number];
+const INBOX_PANE_LABEL: Record<InboxPane, string> = {
+  messages: "Messages",
+  internal: "Internal notes",
+  activity: "Activity",
+};
+
+function inboxPaneOffset(pane: InboxPane, active: InboxPane) {
+  return `${(INBOX_PANES.indexOf(pane) - INBOX_PANES.indexOf(active)) * 100}%`;
+}
 
 function apiErrorCode(err: unknown): string | undefined {
   if (err && typeof err === "object" && "code" in err && typeof err.code === "string") {
@@ -308,6 +325,13 @@ export default function InboxView({
   const [activeQuery, setActiveQuery] = useState("");
   const [mobileShowThread, setMobileShowThread] = useState(false);
   const [leadPanel, setLeadPanel] = useState<{ leadId: string; title: string } | null>(null);
+  const [inboxPane, setInboxPane] = useState<InboxPane>("messages");
+  const [notesMounted, setNotesMounted] = useState(false);
+  const [activityMounted, setActivityMounted] = useState(false);
+  const [activityLead, setActivityLead] = useState<LeadDetail | null>(null);
+  const [noteTargetMessage, setNoteTargetMessage] = useState<Message | null>(null);
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<Array<{ id: string; fullName: string }>>([]);
   const [pinLimitThread, setPinLimitThread] = useState<InboxThread | null>(null);
   const [customerPhone, setCustomerPhone] = useState<string | null>(null);
   const reduceMotion = useReducedMotion();
@@ -320,6 +344,7 @@ export default function InboxView({
   const threadsRef = useRef(threads);
   threadsRef.current = threads;
   const layoutTransition = reduceMotion ? { duration: 0 } : INBOX_LAYOUT;
+  const paneTransition = reduceMotion ? { duration: 0 } : INBOX_PANE;
 
   const loadThreads = useCallback(
     async (opts: { cursor: string | null; query: string; append: boolean }) => {
@@ -408,6 +433,10 @@ export default function InboxView({
 
   useEffect(() => {
     setLeadPanel(null);
+    setInboxPane("messages");
+    setNoteTargetMessage(null);
+    setActivityLead(null);
+    setCreateTaskOpen(false);
   }, [selected?.leadId]);
 
   // Page one holds the newest threads, so refetching it is enough to surface new arrivals
@@ -577,6 +606,35 @@ export default function InboxView({
     };
   }, [selected?.leadId]);
 
+  useEffect(() => {
+    if (inboxPane !== "activity") return;
+    const leadId = selected?.leadId;
+    if (!leadId) return;
+
+    const cached = getCachedLead(leadId);
+    if (cached) setActivityLead(cached);
+
+    let cancelled = false;
+    void api
+      .getLead(leadId)
+      .then((lead) => {
+        if (cancelled) return;
+        setCachedLead(leadId, lead);
+        setActivityLead(lead);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [inboxPane, selected?.leadId]);
+
+  useEffect(() => {
+    api
+      .getMentionSuggestions()
+      .then((res) => setTeamMembers(res.users.map((u) => ({ id: u.id, fullName: u.fullName }))))
+      .catch(() => {});
+  }, []);
+
   // Notification deep link. The thread is normally already on page one, but fall back to
   // fetching it directly so an older conversation still opens. Handled once per link so a
   // background refresh never yanks the user back to it.
@@ -742,40 +800,173 @@ export default function InboxView({
                 ← Back
               </button>
             </div>
-            <LeadMessageThread
-              key={selected.leadId}
-              leadId={selected.leadId}
-              customerName={selected.customerName}
-              // No seed: the list's single preview message would paint one bubble and
-              // then get replaced by the real thread. The prefetch cache fills this in.
-              messages={INBOX_THREAD_MESSAGES}
-              revalidateSeed
-              onSent={handleSent}
-              onRead={clearUnread}
-              className="min-h-0 flex-1"
-              headerActions={
+            <CurvedContainer className="flex min-h-0 flex-1 flex-col overflow-hidden" showBorderAndShadow>
+              <div className="flex shrink-0 items-center border-b border-line px-4 py-2">
                 <div className="flex w-full items-center justify-between gap-3">
-                  <SecondaryButton
-                    type="button"
-                    size="small"
-                    className="w-auto"
-                    onClick={() => openLeadPanel(selected)}
-                  >
-                    View lead
-                  </SecondaryButton>
-                  {customerPhone ? (
-                    <PhoneButton
-                      number={customerPhone}
-                      iconOnly
-                      context={{
-                        leadId: selected.leadId,
-                        customerName: selected.customerName,
-                      }}
-                    />
-                  ) : null}
+                  <div className="flex min-w-0 items-center gap-2">
+                    <LayoutGroup id="inbox-pane-tabs">
+                      <div className="flex items-center gap-0.5 rounded-lg bg-sidebar p-0.5">
+                        {INBOX_PANES.map((pane) => {
+                          const isActive = inboxPane === pane;
+                          return (
+                            <button
+                              key={pane}
+                              type="button"
+                              onClick={() => {
+                                if (pane === "internal") setNotesMounted(true);
+                                if (pane === "activity") {
+                                  setActivityMounted(true);
+                                  const cached = selected.leadId
+                                    ? getCachedLead(selected.leadId)
+                                    : null;
+                                  if (cached) setActivityLead(cached);
+                                }
+                                setInboxPane(pane);
+                              }}
+                              className={cn(
+                                "relative rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                                isActive ? "text-ink" : "text-ink-muted hover:text-ink"
+                              )}
+                            >
+                              {isActive ? (
+                                <motion.span
+                                  layoutId="inbox-pane-pill"
+                                  className="absolute inset-0 rounded-md bg-white shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
+                                  transition={paneTransition}
+                                />
+                              ) : null}
+                              <span className="relative z-10">{INBOX_PANE_LABEL[pane]}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </LayoutGroup>
+                    <button
+                      type="button"
+                      onClick={() => setCreateTaskOpen(true)}
+                      className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-brand transition-colors hover:bg-brand-muted"
+                    >
+                      New task
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <SecondaryButton
+                      type="button"
+                      size="small"
+                      className="w-auto"
+                      onClick={() => openLeadPanel(selected)}
+                    >
+                      View lead
+                    </SecondaryButton>
+                    {customerPhone ? (
+                      <PhoneButton
+                        number={customerPhone}
+                        iconOnly
+                        context={{
+                          leadId: selected.leadId,
+                          customerName: selected.customerName,
+                        }}
+                      />
+                    ) : null}
+                  </div>
                 </div>
-              }
-            />
+              </div>
+              <div className="relative min-h-0 flex-1 overflow-hidden">
+                <motion.div
+                  className={cn(
+                    "absolute inset-0 flex min-h-0 w-full flex-col overflow-hidden",
+                    inboxPane === "messages" ? "z-10" : "pointer-events-none"
+                  )}
+                  initial={false}
+                  animate={
+                    reduceMotion
+                      ? { x: 0, opacity: inboxPane === "messages" ? 1 : 0 }
+                      : { x: inboxPaneOffset("messages", inboxPane), opacity: 1 }
+                  }
+                  transition={paneTransition}
+                  inert={inboxPane !== "messages"}
+                  aria-hidden={inboxPane !== "messages"}
+                >
+                  <LeadMessageThread
+                    key={selected.leadId}
+                    leadId={selected.leadId}
+                    customerName={selected.customerName}
+                    messages={INBOX_THREAD_MESSAGES}
+                    revalidateSeed
+                    isActive={inboxPane === "messages"}
+                    onSent={handleSent}
+                    onRead={clearUnread}
+                    onAddNote={(message) => {
+                      setNoteTargetMessage(message);
+                      setNotesMounted(true);
+                      setInboxPane("internal");
+                    }}
+                    framed={false}
+                    className="h-full min-h-0 max-h-none flex-1"
+                  />
+                </motion.div>
+                {notesMounted ? (
+                  <motion.div
+                    className={cn(
+                      "absolute inset-0 flex min-h-0 w-full flex-col overflow-hidden",
+                      inboxPane === "internal" ? "z-10" : "pointer-events-none"
+                    )}
+                    initial={reduceMotion ? false : { x: "100%" }}
+                    animate={
+                      reduceMotion
+                        ? { x: 0, opacity: inboxPane === "internal" ? 1 : 0 }
+                        : { x: inboxPaneOffset("internal", inboxPane), opacity: 1 }
+                    }
+                    transition={paneTransition}
+                    inert={inboxPane !== "internal"}
+                    aria-hidden={inboxPane !== "internal"}
+                  >
+                    <LeadInternalNotesPanel
+                      key={selected.leadId}
+                      leadId={selected.leadId}
+                      referencedMessage={noteTargetMessage}
+                      onClearReferencedMessage={() => setNoteTargetMessage(null)}
+                      onPosted={handleSent}
+                      isActive={inboxPane === "internal"}
+                      framed={false}
+                      className="h-full min-h-0 flex-1"
+                    />
+                  </motion.div>
+                ) : null}
+                {activityMounted ? (
+                  <motion.div
+                    className={cn(
+                      "absolute inset-0 flex min-h-0 w-full flex-col overflow-hidden",
+                      inboxPane === "activity" ? "z-10" : "pointer-events-none"
+                    )}
+                    initial={reduceMotion ? false : { x: "100%" }}
+                    animate={
+                      reduceMotion
+                        ? { x: 0, opacity: inboxPane === "activity" ? 1 : 0 }
+                        : { x: inboxPaneOffset("activity", inboxPane), opacity: 1 }
+                    }
+                    transition={paneTransition}
+                    inert={inboxPane !== "activity"}
+                    aria-hidden={inboxPane !== "activity"}
+                  >
+                    {activityLead ? (
+                      <ActivityFeed
+                        key={selected.leadId}
+                        activities={activityLead.activities}
+                        messages={activityLead.messages}
+                        leadName={selected.customerName}
+                        framed={false}
+                        className="h-full min-h-0 flex-1"
+                      />
+                    ) : (
+                      <div className="flex min-h-0 flex-1 items-center justify-center">
+                        <LoadingSpinner />
+                      </div>
+                    )}
+                  </motion.div>
+                ) : null}
+              </div>
+            </CurvedContainer>
           </div>
         ) : showListLoading ? (
           <div className="flex min-h-0 flex-1 items-center justify-center">
@@ -801,6 +992,33 @@ export default function InboxView({
         void loadThreads({ cursor: null, query: activeQuery, append: false });
       }}
     />
+
+    {selected?.leadId ? (
+      <CreateTaskModal
+        isOpen={createTaskOpen}
+        onClose={() => setCreateTaskOpen(false)}
+        teamMembers={teamMembers}
+        initialLead={{
+          id: selected.leadId,
+          label: leadToTaskLabel({
+            customerName: selected.customerName,
+            propertyPostcode: selected.propertyPostcode,
+          }),
+        }}
+        onCreated={() => {
+          toast.success("Task created");
+          const leadId = selected.leadId;
+          if (!leadId) return;
+          void api
+            .getLead(leadId)
+            .then((lead) => {
+              setCachedLead(leadId, lead);
+              setActivityLead(lead);
+            })
+            .catch(() => {});
+        }}
+      />
+    ) : null}
 
     <CrmModal
       isOpen={Boolean(pinLimitThread)}

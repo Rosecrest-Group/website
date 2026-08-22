@@ -5,6 +5,7 @@ import {
   BookOpen,
   CalendarDays,
   CheckSquare,
+  ChevronLeft,
   ChevronUp,
   Clock,
   FileText,
@@ -97,9 +98,28 @@ const HREF_ICON: Record<string, string> = {
   [`${CRM_LEGACY_PATH}/inbox`]: "legacy-inbox",
 };
 
+const SIDEBAR_COLLAPSED_KEY = "crm.sidebar.collapsed";
+const SIDEBAR_COLLAPSE_EASE = "duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]";
+
 function isActive(pathname: string, href: string) {
   if (href === CRM_BASE_PATH) return pathname === CRM_BASE_PATH;
   return pathname.startsWith(href);
+}
+
+function readSidebarCollapsed() {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeSidebarCollapsed(collapsed: boolean) {
+  try {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch {
+    /* private mode / quota */
+  }
 }
 
 export default function CrmSidebar({
@@ -107,6 +127,7 @@ export default function CrmSidebar({
   onClose,
   footer,
   className,
+  collapsible = false,
   "aria-hidden": ariaHidden,
   initialUser,
 }: {
@@ -114,6 +135,7 @@ export default function CrmSidebar({
   onClose?: () => void;
   footer?: ReactNode;
   className?: string;
+  collapsible?: boolean;
   "aria-hidden"?: boolean;
   initialUser?: ApiUser | null;
 }) {
@@ -122,6 +144,8 @@ export default function CrmSidebar({
   const teamChatHref = `${CRM_BASE_PATH}/conversations`;
   const inboxUnread = useInboxUnreadCount();
   const inboxHref = `${CRM_BASE_PATH}/inbox`;
+  const [collapsed, setCollapsed] = useState(false);
+  const [collapseReady, setCollapseReady] = useState(false);
   const [user, setUser] = useState<ApiUser | null>(
     () => initialUser ?? getCachedApiUser(),
   );
@@ -134,30 +158,56 @@ export default function CrmSidebar({
     api.getMe().then(setUser).catch(() => setUser(null));
   }, [initialUser]);
 
+  useEffect(() => {
+    if (!collapsible) return;
+    setCollapsed(readSidebarCollapsed());
+  }, [collapsible]);
+
+  useEffect(() => {
+    if (!collapsible) return;
+    const id = requestAnimationFrame(() => setCollapseReady(true));
+    return () => cancelAnimationFrame(id);
+  }, [collapsible]);
+
+  const railCollapsed = collapsible && collapsed;
   const navSections = navSectionsForRole(user?.role);
 
-  return (
-    <aside
-      aria-hidden={ariaHidden}
-      className={cn(
-        "flex h-full w-60 shrink-0 flex-col border-r border-line bg-sidebar px-4 pt-8 pb-4",
-        className,
-      )}
-    >
+  const toggleCollapsed = () => {
+    setCollapsed((current) => {
+      const next = !current;
+      writeSidebarCollapsed(next);
+      return next;
+    });
+  };
+
+  const inner = (
+    <>
       <div className="mb-8 flex items-center justify-between gap-2.5 px-1">
         <Link
           href={CRM_BASE_PATH}
           onClick={onNavigate}
-          className="flex min-w-0 items-center"
+          className="relative flex h-8 min-w-0 items-center"
         >
           <Image
             src="/assets/svgs/logo-blue.svg"
             alt="Rosecrest"
             width={350}
             height={54}
-            className="h-7 w-auto max-w-full object-contain object-left"
+            className={cn(
+              "h-7 w-auto max-w-full object-contain object-left transition-opacity duration-200",
+              railCollapsed && "opacity-0",
+            )}
             priority
           />
+          <span
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute left-0 flex size-8 items-center justify-center rounded-lg bg-linear-to-br from-brand to-brand-deep text-xs font-semibold tracking-tight text-white shadow-[0_4px_12px_rgb(109_40_217/0.25)] transition-opacity duration-200",
+              railCollapsed ? "opacity-100" : "opacity-0",
+            )}
+          >
+            R
+          </span>
         </Link>
 
         {onClose ? (
@@ -176,7 +226,13 @@ export default function CrmSidebar({
         <nav className="flex flex-col gap-5 pb-2">
           {navSections.map((section) => (
             <div key={section.title}>
-              <p className="mb-1.5 px-2.5 text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+              <p
+                aria-hidden={railCollapsed}
+                className={cn(
+                  "overflow-hidden px-2.5 text-[11px] font-medium uppercase tracking-wide whitespace-nowrap text-ink-faint transition-[max-height,margin,opacity] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                  railCollapsed ? "mb-0 max-h-0 opacity-0" : "mb-1.5 max-h-6 opacity-100",
+                )}
+              >
                 {section.title}
               </p>
               <div className="flex flex-col">
@@ -197,8 +253,9 @@ export default function CrmSidebar({
                       key={item.href}
                       href={item.href}
                       onClick={onNavigate}
+                      title={railCollapsed ? item.label : undefined}
                       className={cn(
-                        "group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-all duration-200",
+                        "group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors duration-200",
                         active
                           ? "bg-white font-medium text-ink shadow-[0_0_0_1px_var(--color-line)]"
                           : "font-normal text-ink-muted hover:bg-black/4 hover:text-ink",
@@ -206,20 +263,36 @@ export default function CrmSidebar({
                     >
                       <span
                         className={cn(
-                          "flex size-6 shrink-0 items-center justify-center rounded-md transition-colors duration-200",
+                          "relative flex size-6 shrink-0 items-center justify-center rounded-md transition-colors duration-200",
                           active
                             ? "bg-brand-muted text-brand"
                             : "text-ink-subtle group-hover:bg-white/60 group-hover:text-ink",
                         )}
                       >
                         <Icon className="size-[14px]" strokeWidth={1.75} />
+                        {badge !== undefined && badge > 0 ? (
+                          <span
+                            className={cn(
+                              "absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-brand transition-opacity duration-200",
+                              railCollapsed ? "opacity-100" : "opacity-0",
+                            )}
+                          />
+                        ) : null}
                       </span>
-                      <span className="flex-1">{item.label}</span>
+                      <span
+                        className={cn(
+                          "min-w-0 flex-1 truncate whitespace-nowrap transition-opacity duration-200",
+                          railCollapsed && "opacity-0",
+                        )}
+                      >
+                        {item.label}
+                      </span>
                       {badge !== undefined && badge > 0 ? (
                         <span
                           className={cn(
-                            "rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none text-white",
+                            "rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none whitespace-nowrap text-white transition-opacity duration-200",
                             active ? "bg-brand" : "bg-ink",
+                            railCollapsed && "opacity-0",
                           )}
                         >
                           {badge > 99 ? "99+" : badge}
@@ -234,8 +307,56 @@ export default function CrmSidebar({
         </nav>
       </ScrollArea>
 
-      {footer ?? <SidebarFooter user={user} />}
+      {footer ?? <SidebarFooter user={user} collapsed={railCollapsed} />}
+    </>
+  );
+
+  const sidebar = (
+    <aside
+      aria-hidden={ariaHidden}
+      className={cn(
+        "flex h-full min-w-0 shrink-0 flex-col overflow-hidden border-r border-line bg-sidebar",
+        !collapsible && "w-60 px-4 pt-8 pb-4",
+        collapsible && "h-full w-full",
+        className,
+      )}
+    >
+      {collapsible ? (
+        <div className="flex h-full w-60 shrink-0 flex-col px-4 pt-8 pb-4">{inner}</div>
+      ) : (
+        inner
+      )}
     </aside>
+  );
+
+  if (!collapsible) return sidebar;
+
+  return (
+    <div
+      className={cn(
+        "relative flex h-full min-h-0 shrink-0",
+        collapseReady && `transition-[width] ${SIDEBAR_COLLAPSE_EASE}`,
+        railCollapsed ? "w-16" : "w-60",
+      )}
+    >
+      {sidebar}
+      <button
+        type="button"
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-expanded={!collapsed}
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        onClick={toggleCollapsed}
+        className="absolute top-9 right-0 z-20 flex size-6 translate-x-1/2 items-center justify-center rounded-full border border-line bg-surface text-ink-subtle shadow-[0_1px_2px_rgb(63_63_80/0.08)] outline-none transition-colors hover:bg-sidebar hover:text-ink"
+      >
+        <ChevronLeft
+          className={cn(
+            `size-3.5 transition-transform ${SIDEBAR_COLLAPSE_EASE}`,
+            collapsed && "rotate-180",
+          )}
+          strokeWidth={1.75}
+        />
+      </button>
+    </div>
   );
 }
 
@@ -249,7 +370,13 @@ function userInitials(fullName: string) {
     .toUpperCase();
 }
 
-function SidebarFooter({ user: userProp }: { user?: ApiUser | null }) {
+function SidebarFooter({
+  user: userProp,
+  collapsed = false,
+}: {
+  user?: ApiUser | null;
+  collapsed?: boolean;
+}) {
   const [user, setUser] = useState<ApiUser | null>(
     () => userProp ?? getCachedApiUser(),
   );
@@ -268,34 +395,44 @@ function SidebarFooter({ user: userProp }: { user?: ApiUser | null }) {
   return (
     <div className="relative mt-auto shrink-0 border-t border-line pt-4">
       <DropdownMenu>
-        <div className="flex items-center gap-2 rounded-xl px-1 py-1 transition-colors duration-200 hover:bg-black/3">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-brand to-brand-deep text-xs font-medium tracking-wide text-white shadow-[0_4px_12px_rgb(109_40_217/0.25)]">
-              {initials}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium leading-tight text-ink">
-                {user?.fullName ?? "Loading…"}
-              </p>
-              {user?.email ? (
-                <p className="mt-0.5 truncate text-xs font-normal text-ink-subtle" title={user.email}>
-                  {user.email}
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label="Account menu"
+            className="group flex w-full items-center gap-2 rounded-xl px-1 py-1 text-left outline-none transition-colors duration-200 hover:bg-black/3"
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-brand to-brand-deep text-xs font-medium tracking-wide text-white shadow-[0_4px_12px_rgb(109_40_217/0.25)]">
+                {initials}
+              </div>
+              <div
+                className={cn(
+                  "min-w-0 transition-opacity duration-200",
+                  collapsed && "opacity-0",
+                )}
+              >
+                <p className="truncate text-sm font-medium leading-tight whitespace-nowrap text-ink">
+                  {user?.fullName ?? "Loading…"}
                 </p>
-              ) : null}
+                {user?.email ? (
+                  <p className="mt-0.5 truncate text-xs font-normal whitespace-nowrap text-ink-subtle" title={user.email}>
+                    {user.email}
+                  </p>
+                ) : null}
+              </div>
             </div>
-          </div>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="group flex size-8 shrink-0 items-center justify-center rounded-lg border border-transparent text-ink-subtle outline-none transition-all duration-200 hover:border-line hover:bg-sidebar hover:text-ink"
-              aria-label="Account menu"
+            <span
+              className={cn(
+                "flex size-8 shrink-0 items-center justify-center rounded-lg border border-transparent text-ink-subtle transition-opacity duration-200",
+                collapsed && "opacity-0",
+              )}
             >
               <ChevronUp className="size-4 transition-transform duration-200 group-data-[state=open]:rotate-180" strokeWidth={1.75} />
-            </button>
-          </DropdownMenuTrigger>
-        </div>
+            </span>
+          </button>
+        </DropdownMenuTrigger>
         <DropdownMenuContent
-          side="top"
+          side={collapsed ? "right" : "top"}
           align="end"
           sideOffset={10}
           className="crm-theme w-52 rounded-xl border border-line bg-surface p-1.5 text-ink shadow-elevated"

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/crm/lib/api";
-import { CRM_BASE_PATH } from "@/crm/lib/constants";
+import { CRM_BASE_PATH, USER_ROLE_OPTIONS } from "@/crm/lib/constants";
 import {
   getCachedConversationThread,
   setCachedConversationThread,
@@ -42,6 +42,7 @@ import {
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import { getReadReceipt } from "@/crm/lib/chatReceipts";
+import { conversationDisplayTitle } from "@/crm/lib/conversationTitle";
 import {
   formatChatDateSeparator,
   shouldGroupMessages,
@@ -115,6 +116,20 @@ function optimisticToggleReaction(
   return [...reactions, { emoji, count: 1, reactedByMe: true, users: [user] }];
 }
 
+function conversationHeaderSubtitle(
+  conversation: InternalConversationSummary,
+  currentUserId: string
+): string | null {
+  if (conversation.kind === "DIRECT") {
+    const other = conversation.participants.find((p) => p.userId !== currentUserId)?.user;
+    if (!other) return null;
+    return USER_ROLE_OPTIONS.find((o) => o.value === other.role)?.label ?? other.role;
+  }
+
+  const count = conversation.participants.length;
+  return `${count} member${count === 1 ? "" : "s"}`;
+}
+
 export default function ConversationThread({
   conversation,
   currentUser,
@@ -158,6 +173,12 @@ export default function ConversationThread({
 
   const myParticipant = conversation.participants.find((p) => p.userId === currentUser.id);
   const isMuted = myParticipant?.isMuted ?? false;
+  const headerSubtitle = [
+    conversationHeaderSubtitle(conversation, currentUser.id),
+    isMuted ? "Muted" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     scrollChatContainerToBottom(messagesContainerRef.current, behavior);
@@ -594,11 +615,12 @@ export default function ConversationThread({
                 <ArrowLeft className="size-4" /> Back
               </button>
             )}
-            <h2 className="truncate text-base font-semibold text-(--color-tc-40)">{conversation.title}</h2>
-            <p className="text-xs text-(--color-tc-30)">
-              {conversation.participants.length} participant{conversation.participants.length === 1 ? "" : "s"}
-              {isMuted && " · Muted"}
-            </p>
+            <h2 className="truncate text-base font-semibold text-(--color-tc-40)">
+              {conversationDisplayTitle(conversation, currentUser.id)}
+            </h2>
+            {headerSubtitle && (
+              <p className="text-xs text-(--color-tc-30)">{headerSubtitle}</p>
+            )}
             <div className="mt-1 flex flex-wrap items-center gap-3">
               {contextLink && (
                 <Link href={contextLink.href} className="text-xs font-medium text-(--color-primary) hover:underline">
@@ -627,7 +649,10 @@ export default function ConversationThread({
                   type="button"
                   size="small"
                   onClick={async () => {
-                    const title = window.prompt("Group name", conversation.title);
+                    const title = window.prompt(
+                      "Group name",
+                      conversationDisplayTitle(conversation, currentUser.id)
+                    );
                     if (!title?.trim()) return;
                     const updated = await api.updateConversation(conversation.id, { title: title.trim() });
                     onConversationChange?.(updated);

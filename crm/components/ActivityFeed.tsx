@@ -768,11 +768,16 @@ export default function ActivityFeed({
   activities,
   leadName,
   messages = [],
+  className,
+  framed = true,
 }: {
   activities: Activity[];
   leadName?: string;
   /** Used to recover subject/recipient for older message.sent activities. */
   messages?: Message[];
+  className?: string;
+  /** Card chrome on the lead page; flush fill when nested in the inbox pane. */
+  framed?: boolean;
 }) {
   const [filter, setFilter] = useState<"all" | TimelineEventType>("all");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
@@ -912,8 +917,8 @@ export default function ActivityFeed({
     return buckets;
   }, [events, filter]);
 
-  return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
+  const feedBody = (
+    <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-base font-medium text-neutral-900 dark:text-neutral-100">
           <ActivityIcon className="h-4 w-4" /> Activity
@@ -976,6 +981,25 @@ export default function ActivityFeed({
         onUpdated={handleTaskUpdated}
         onDeleted={handleTaskDeleted}
       />
+    </>
+  );
+
+  if (!framed) {
+    return (
+      <div className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto p-4", className)}>
+        {feedBody}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950",
+        className
+      )}
+    >
+      {feedBody}
     </div>
   );
 }

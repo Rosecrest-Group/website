@@ -24,6 +24,7 @@ import StatsCard from "@/crm/components/admin/StatsCard";
 import Table, { type Column } from "@/crm/components/ui/Table";
 import StatusPill, { leadStageToPillVariant } from "@/crm/components/ui/StatusPill";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
+import { formatTaskDueAt, isTaskOverdue } from "@/crm/lib/taskForm";
 import { cn } from "@/lib/utils";
 
 import { useRouter } from "next/navigation";
@@ -35,15 +36,6 @@ import { Users, CheckCircle, TrendingUp, Globe, MapPin, Tag, PoundSterling, User
 
 function taskStatusToPillVariant(status: TaskStatus): "completed" | "pending" {
   return status === "DONE" ? "completed" : "pending";
-}
-
-function formatDueDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 type DashboardTaskRow = Task & { involvement: string };
@@ -449,9 +441,15 @@ export default function CrmDashboard({
     {
       key: "dueAt",
       header: "Due",
-      render: (value) => (
-        <span className="text-(--color-tc-30)">{formatDueDate(value as string | null)}</span>
-      ),
+      render: (value, row) => {
+        const overdue = isTaskOverdue(value as string | null, row.status);
+        return (
+          <span className={cn("tabular-nums", overdue ? "font-medium text-red-600" : "text-(--color-tc-30)")}>
+            {formatTaskDueAt(value as string | null)}
+            {overdue ? " · Overdue" : ""}
+          </span>
+        );
+      },
     },
     {
       key: "status",

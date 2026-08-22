@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
-import type { LeadDetail as LeadDetailType, SurveyLevel } from "@/crm/types";
+import type { LeadDetail as LeadDetailType, Message, SurveyLevel } from "@/crm/types";
 import { getCachedLead, setCachedLead } from "@/crm/lib/leadDetailCache";
 import {
   BEDROOM_BAND_LABELS,
@@ -29,8 +29,9 @@ import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import TextField from "@/crm/components/ui/TextField";
 import SelectField from "@/crm/components/ui/SelectField";
 import ConfirmModal from "@/crm/components/ui/ConfirmModal";
+import CreateTaskModal from "@/crm/components/CreateTaskModal";
 import { toast } from "sonner";
-import InternalConversationPanel, { prefetchInternalThread } from "@/crm/components/InternalConversationPanel";
+import LeadInternalNotesPanel from "@/crm/components/LeadInternalNotesPanel";
 import LeadMessageThread from "@/crm/components/LeadMessageThread";
 import ActivityFeed from "@/crm/components/ActivityFeed";
 import LeadTags from "@/crm/components/LeadTags";
@@ -40,6 +41,8 @@ import { filterLeadThreadActivities } from "@/crm/lib/threadActivities";
 import { getCachedCurrentUser } from "@/crm/lib/currentUserCache";
 import { canSkipWorkflowWait } from "@/crm/lib/rbac";
 import { doneTopProgress, startTopProgress } from "@/crm/lib/topProgress";
+import { prefetchLeadThreadWithActivities } from "@/crm/lib/loadLeadThread";
+import { leadToTaskLabel } from "@/crm/lib/taskForm";
 
 function formatRelative(dateStr: string) {
   const d = new Date(dateStr);
@@ -112,6 +115,7 @@ export default function LeadDetail({
   const [loading, setLoading] = useState(() => !getCachedLead(id));
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("messages");
+  const [noteTargetMessage, setNoteTargetMessage] = useState<Message | null>(null);
   const [messagesMaximized, setMessagesMaximized] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
@@ -137,15 +141,17 @@ export default function LeadDetail({
   const [showAdvanceWorkflow, setShowAdvanceWorkflow] = useState(false);
   const [advancingWorkflow, setAdvancingWorkflow] = useState(false);
   const [advanceWorkflowError, setAdvanceWorkflowError] = useState<string | null>(null);
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<Array<{ id: string; fullName: string }>>([]);
 
   function reload(options?: { silent?: boolean }) {
     if (!options?.silent) setLoading(true);
+    void prefetchLeadThreadWithActivities(id);
     api
       .getLead(id)
       .then((l) => {
         setCachedLead(id, l);
         setLead(l);
-        prefetchInternalThread({ leadId: l.id });
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => {
@@ -154,12 +160,12 @@ export default function LeadDetail({
   }
 
   useEffect(() => {
+    void prefetchLeadThreadWithActivities(id);
     const cached = getCachedLead(id);
     if (cached) {
       setLead(cached);
       setLoading(false);
       setError("");
-      prefetchInternalThread({ leadId: cached.id });
       // Refresh in background so hover-prefetch stays fresh
       reload({ silent: true });
       return;
@@ -183,6 +189,13 @@ export default function LeadDetail({
       .getMe()
       .then((me) => setCanAdvanceWorkflow(canSkipWorkflowWait(me.role)))
       .catch(() => setCanAdvanceWorkflow(false));
+  }, []);
+
+  useEffect(() => {
+    api
+      .getMentionSuggestions()
+      .then((res) => setTeamMembers(res.users.map((u) => ({ id: u.id, fullName: u.fullName }))))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -786,9 +799,16 @@ export default function LeadDetail({
                   value="internal"
                   className="h-auto rounded-none border-b-2 border-transparent px-3 py-1.5 text-(--color-tc-30) data-[state=active]:border-(--color-primary) data-[state=active]:bg-transparent data-[state=active]:text-(--color-primary) data-[state=active]:shadow-none"
                 >
-                  Internal
+                  Internal notes
                 </TabsTrigger>
               </TabsList>
+              <button
+                type="button"
+                onClick={() => setCreateTaskOpen(true)}
+                className="mb-1.5 shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-brand transition-colors hover:bg-brand-muted"
+              >
+                New task
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -814,6 +834,11 @@ export default function LeadDetail({
                 messages={lead.messages}
                 threadActivities={filterLeadThreadActivities(lead.activities)}
                 onSent={() => reload({ silent: true })}
+                onAddNote={(message) => {
+                  setNoteTargetMessage(message);
+                  setMessagesMaximized(false);
+                  setActiveTab("internal");
+                }}
                 className="h-full min-h-0 flex-1"
               />
             </TabsContent>
@@ -829,14 +854,16 @@ export default function LeadDetail({
                 }
               />
             </TabsContent>
-            <TabsContent value="internal" className="mt-0 min-h-0 flex-1 overflow-y-auto">
-              <InternalConversationPanel
+            <TabsContent
+              value="internal"
+              className="mt-0 min-h-0 flex-1 data-[state=active]:flex data-[state=active]:flex-col"
+            >
+              <LeadInternalNotesPanel
                 leadId={lead.id}
-                title={
-                  customer
-                    ? `Lead · ${customer.firstName} ${customer.lastName} · ${lead.propertyPostcode}`
-                    : `Lead · ${lead.propertyPostcode}`
-                }
+                referencedMessage={noteTargetMessage}
+                onClearReferencedMessage={() => setNoteTargetMessage(null)}
+                onPosted={() => reload({ silent: true })}
+                className="h-full min-h-0 flex-1"
               />
             </TabsContent>
           </Tabs>
@@ -1108,9 +1135,25 @@ export default function LeadDetail({
           messages={lead.messages}
           threadActivities={filterLeadThreadActivities(lead.activities)}
           onSent={() => reload({ silent: true })}
+          onAddNote={(message) => {
+            setNoteTargetMessage(message);
+            setMessagesMaximized(false);
+            setActiveTab("internal");
+          }}
           className="h-full min-h-0 max-h-none flex-1 rounded-none border-0"
         />
       </CrmModal>
+
+      <CreateTaskModal
+        isOpen={createTaskOpen}
+        onClose={() => setCreateTaskOpen(false)}
+        teamMembers={teamMembers}
+        initialLead={{ id: lead.id, label: leadToTaskLabel(lead) }}
+        onCreated={() => {
+          toast.success("Task created");
+          reload({ silent: true });
+        }}
+      />
     </>
   );
 

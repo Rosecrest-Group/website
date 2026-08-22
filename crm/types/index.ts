@@ -187,7 +187,7 @@ export interface MentionSuggestion {
 
 export interface UserNotificationItem {
   id: string;
-  type: "MESSAGE" | "MENTION" | "ASSIGNMENT";
+  type: "MESSAGE" | "MENTION" | "ASSIGNMENT" | "REMINDER";
   title: string;
   body: string;
   conversationId?: string | null;
@@ -240,6 +240,9 @@ export interface DialpadCall {
   recordingUrl: string | null;
   transcript: string | null;
   recapSummary: string | null;
+  recapActionItems: string[];
+  recapPurposes: string[];
+  recapDisposition: string | null;
   outcome: string | null;
   leadId: string | null;
   jobId: string | null;
@@ -699,6 +702,17 @@ export interface CadenceStep {
   status: "completed" | "current" | "upcoming";
   detail?: string;
   time?: string;
+}
+
+export interface LeadThreadPage {
+  items: Message[];
+  notes: InternalMessageItem[];
+  conversationId: string | null;
+  activities: Activity[];
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
 }
 
 export interface LeadDetail extends Lead {

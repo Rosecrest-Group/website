@@ -28,6 +28,8 @@ export type TableProps<T> = {
   rowClassName?: (row: T, index: number) => string;
   hideHeader?: boolean;
   compact?: boolean;
+  /** Fit the panel on desktop: columns share width and truncate instead of overflowing */
+  fixedLayout?: boolean;
   /** Mullr DataTable panel title (toolbar left) */
   title?: string;
   /** Controlled search shown in Mullr pill search field */
@@ -85,6 +87,7 @@ export default function Table<T extends Record<string, unknown>>({
   rowClassName,
   hideHeader = false,
   compact = false,
+  fixedLayout = false,
   title,
   search,
   onSearchChange,
@@ -149,14 +152,18 @@ export default function Table<T extends Record<string, unknown>>({
 
       <div
         className={cn(
-          "overflow-x-auto transition-opacity duration-150",
+          "min-w-0 transition-opacity duration-150",
+          fixedLayout ? "overflow-x-auto lg:overflow-x-hidden" : "overflow-x-auto",
           loading && "pointer-events-none opacity-50",
         )}
       >
         <table
           className={cn(
             "w-full border-collapse",
-            compact ? "min-w-0" : "min-w-[640px]",
+            compact && "min-w-0",
+            compact && fixedLayout && "table-fixed",
+            !compact && !fixedLayout && "min-w-[640px]",
+            !compact && fixedLayout && "min-w-[640px] lg:min-w-0 lg:table-fixed",
           )}
         >
           {!hideHeader && (

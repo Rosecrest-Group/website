@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
 import { prefetchLead } from "@/crm/lib/leadDetailCache";
+import { prefetchLeadThreadWithActivities } from "@/crm/lib/loadLeadThread";
 import { getListPageCache, setListPageCache } from "@/crm/lib/listPageCache";
+import { usePersistedListFilters } from "@/crm/lib/usePersistedListFilters";
 import type { Lead, LeadStage, Paginated } from "@/crm/types";
 import {
   BEDROOM_BAND_LABELS,
+  CRM_BASE_PATH,
   LEAD_SOURCES,
   LEAD_STAGE_LABELS,
   SURVEY_LEVEL_LABELS,
@@ -33,6 +36,15 @@ const STAGES: LeadStage[] = [
 
 const PAGE_SIZE = 10;
 
+type LeadListFilters = { stage: string; source: string };
+
+const LEAD_LIST_FILTER_DEFAULTS: LeadListFilters = { stage: "", source: "" };
+const LEAD_LIST_FILTER_KEYS = ["stage", "source"] as const;
+const LEAD_LIST_FILTER_ALLOW = {
+  stage: STAGES,
+  source: LEAD_SOURCES.map((s) => s.value),
+};
+
 function formatTimeAgo(dateStr: string) {
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return "—";
@@ -57,44 +69,55 @@ export default function LeadsList({
   initialData?: LeadsListInitialData | null;
 }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const urlStage = searchParams.get("stage") ?? "";
-  const urlSource = searchParams.get("source") ?? "";
-  const hasUrlFilters = Boolean(urlStage || urlSource);
-  const seed =
-    !hasUrlFilters
-      ? (initialData ?? getListPageCache<LeadsListInitialData>("leads:default"))
-      : null;
-  const [leads, setLeads] = useState<Lead[]>(() => seed?.items ?? []);
-  const [total, setTotal] = useState(() => seed?.total ?? 0);
+  const { filters, setFilter, filtersReady } = usePersistedListFilters<LeadListFilters>({
+    pageKey: "leads",
+    pathname: `${CRM_BASE_PATH}/leads`,
+    keys: LEAD_LIST_FILTER_KEYS,
+    defaults: LEAD_LIST_FILTER_DEFAULTS,
+    allow: LEAD_LIST_FILTER_ALLOW,
+  });
+  const { stage, source } = filters;
+  const initialDataRef = useRef(initialData);
+  initialDataRef.current = initialData;
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [stage, setStage] = useState(urlStage);
-  const [source, setSource] = useState(urlSource);
-  const [loading, setLoading] = useState(() => !seed);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const skipInitialFetch = useRef(Boolean(seed));
   const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const filterSlice = `${stage}|${source}`;
+  const prevFilterSliceRef = useRef(filterSlice);
 
   useEffect(() => {
-    setStage(urlStage);
-    setSource(urlSource);
+    if (prevFilterSliceRef.current === filterSlice) return;
+    prevFilterSliceRef.current = filterSlice;
     setPage(1);
-  }, [urlStage, urlSource]);
+  }, [filterSlice]);
 
   useEffect(() => {
-    if (skipInitialFetch.current) {
-      skipInitialFetch.current = false;
-      // Warm first few lead details shortly after paint for snappier row clicks.
-      const ids = (seed?.items ?? []).slice(0, 3).map((l) => l.id);
-      if (ids.length > 0) {
-        const timer = window.setTimeout(() => {
-          for (const id of ids) void prefetchLead(id);
+    if (!filtersReady) return;
+
+    if (!search && !stage && !source && page === 1) {
+      const cached =
+        getListPageCache<LeadsListInitialData>("leads:default") ?? initialDataRef.current;
+      if (cached) {
+        initialDataRef.current = null;
+        setLeads(cached.items);
+        setTotal(cached.total);
+        setLoading(false);
+        const ids = cached.items.slice(0, 3).map((l) => l.id);
+        if (ids.length === 0) return;
+        const warm = window.setTimeout(() => {
+          for (const id of ids) {
+            void prefetchLead(id);
+            void prefetchLeadThreadWithActivities(id);
+          }
         }, 400);
-        return () => window.clearTimeout(timer);
+        return () => window.clearTimeout(warm);
       }
-      return;
     }
+
     setLoading(true);
     const params: Record<string, string> = {
       page: String(page),
@@ -118,21 +141,13 @@ export default function LeadsList({
         .finally(() => setLoading(false));
     }, search ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [search, stage, source, page]);
+  }, [filtersReady, search, stage, source, page]);
 
   useEffect(() => {
     return () => {
       if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
     };
   }, []);
-
-  function syncFilters(nextStage: string, nextSource: string) {
-    const params = new URLSearchParams();
-    if (nextStage) params.set("stage", nextStage);
-    if (nextSource) params.set("source", nextSource);
-    const qs = params.toString();
-    router.replace(qs ? `/crm/leads?${qs}` : "/crm/leads");
-  }
 
   function handleSearchChange(value: string) {
     setLoading(true);
@@ -142,16 +157,14 @@ export default function LeadsList({
 
   function handleStageChange(value: string) {
     setLoading(true);
-    setStage(value);
     setPage(1);
-    syncFilters(value, source);
+    setFilter("stage", value);
   }
 
   function handleSourceChange(value: string) {
     setLoading(true);
-    setSource(value);
     setPage(1);
-    syncFilters(stage, value);
+    setFilter("source", value);
   }
 
   function warmLead(leadId: string) {
@@ -159,6 +172,7 @@ export default function LeadsList({
     if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
     prefetchTimerRef.current = setTimeout(() => {
       void prefetchLead(leadId);
+      void prefetchLeadThreadWithActivities(leadId);
       prefetchTimerRef.current = null;
     }, 80);
   }
@@ -245,7 +259,7 @@ export default function LeadsList({
 
       {error ? <p className="text-sm text-orange-700">{error}</p> : null}
 
-      {loading && leads.length === 0 ? (
+      {(!filtersReady || loading) && leads.length === 0 ? (
         <LoadingSpinner />
       ) : (
         <Table

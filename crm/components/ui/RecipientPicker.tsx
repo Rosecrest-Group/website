@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { api } from "@/crm/lib/api";
 import type { MentionSuggestion } from "@/crm/types";
+import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 
 export type RecipientSelection =
   | { type: "user"; id: string; label: string }
@@ -101,17 +102,15 @@ export default function RecipientPicker({
 
   const addRecipient = useCallback(
     (recipient: RecipientSelection) => {
-      const next =
-        recipient.type === "broadcast"
-          ? [EVERYONE]
-          : [...selected.filter((r) => r.type !== "broadcast"), recipient];
-      onChange(next);
-
-      if (recipient.type === "broadcast" || next.length === 1) {
-        onConfirm(next);
+      if (recipient.type === "broadcast") {
+        onChange([EVERYONE]);
+        onConfirm([EVERYONE]);
         return;
       }
 
+      if (selected.some((r) => r.type === "user" && r.id === recipient.id)) return;
+      const next = [...selected.filter((r) => r.type !== "broadcast"), recipient];
+      onChange(next);
       setQuery("");
       setOpen(true);
       inputRef.current?.focus();
@@ -149,7 +148,7 @@ export default function RecipientPicker({
     }
     if (event.key === "Enter") {
       event.preventDefault();
-      if (open && options.length > 0) {
+      if (query.trim() && open && options.length > 0) {
         selectHighlighted();
         return;
       }
@@ -200,7 +199,7 @@ export default function RecipientPicker({
               }}
               onFocus={() => setOpen(true)}
               onKeyDown={handleKeyDown}
-              placeholder={selected.length === 0 ? "Search people or type a team name…" : ""}
+              placeholder={selected.length === 0 ? "Search people…" : "Add another person…"}
               className="min-w-[8rem] flex-1 border-0 bg-transparent py-2 text-sm text-(--color-tc-40) outline-none placeholder:text-(--color-tc-30)"
               role="combobox"
               aria-expanded={open}
@@ -209,6 +208,15 @@ export default function RecipientPicker({
             />
           )}
         </div>
+        {selected.length > 0 && (
+          <PrimaryButton
+            type="button"
+            className="shrink-0 px-4 py-1.5"
+            onClick={() => onConfirm(selected)}
+          >
+            Start chat
+          </PrimaryButton>
+        )}
         {onCancel && (
           <button
             type="button"

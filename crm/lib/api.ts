@@ -31,6 +31,7 @@ import type {
   Lead,
 
   LeadDetail,
+  LeadThreadPage,
 
   LeadTag,
 
@@ -451,6 +452,20 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  syncLeadCallsFromDialpad: (leadId: string) =>
+    request<{ synced: number; deduped: number; total?: number; skipped?: boolean }>(
+      `/dialpad/calls/sync/${leadId}`,
+      { method: "POST" }
+    ),
+
+  fetchDialpadCallRecording: async (activityId: string) => {
+    const res = await fetch(`${API_BASE}/dialpad/calls/${activityId}/recording`, {
+      credentials: "include",
+    });
+    if (!res.ok) throw new Error("Recording unavailable");
+    return res.blob();
+  },
+
   linkDialpadUser: (dialpadUserId: string) =>
     request<ApiUser>("/dialpad/me/link", {
       method: "PATCH",
@@ -796,6 +811,13 @@ export const api = {
   },
 
   getLead: (id: string) => request<LeadDetail>(`/leads/${id}`),
+
+  getLeadThread: (id: string, params?: { limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const q = qs.toString();
+    return request<LeadThreadPage>(`/leads/${id}/thread${q ? `?${q}` : ""}`);
+  },
 
   checkLeadDuplicates: (params: {
     email: string;

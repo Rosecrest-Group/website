@@ -16,6 +16,7 @@ import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import RecipientPicker, { type RecipientSelection } from "@/crm/components/ui/RecipientPicker";
 import ConversationThread from "@/crm/components/ConversationThread";
+import { conversationDisplayTitle } from "@/crm/lib/conversationTitle";
 import { prefetchConversationThread } from "@/crm/lib/prefetchConversationThread";
 import { useCollaborationRealtime } from "@/crm/lib/useCollaborationRealtime";
 
@@ -180,7 +181,6 @@ export default function ConversationsView({
               participantIds: recipients
                 .filter((r): r is RecipientSelection & { type: "user" } => r.type === "user")
                 .map((r) => r.id),
-              title: recipients.map((r) => r.label).join(", "),
             };
     const conversation = await api.createConversation(payload);
     setShowNew(false);
@@ -255,7 +255,9 @@ export default function ConversationsView({
             }`}
           >
             <div className="flex items-center justify-between gap-2">
-              <p className="font-medium text-(--color-tc-40)">{t.title}</p>
+              <p className="font-medium text-(--color-tc-40)">
+                {conversationDisplayTitle(t, currentUser?.id)}
+              </p>
               {t.unread && <span className="size-2 rounded-full bg-(--color-primary)" />}
             </div>
             <p className="mt-1 truncate text-xs text-(--color-tc-30)">
@@ -296,7 +298,7 @@ export default function ConversationsView({
           </div>
         ) : showNew ? (
           <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center text-sm text-(--color-tc-30)">
-            Search for a teammate, add several people for a group chat, or pick Everyone.
+            Search for teammates, add a second person for a group, or pick Everyone.
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 items-center justify-center text-(--color-tc-30)">

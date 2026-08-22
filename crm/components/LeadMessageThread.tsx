@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import {
   AlertCircle,
   Ban,
@@ -19,16 +19,17 @@ import {
   PhoneIncoming,
   PhoneMissed,
   PhoneOutgoing,
+  Pause,
+  Play,
   Reply,
   StickyNote,
   X,
 } from "lucide-react";
 import { api } from "@/crm/lib/api";
-import type { Activity, InternalMessageItem, MentionSuggestion, Message } from "@/crm/types";
+import type { Activity, InternalMessageItem, Message } from "@/crm/types";
 import { toast } from "sonner";
 import CurvedContainer from "@/crm/components/ui/CurvedContainer";
 import CrmModal from "@/crm/components/ui/CrmModal";
-import CrmSlidePanel from "@/crm/components/ui/CrmSlidePanel";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import TextField from "@/crm/components/ui/TextField";
@@ -37,10 +38,10 @@ import MessageRichCompose, {
   getEmailPayload,
   type MessageRichComposeHandle,
 } from "@/crm/components/ui/MessageRichCompose";
-import ChatComposeField, {
-  type PendingComposeAttachment,
-} from "@/crm/components/ui/ChatComposeField";
-import ChatMessageAttachments from "@/crm/components/ui/ChatMessageAttachments";
+import {
+  NoteCommentsSlidePanel,
+  NoteThreadBubble,
+} from "@/crm/components/LeadInternalNotesPanel";
 import {
   formatChatDateSeparator,
   formatChatTime,
@@ -48,6 +49,7 @@ import {
   messageTimestamp,
 } from "@/crm/lib/formatChatTime";
 import { linkifyText } from "@/crm/lib/formatMessageBody";
+import { messagePreviewSnippet, noteRepliesByParent, rootNoteOf } from "@/crm/lib/leadNotes";
 import {
   isDesignedEmailHtml,
   parseWhatsAppFormatting,
@@ -68,17 +70,10 @@ import {
   fetchLeadThreadPage,
   prefetchLeadThreadWithActivities,
 } from "@/crm/lib/loadLeadThread";
-import { ensureRecordThread } from "@/crm/lib/recordThread";
-import { MAX_CHAT_ATTACHMENTS, validateChatAttachmentFile } from "@/crm/lib/chatAttachments";
-import {
-  getCachedConversationThread,
-  setCachedConversationThread,
-} from "@/crm/lib/conversationMessageCache";
 import MessageThreadSkeleton from "@/crm/components/ui/MessageThreadSkeleton";
 import { cn } from "@/lib/utils";
 
 type Channel = MessageChannel;
-type ComposeMode = "reply" | "note";
 
 type ThreadEntry =
   | { kind: "message"; id: string; createdAt: string; message: Message }
@@ -86,8 +81,6 @@ type ThreadEntry =
   | { kind: "call"; id: string; createdAt: string; activity: Activity }
   | { kind: "cadence_stop"; id: string; createdAt: string; activity: Activity }
   | { kind: "payment"; id: string; createdAt: string; activity: Activity };
-
-const MENTION_REGEX = /@([a-zA-Z0-9._-]+)/g;
 
 const MESSAGE_PAGE_SIZE = 40;
 /** A thread this recently fetched (usually by the inbox prefetch) skips its own revalidate. */
@@ -218,122 +211,8 @@ function suggestEmailSubject(messages: Message[], replyTarget?: Message | null):
   return /^re:/i.test(subject) ? subject : `Re: ${subject}`;
 }
 
-function messagePreviewSnippet(message: Message): string {
-  if (message.subject?.trim()) return message.subject.trim();
-  return message.body
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 80);
-}
-
-function insertMentionToken(
-  token: string,
-  compose: string,
-  setCompose: (v: string) => void,
-  composeRef: React.RefObject<HTMLTextAreaElement | null>
-) {
-  const textarea = composeRef.current;
-  if (!textarea) return;
-  const cursor = textarea.selectionStart;
-  const before = compose.slice(0, cursor).replace(/@([a-zA-Z0-9._-]*)$/, `@${token} `);
-  setCompose(before + compose.slice(cursor));
-  textarea.focus();
-}
-
-function buildOptimisticNote(params: {
-  tempId: string;
-  body: string;
-  author: { id: string; fullName: string; email?: string };
-  parentMessageId?: string | null;
-  referencedMessage?: Message | null;
-}): InternalMessageItem {
-  const referenced = params.referencedMessage;
-  return {
-    id: params.tempId,
-    body: params.body,
-    createdAt: new Date().toISOString(),
-    author: {
-      id: params.author.id,
-      fullName: params.author.fullName,
-      email: params.author.email ?? "",
-    },
-    parentMessageId: params.parentMessageId ?? null,
-    parentPreview: null,
-    referencedMessageId: referenced?.id ?? null,
-    referencedPreview: referenced
-      ? {
-          id: referenced.id,
-          subject: referenced.subject ?? null,
-          body: messagePreviewSnippet(referenced),
-          channel: referenced.channel,
-          direction: referenced.direction,
-        }
-      : null,
-    mentions: [],
-    reactions: [],
-    attachments: [],
-  };
-}
-
-const meCache: { current: { id: string; fullName: string; email: string } | null } = {
-  current: null,
-};
-
-async function resolveCurrentUser() {
-  if (meCache.current) return meCache.current;
-  const me = await api.getMe();
-  meCache.current = { id: me.id, fullName: me.fullName, email: me.email ?? "" };
-  return meCache.current;
-}
-
-function renderNoteBody(
-  body: string,
-  mentions: InternalMessageItem["mentions"]
-): ReactNode {
-  const linkClass = "text-rose-800 underline underline-offset-2 hover:opacity-80";
-  const labels = new Map<string, string>();
-  for (const mention of mentions) {
-    const alias = mention.alias?.toLowerCase();
-    if (!alias) continue;
-    labels.set(
-      alias,
-      mention.user?.fullName ??
-        (mention.role ? mention.role.replace(/_/g, " ") : `@${alias}`)
-    );
-  }
-
-  const nodes: ReactNode[] = [];
-  let lastIndex = 0;
-  const re = new RegExp(MENTION_REGEX.source, "g");
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(body)) !== null) {
-    if (match.index > lastIndex) {
-      nodes.push(...linkifyText(body.slice(lastIndex, match.index), linkClass));
-    }
-    const alias = match[1].toLowerCase();
-    const label = labels.get(alias);
-    nodes.push(
-      <span
-        key={`${match.index}-${alias}`}
-        className="rounded bg-rose-200/60 px-0.5 font-medium text-rose-950"
-        title={label}
-      >
-        @{match[1]}
-      </span>
-    );
-    lastIndex = match.index + match[0].length;
-  }
-  if (lastIndex < body.length) {
-    nodes.push(...linkifyText(body.slice(lastIndex), linkClass));
-  }
-  return nodes.length > 0 ? nodes : linkifyText(body, linkClass);
-}
-
 /** ~2 lines of text-sm / leading-relaxed — preview height for long email bubbles. */
 const EMAIL_COLLAPSED_MAX_PX = 52;
-
-type LocalPendingAttachment = PendingComposeAttachment & { file: File };
 
 function CollapsiblePlainBody({
   children,
@@ -657,11 +536,299 @@ function asFiniteNumber(value: unknown): number | null {
   return null;
 }
 
+function asStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && Boolean(item.trim()));
+}
+
 function formatCallDuration(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds));
   const mins = Math.floor(total / 60);
   const secs = total % 60;
   return `${mins}m ${String(secs).padStart(2, "0")}s`;
+}
+
+function formatPlayerClock(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const total = Math.floor(seconds);
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${mins}:${String(secs).padStart(2, "0")}`;
+}
+
+function CallMiniPlayer({
+  activityId,
+  durationSeconds,
+  isOutbound,
+}: {
+  activityId: string;
+  durationSeconds: number | null;
+  isOutbound: boolean;
+}) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const objectUrlRef = useRef<string | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [duration, setDuration] = useState(durationSeconds && durationSeconds > 0 ? durationSeconds : 0);
+
+  useEffect(() => {
+    if (durationSeconds && durationSeconds > 0) setDuration(durationSeconds);
+  }, [durationSeconds]);
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    };
+  }, []);
+
+  async function ensureSrc() {
+    const audio = audioRef.current;
+    if (!audio) throw new Error("missing audio");
+    if (objectUrlRef.current) return;
+    const blob = await api.fetchDialpadCallRecording(activityId);
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    const objectUrl = URL.createObjectURL(blob);
+    objectUrlRef.current = objectUrl;
+    audio.src = objectUrl;
+    await new Promise<void>((resolve, reject) => {
+      const onReady = () => {
+        audio.removeEventListener("loadedmetadata", onReady);
+        audio.removeEventListener("error", onError);
+        resolve();
+      };
+      const onError = () => {
+        audio.removeEventListener("loadedmetadata", onReady);
+        audio.removeEventListener("error", onError);
+        reject(new Error("load"));
+      };
+      audio.addEventListener("loadedmetadata", onReady);
+      audio.addEventListener("error", onError);
+      audio.load();
+    });
+  }
+
+  async function toggle() {
+    const audio = audioRef.current;
+    if (!audio || loading) return;
+    if (!audio.paused) {
+      audio.pause();
+      return;
+    }
+    setError(false);
+    setLoading(true);
+    try {
+      await ensureSrc();
+      await audio.play();
+    } catch {
+      setPlaying(false);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function seek(event: MouseEvent<HTMLButtonElement>) {
+    const audio = audioRef.current;
+    if (!audio || !duration) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+    audio.currentTime = ratio * duration;
+    setCurrent(audio.currentTime);
+  }
+
+  const progress = duration > 0 ? Math.min(1, current / duration) : 0;
+  const tone = isOutbound
+    ? {
+        shell: "border-sky-200 bg-sky-50 text-sky-950",
+        button: "bg-sky-600 text-white hover:bg-sky-700",
+        track: "bg-sky-200",
+        fill: "bg-sky-600",
+      }
+    : {
+        shell: "border-emerald-200 bg-emerald-50 text-emerald-950",
+        button: "bg-emerald-600 text-white hover:bg-emerald-700",
+        track: "bg-emerald-200",
+        fill: "bg-emerald-600",
+      };
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className={cn("inline-flex items-center gap-2 rounded-full border px-1.5 py-1 shadow-sm", tone.shell)}>
+        <audio
+          ref={audioRef}
+          preload="none"
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onEnded={() => {
+            setPlaying(false);
+            setCurrent(0);
+          }}
+          onTimeUpdate={(event) => setCurrent(event.currentTarget.currentTime)}
+          onLoadedMetadata={(event) => {
+            const next = event.currentTarget.duration;
+            if (Number.isFinite(next) && next > 0) setDuration(next);
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => void toggle()}
+          disabled={loading}
+          aria-busy={loading}
+          aria-label={playing ? "Pause recording" : "Play recording"}
+          className={cn(
+            "flex size-6 shrink-0 items-center justify-center rounded-full transition-colors",
+            tone.button,
+            loading && "opacity-70"
+          )}
+        >
+          {playing ? <Pause className="size-3 fill-current" /> : <Play className="size-3 fill-current" />}
+        </button>
+        <span className="w-8 text-[10px] font-medium tabular-nums">{formatPlayerClock(current)}</span>
+        <button
+          type="button"
+          aria-label="Seek recording"
+          onClick={seek}
+          className={cn("relative h-1.5 w-24 rounded-full", tone.track)}
+        >
+          <span
+            className={cn("absolute inset-y-0 left-0 rounded-full", tone.fill)}
+            style={{ width: `${progress * 100}%` }}
+          />
+        </button>
+        <span className="w-8 pr-1 text-[10px] font-medium tabular-nums">{formatPlayerClock(duration)}</span>
+      </div>
+      {error ? <p className="text-[10px] text-rose-700">Recording could not be played</p> : null}
+    </div>
+  );
+}
+
+function CallNotesPanel({
+  recap,
+  recapPurposes,
+  recapActionItems,
+  recapDisposition,
+  transcript,
+  duration,
+  time,
+  isOutbound,
+}: {
+  recap: string | null;
+  recapPurposes: string[];
+  recapActionItems: string[];
+  recapDisposition: string | null;
+  transcript: string | null;
+  duration: string | null;
+  time: string;
+  isOutbound: boolean;
+}) {
+  const hasRecap = Boolean(
+    recap || recapDisposition || recapPurposes.length || recapActionItems.length
+  );
+  const tabs = [
+    hasRecap ? { id: "recap" as const, label: "Recap" } : null,
+    transcript ? { id: "transcript" as const, label: "Transcript" } : null,
+  ].filter((tab): tab is { id: "recap" | "transcript"; label: string } => Boolean(tab));
+
+  const [activeId, setActiveId] = useState<"recap" | "transcript">(tabs[0]?.id ?? "recap");
+  const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
+  if (!active) return null;
+
+  return (
+    <div className="w-full max-w-[min(100%,36rem)]">
+      <div
+        className={cn(
+          "rounded-xl border px-4 py-3 shadow-sm",
+          isOutbound
+            ? "border-sky-200/90 bg-sky-50/90 text-sky-950"
+            : "border-emerald-200/90 bg-emerald-50/90 text-emerald-950"
+        )}
+      >
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          {tabs.length > 1 ? (
+            <div
+              className={cn(
+                "flex items-center rounded-lg p-0.5",
+                isOutbound ? "bg-sky-100/80" : "bg-emerald-100/80"
+              )}
+              role="tablist"
+              aria-label="Call notes"
+            >
+              {tabs.map((tab) => {
+                const selected = tab.id === active.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    onClick={() => setActiveId(tab.id)}
+                    className={cn(
+                      "rounded-md px-2.5 py-1 text-xs font-semibold transition-colors",
+                      selected
+                        ? "bg-white text-ink shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
+                        : isOutbound
+                          ? "text-sky-800/70 hover:text-sky-950"
+                          : "text-emerald-800/70 hover:text-emerald-950"
+                    )}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <span className={cn("text-xs font-semibold", isOutbound ? "text-sky-950" : "text-emerald-950")}>
+              {active.id === "recap" ? "Call recap" : "Call transcript"}
+            </span>
+          )}
+          {duration ? (
+            <span className={cn("text-xs", isOutbound ? "text-sky-900/70" : "text-emerald-900/70")}>
+              {duration}
+            </span>
+          ) : null}
+          <span className={cn("text-xs", isOutbound ? "text-sky-900/70" : "text-emerald-900/70")}>{time}</span>
+        </div>
+        <CollapsiblePlainBody
+          key={active.id}
+          fadeFrom={isOutbound ? "from-sky-50" : "from-emerald-50"}
+        >
+          {active.id === "transcript" ? (
+            <p className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed">{transcript}</p>
+          ) : (
+            <div className="space-y-3">
+              {recap ? (
+                <p className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed">{recap}</p>
+              ) : null}
+              {recapDisposition ? (
+                <div>
+                  <p className="text-xs font-semibold">Outcome</p>
+                  <p className="mt-0.5 text-sm leading-relaxed">{recapDisposition}</p>
+                </div>
+              ) : null}
+              {recapPurposes.length > 0 ? (
+                <div>
+                  <p className="text-xs font-semibold">Purpose</p>
+                  <p className="mt-0.5 text-sm leading-relaxed">{recapPurposes.join(" · ")}</p>
+                </div>
+              ) : null}
+              {recapActionItems.length > 0 ? (
+                <div>
+                  <p className="text-xs font-semibold">Action items</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-4 text-sm leading-relaxed">
+                    {recapActionItems.map((item, index) => (
+                      <li key={`${index}-${item.slice(0, 24)}`}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </CollapsiblePlainBody>
+      </div>
+    </div>
+  );
 }
 
 function callNumberFromMeta(
@@ -714,8 +881,12 @@ function CallThreadBanner({ activity }: { activity: Activity }) {
       : typeof meta.summary === "string" && meta.summary.trim()
         ? meta.summary
         : null;
-  const transcriptBody = transcript ?? recap;
-  const transcriptLabel = transcript ? "Call transcript" : "Call recap";
+  const recapPurposes = asStringList(meta.recapPurposes);
+  const recapActionItems = asStringList(meta.recapActionItems);
+  const recapDisposition =
+    typeof meta.recapDisposition === "string" && meta.recapDisposition.trim()
+      ? meta.recapDisposition
+      : null;
   const time = formatChatTime(activity.createdAt);
 
   const label = missed
@@ -799,116 +970,25 @@ function CallThreadBanner({ activity }: { activity: Activity }) {
       </div>
 
       {recordingUrl ? (
-        <a
-          href={recordingUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[11px] font-medium text-(--color-primary) hover:underline"
-        >
-          Listen to recording
-        </a>
+        <CallMiniPlayer
+          activityId={activity.id}
+          durationSeconds={durationSeconds}
+          isOutbound={isOutbound}
+        />
       ) : null}
 
-      {transcriptBody ? (
-        <div className="w-full max-w-[min(100%,36rem)]">
-          <div
-            className={cn(
-              "rounded-xl border px-4 py-3 shadow-sm",
-              isOutbound
-                ? "border-sky-200/90 bg-sky-50/90 text-sky-950"
-                : "border-emerald-200/90 bg-emerald-50/90 text-emerald-950"
-            )}
-          >
-            <div
-              className={cn(
-                "mb-1.5 flex flex-wrap items-center gap-2 text-xs",
-                isOutbound ? "text-sky-900/70" : "text-emerald-900/70"
-              )}
-            >
-              <span className={cn("font-semibold", isOutbound ? "text-sky-950" : "text-emerald-950")}>
-                {transcriptLabel}
-              </span>
-              {duration ? <span>{duration}</span> : null}
-              <span>{time}</span>
-            </div>
-            <CollapsiblePlainBody fadeFrom={isOutbound ? "from-sky-50" : "from-emerald-50"}>
-              <p className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed">{transcriptBody}</p>
-            </CollapsiblePlainBody>
-          </div>
-        </div>
+      {recap || recapDisposition || recapPurposes.length || recapActionItems.length || transcript ? (
+        <CallNotesPanel
+          recap={recap}
+          recapPurposes={recapPurposes}
+          recapActionItems={recapActionItems}
+          recapDisposition={recapDisposition}
+          transcript={transcript}
+          duration={duration}
+          time={time}
+          isOutbound={isOutbound}
+        />
       ) : null}
-    </div>
-  );
-}
-
-function NoteThreadBubble({
-  note,
-  replies = [],
-  onComment,
-}: {
-  note: InternalMessageItem;
-  replies?: InternalMessageItem[];
-  onComment?: (note: InternalMessageItem) => void;
-}) {
-  const time = formatChatTime(note.createdAt);
-  const refLabel = note.referencedPreview
-    ? note.referencedPreview.subject?.trim() || note.referencedPreview.body
-    : null;
-
-  return (
-    <div className="group flex justify-center py-1">
-      <div className="w-full max-w-[min(100%,36rem)]">
-        <div className="rounded-xl border border-rose-200/90 bg-rose-50/90 px-4 py-3 shadow-sm">
-          <div className="mb-1.5 flex flex-wrap items-center gap-2 text-xs text-rose-900/70">
-            <StickyNote className="size-3.5 shrink-0 text-rose-700" aria-hidden />
-            <span className="font-semibold text-rose-950">Internal note</span>
-            <span className="font-medium text-rose-900">{note.author.fullName}</span>
-            <span>{time}</span>
-          </div>
-          {refLabel ? (
-            <p className="mb-2 truncate rounded-lg border border-rose-200/80 bg-white/70 px-2.5 py-1 text-[11px] text-rose-900/80">
-              On: {refLabel}
-            </p>
-          ) : null}
-          <CollapsiblePlainBody fadeFrom="from-rose-50">
-            <p className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-rose-950">
-              {note.isDeleted ? (
-                <span className="italic text-rose-900/60">[Note deleted]</span>
-              ) : (
-                renderNoteBody(note.body, note.mentions)
-              )}
-            </p>
-          </CollapsiblePlainBody>
-          {!note.isDeleted && note.attachments?.length ? (
-            <div className="mt-2">
-              <ChatMessageAttachments attachments={note.attachments} isMine={false} />
-            </div>
-          ) : null}
-        </div>
-
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          {onComment ? (
-            <button
-              type="button"
-              onClick={() => onComment(note)}
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-(--color-tc-30) opacity-0 transition group-hover:opacity-100 focus:opacity-100 hover:bg-white hover:text-(--color-tc-40)"
-            >
-              <MessageSquare className="size-3" aria-hidden />
-              Comment
-            </button>
-          ) : null}
-          {replies.length > 0 && onComment ? (
-            <button
-              type="button"
-              onClick={() => onComment(note)}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium text-rose-800 transition hover:bg-rose-50"
-            >
-              <MessageSquare className="size-3" aria-hidden />
-              {replies.length} {replies.length === 1 ? "comment" : "comments"}
-            </button>
-          ) : null}
-        </div>
-      </div>
     </div>
   );
 }
@@ -1064,10 +1144,13 @@ export default function LeadMessageThread({
   threadActivities: initialThreadActivities = [],
   onSent,
   onRead,
+  onAddNote,
   className,
   headerActions,
+  framed = true,
   /** When true, paint seed immediately but still fetch fresh messages (inbox preview). */
   revalidateSeed = false,
+  isActive = true,
 }: {
   leadId: string;
   customerName: string;
@@ -1077,9 +1160,14 @@ export default function LeadMessageThread({
   onSent?: () => void;
   /** Fired as the thread is marked read so the inbox can drop its unread styling. */
   onRead?: (leadId: string) => void;
+  /** Opens the Internal notes tab with this customer message as the note target. */
+  onAddNote?: (message: Message) => void;
   className?: string;
   headerActions?: ReactNode;
+  framed?: boolean;
   revalidateSeed?: boolean;
+  /** When false, the thread stays mounted offscreen (inbox tab carousel). */
+  isActive?: boolean;
 }) {
   const cachedThread = getCachedLeadThread(leadId);
   const [messages, setMessages] = useState(() =>
@@ -1100,24 +1188,17 @@ export default function LeadMessageThread({
   const [loading, setLoading] = useState(
     () =>
       initialMessages.length === 0 &&
-      !cachedThread &&
+      !cachedThread?.notesLoaded &&
       initialThreadActivities.length === 0
   );
   const [sending, setSending] = useState(false);
-  const [composeMode, setComposeMode] = useState<ComposeMode>("reply");
   const [targetMessage, setTargetMessage] = useState<Message | null>(null);
   const [commentModalNote, setCommentModalNote] = useState<InternalMessageItem | null>(null);
   const [channel, setChannel] = useState<Channel>("EMAIL");
   const [subject, setSubject] = useState("");
   const [plainBody, setPlainBody] = useState("");
   const [htmlBody, setHtmlBody] = useState("");
-  const [noteDraft, setNoteDraft] = useState("");
-  const [noteAttachments, setNoteAttachments] = useState<LocalPendingAttachment[]>([]);
-  const [commentDraft, setCommentDraft] = useState("");
-  const [mentionQuery, setMentionQuery] = useState("");
-  const [mentionSuggestions, setMentionSuggestions] = useState<MentionSuggestion | null>(null);
   const [error, setError] = useState("");
-  const [commentError, setCommentError] = useState("");
   const [composeCollapsed, setComposeCollapsed] = useState(true);
   const [composeExpanded, setComposeExpanded] = useState(false);
   const { teamConnectEnabled, teamConnectNumbers, selectedPhoneDocId, setSelectedPhoneDocId, dialpadEnabled } =
@@ -1126,9 +1207,6 @@ export default function LeadMessageThread({
   const hasScrolledToBottomRef = useRef(false);
   const composeRef = useRef<MessageRichComposeHandle>(null);
   const expandedComposeRef = useRef<MessageRichComposeHandle>(null);
-  const noteComposeRef = useRef<HTMLTextAreaElement>(null);
-  const commentComposeRef = useRef<HTMLTextAreaElement>(null);
-  const commentScrollRef = useRef<HTMLDivElement>(null);
   const onReadRef = useRef(onRead);
   onReadRef.current = onRead;
 
@@ -1181,43 +1259,42 @@ export default function LeadMessageThread({
       page: result.page,
       hasMore,
       activities: extras?.activities ?? cached?.activities,
+      notesLoaded: extras?.notes !== undefined ? true : cached?.notesLoaded,
     });
   }
 
   useEffect(() => {
-    void resolveCurrentUser();
-  }, []);
-
-  useEffect(() => {
     // Ignore empty seed arrays — inbox passes `messages={[]}` which would otherwise
     // clear fetched messages whenever the parent re-renders after send.
-    if (initialMessages.length > 0) {
+    if (initialMessages.length > 0 && !getCachedLeadThread(leadId)?.notesLoaded) {
       setMessages(initialMessages);
     }
-  }, [initialMessages]);
+  }, [initialMessages, leadId]);
 
   useEffect(() => {
-    if (initialThreadActivities.length > 0) {
+    if (initialThreadActivities.length > 0 && !getCachedLeadThread(leadId)?.notesLoaded) {
       setThreadActivities(initialThreadActivities);
     }
-  }, [initialThreadActivities]);
+  }, [initialThreadActivities, leadId]);
 
   useEffect(() => {
     let cancelled = false;
-    const hasSeed = initialMessages.length > 0;
     const cached = getCachedLeadThread(leadId);
+    const cacheIsComplete = Boolean(cached?.notesLoaded);
     const cacheIsFresh = cached ? Date.now() - cached.fetchedAt < CACHE_FRESH_MS : false;
 
-    if (hasSeed) {
-      setLoading(false);
-    } else if (cached) {
+    if (cached) {
       setMessages(cached.messages);
       setNotes(cached.notes);
       setConversationId(cached.conversationId);
       setMessagesPage(cached.page);
       setMessagesHasMore(cached.hasMore);
       setThreadActivities(cached.activities);
-      setLoading(false);
+      setLoading(!cacheIsComplete);
+    } else if (initialMessages.length > 0) {
+      setMessages(initialMessages);
+      setThreadActivities(initialThreadActivities);
+      setLoading(true);
     } else {
       setMessages([]);
       setNotes([]);
@@ -1227,59 +1304,33 @@ export default function LeadMessageThread({
       setLoading(true);
     }
 
-    if (hasSeed && !revalidateSeed) {
-      // Authoritative seed from lead detail — keep existing cache warm.
-      setCachedLeadThread(leadId, {
-        messages: initialMessages,
-        activities: initialThreadActivities,
-        page: 1,
-        hasMore: false,
-      });
-      // Still load notes so Internal comments appear in Messages/Inbox.
-      void fetchLeadThreadPage(leadId, MESSAGE_FIRST_PAGE_SIZE)
-        .then((result) => {
-          if (cancelled) return;
-          setNotes(result.notes);
-          setConversationId(result.conversationId);
-          setCachedLeadThread(leadId, {
-            notes: result.notes,
-            conversationId: result.conversationId,
-          });
-        })
-        .catch(() => undefined);
-      return () => {
-        cancelled = true;
-      };
-    }
-
     (async () => {
       try {
-        if (!hasSeed && !cached) {
-          // Nothing painted yet, so join the request the inbox already started on
-          // hover/click rather than firing a duplicate.
-          const thread = await prefetchLeadThreadWithActivities(leadId);
-          if (cancelled) return;
-          setMessages(thread.messages);
-          setNotes(thread.notes);
-          setConversationId(thread.conversationId);
-          setMessagesPage(thread.page);
-          setMessagesHasMore(thread.hasMore);
-          setThreadActivities(thread.activities);
-        } else if (!cacheIsFresh) {
+        if (!(cacheIsComplete && cacheIsFresh)) {
           const take = Math.max(
             MESSAGE_FIRST_PAGE_SIZE,
             cached?.messages.length ?? 0,
-            hasSeed ? initialMessages.length : 0
+            initialMessages.length
           );
-
-          // Cache / seed is already painted, so this only replaces stale content.
-          const result = await fetchLeadThreadPage(leadId, take);
+          const thread = cacheIsComplete
+            ? await fetchLeadThreadPage(leadId, take)
+            : await prefetchLeadThreadWithActivities(leadId, take);
           if (cancelled) return;
-          applyMessagePage(result.pageResult, "replace", {
-            notes: result.notes,
-            conversationId: result.conversationId,
-            activities: result.activities,
-          });
+          applyMessagePage(
+            {
+              items: thread.messages,
+              page: thread.page,
+              limit: take,
+              total: thread.messages.length + (thread.hasMore ? 1 : 0),
+              hasMore: thread.hasMore,
+            },
+            "replace",
+            {
+              notes: thread.notes,
+              conversationId: thread.conversationId,
+              activities: thread.activities,
+            }
+          );
         }
       } catch {
         // keep cache / seed / empty state
@@ -1287,24 +1338,43 @@ export default function LeadMessageThread({
         if (!cancelled) setLoading(false);
       }
 
-      if (!teamConnectEnabled || cancelled) return;
+      if ((!teamConnectEnabled && !dialpadEnabled) || cancelled) return;
 
-      // Defer TeamConnect sync so first paint isn't blocked.
+      // Defer provider sync so first paint isn't blocked.
       await new Promise((resolve) => window.setTimeout(resolve, 1500));
       if (cancelled) return;
 
       try {
-        const sync = await api.syncLeadSmsFromTeamConnect(leadId);
-        // Nothing new upstream, so the thread on screen is already current.
-        if (cancelled || sync.synced === 0) return;
-        const synced = await api.listMessages({
-          leadId,
-          limit: String(
-            Math.max(MESSAGE_PAGE_SIZE, getCachedLeadThread(leadId)?.messages.length ?? 0)
-          ),
-          page: "1",
-        });
-        if (!cancelled) applyMessagePage(synced, "replace");
+        const [sms, calls] = await Promise.all([
+          teamConnectEnabled
+            ? api.syncLeadSmsFromTeamConnect(leadId).catch(() => ({ synced: 0 }))
+            : Promise.resolve({ synced: 0 }),
+          dialpadEnabled
+            ? api.syncLeadCallsFromDialpad(leadId).catch(() => ({ synced: 0 }))
+            : Promise.resolve({ synced: 0 }),
+        ]);
+        if (cancelled || (!sms.synced && !calls.synced)) return;
+        const take = Math.max(
+          MESSAGE_PAGE_SIZE,
+          getCachedLeadThread(leadId)?.messages.length ?? 0
+        );
+        const thread = await fetchLeadThreadPage(leadId, take);
+        if (cancelled) return;
+        applyMessagePage(
+          {
+            items: thread.messages,
+            page: thread.page,
+            limit: take,
+            total: thread.messages.length + (thread.hasMore ? 1 : 0),
+            hasMore: thread.hasMore,
+          },
+          "replace",
+          {
+            notes: thread.notes,
+            conversationId: thread.conversationId,
+            activities: thread.activities,
+          }
+        );
       } catch {
         // Sync is best-effort; UI already has DB messages.
       }
@@ -1313,12 +1383,20 @@ export default function LeadMessageThread({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when lead / TeamConnect changes
-  }, [leadId, teamConnectEnabled, revalidateSeed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when lead / messaging providers change
+  }, [leadId, teamConnectEnabled, dialpadEnabled, revalidateSeed]);
 
   useEffect(() => {
     hasScrolledToBottomRef.current = false;
   }, [leadId]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    const cached = getCachedLeadThread(leadId);
+    if (!cached) return;
+    setNotes(cached.notes);
+    if (cached.conversationId) setConversationId(cached.conversationId);
+  }, [isActive, leadId]);
 
   // Opening the thread clears it for the whole team and drops the matching bell items.
   useEffect(() => {
@@ -1347,36 +1425,9 @@ export default function LeadMessageThread({
   ]);
 
   useEffect(() => {
-    if (composeMode !== "reply" || channel !== "EMAIL") return;
+    if (channel !== "EMAIL") return;
     setSubject((current) => current || suggestEmailSubject(sortedMessages, targetMessage));
-  }, [channel, sortedMessages, composeMode, targetMessage]);
-
-  useEffect(() => {
-    if (!mentionQuery) {
-      setMentionSuggestions(null);
-      return;
-    }
-    const timer = setTimeout(() => {
-      void api.getMentionSuggestions(mentionQuery).then(setMentionSuggestions);
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [mentionQuery]);
-
-  const activeMentionToken = useMemo(() => {
-    if (commentModalNote) {
-      const cursor = commentComposeRef.current?.selectionStart ?? commentDraft.length;
-      const match = commentDraft.slice(0, cursor).match(/@([a-zA-Z0-9._-]*)$/);
-      return match ? match[1] : null;
-    }
-    const cursor = noteComposeRef.current?.selectionStart ?? noteDraft.length;
-    const match = noteDraft.slice(0, cursor).match(/@([a-zA-Z0-9._-]*)$/);
-    return match ? match[1] : null;
-  }, [noteDraft, commentDraft, commentModalNote]);
-
-  useEffect(() => {
-    if (activeMentionToken !== null) setMentionQuery(activeMentionToken);
-    else setMentionQuery("");
-  }, [activeMentionToken]);
+  }, [channel, sortedMessages, targetMessage]);
 
   useEffect(() => {
     if (!composeExpanded) return;
@@ -1392,42 +1443,25 @@ export default function LeadMessageThread({
     setTargetMessage(null);
   }
 
-  function openComposer(mode: ComposeMode, message?: Message | null) {
-    setComposeMode(mode);
+  function openComposer(message?: Message | null) {
     setTargetMessage(message ?? null);
     setComposeCollapsed(false);
     setError("");
-    if (mode === "reply" && message) {
+    if (message) {
       const nextChannel = (message.channel as Channel) || "EMAIL";
       setChannel(nextChannel);
       if (nextChannel === "EMAIL") {
         setSubject(suggestEmailSubject(sortedMessages, message));
       }
     }
-    if (mode === "note") {
-      requestAnimationFrame(() => noteComposeRef.current?.focus());
-    }
   }
 
   function openNoteComment(note: InternalMessageItem) {
-    // Slack-style: all comments hang off the root note.
-    const root =
-      note.parentMessageId
-        ? notes.find((n) => n.id === note.parentMessageId) ?? note
-        : note;
-    setCommentModalNote(root);
-    setCommentDraft("");
-    setCommentError("");
-    requestAnimationFrame(() => {
-      commentComposeRef.current?.focus();
-      commentScrollRef.current?.scrollIntoView({ block: "end" });
-    });
+    setCommentModalNote(rootNoteOf(note, notes));
   }
 
   function closeCommentModal() {
     setCommentModalNote(null);
-    setCommentDraft("");
-    setCommentError("");
   }
 
   function closeExpandedComposer() {
@@ -1460,8 +1494,11 @@ export default function LeadMessageThread({
     const silent = opts?.silent ?? false;
     if (!silent) setLoading(true);
     try {
-      const syncPromise = teamConnectEnabled
+      const smsPromise = teamConnectEnabled
         ? api.syncLeadSmsFromTeamConnect(leadId).catch(() => undefined)
+        : Promise.resolve(undefined);
+      const callsPromise = dialpadEnabled
+        ? api.syncLeadCallsFromDialpad(leadId).catch(() => undefined)
         : Promise.resolve(undefined);
 
       const take = Math.max(MESSAGE_PAGE_SIZE, messages.length, messagesPage * MESSAGE_PAGE_SIZE);
@@ -1473,12 +1510,14 @@ export default function LeadMessageThread({
       });
       if (!silent) setLoading(false);
 
-      if (teamConnectEnabled) {
-        const sync = await syncPromise;
-        if (sync?.synced) {
-          const synced = await api.listMessages({ leadId, limit: String(take), page: "1" });
-          applyMessagePage(synced, "replace");
-        }
+      const [sms, calls] = await Promise.all([smsPromise, callsPromise]);
+      if (sms?.synced || calls?.synced) {
+        const thread = await fetchLeadThreadPage(leadId, take);
+        applyMessagePage(thread.pageResult, "replace", {
+          notes: thread.notes,
+          conversationId: thread.conversationId,
+          activities: thread.activities,
+        });
       }
     } finally {
       if (!silent) setLoading(false);
@@ -1496,13 +1535,11 @@ export default function LeadMessageThread({
   }, [leadId, teamConnectEnabled, dialpadEnabled]);
 
   const composePlaceholder =
-    composeMode === "note"
-      ? "Add an internal note… Use @name to tag teammates"
-      : channel === "EMAIL"
-        ? "Write your email…"
-        : channel === "WHATSAPP"
-          ? "Write a WhatsApp message…"
-          : "Write an SMS…";
+    channel === "EMAIL"
+      ? "Write your email…"
+      : channel === "WHATSAPP"
+        ? "Write a WhatsApp message…"
+        : "Write an SMS…";
 
   const composeWindowControls = (
     <>
@@ -1515,175 +1552,26 @@ export default function LeadMessageThread({
       >
         <Minus className="size-4" aria-hidden />
       </button>
-      {composeMode === "reply" ? (
-        <button
-          type="button"
-          onClick={() => {
-            composeRef.current?.flushDraft();
-            setComposeExpanded(true);
-          }}
-          aria-label="Expand composer"
-          title="Expand"
-          className="flex size-8 items-center justify-center rounded-lg text-(--color-tc-30) transition hover:bg-(--color-nc-10) hover:text-(--color-tc-40)"
-        >
-          <Maximize2 className="size-3.5" aria-hidden />
-        </button>
-      ) : null}
+      <button
+        type="button"
+        onClick={() => {
+          composeRef.current?.flushDraft();
+          setComposeExpanded(true);
+        }}
+        aria-label="Expand composer"
+        title="Expand"
+        className="flex size-8 items-center justify-center rounded-lg text-(--color-tc-30) transition hover:bg-(--color-nc-10) hover:text-(--color-tc-40)"
+      >
+        <Maximize2 className="size-3.5" aria-hidden />
+      </button>
     </>
   );
 
   const smsNumbers = teamConnectNumbers.filter((n) => n.smsEnabled && n.status === "active");
   const showSmsNumberSelector =
-    composeMode === "reply" && channel === "SMS" && teamConnectEnabled && smsNumbers.length > 0;
-
-  async function handleSendNote() {
-    const text = noteDraft.trim();
-    const attachmentsToSend = [...noteAttachments];
-    if ((!text && attachmentsToSend.length === 0) || sending) return;
-
-    const referenced = targetMessage;
-    const tempId = `pending-${crypto.randomUUID()}`;
-    const author = meCache.current ?? { id: "me", fullName: "You", email: "" };
-    void resolveCurrentUser();
-
-    const optimistic = buildOptimisticNote({
-      tempId,
-      body: text,
-      author,
-      referencedMessage: referenced,
-    });
-    setNotes((prev) => {
-      const next = [...prev, optimistic];
-      setCachedLeadThread(leadId, { notes: next });
-      return next;
-    });
-    setError("");
-    setNoteDraft("");
-    setNoteAttachments([]);
-    clearComposeTarget();
-    setSending(true);
-    onSent?.();
-
-    try {
-      const thread =
-        conversationId
-          ? { id: conversationId }
-          : await ensureRecordThread({ leadId });
-      const attachmentIds: string[] = [];
-      for (const attachment of attachmentsToSend) {
-        attachmentIds.push(await api.uploadConversationAttachment(thread.id, attachment.file));
-      }
-      const created = await api.sendConversationMessage(thread.id, {
-        body: text || undefined,
-        referencedMessageId: referenced?.id,
-        attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
-      });
-      setNotes((prev) => {
-        const next = [...prev.filter((n) => n.id !== tempId && n.id !== created.id), created];
-        setCachedLeadThread(leadId, { notes: next, conversationId: thread.id });
-        const existingConv = getCachedConversationThread(thread.id)?.messages ?? [];
-        setCachedConversationThread(thread.id, {
-          messages: [
-            ...existingConv.filter((n) => n.id !== tempId && n.id !== created.id),
-            created,
-          ],
-        });
-        return next;
-      });
-      setConversationId(thread.id);
-    } catch (e) {
-      setNotes((prev) => {
-        const next = prev.filter((n) => n.id !== tempId);
-        setCachedLeadThread(leadId, { notes: next });
-        return next;
-      });
-      setNoteDraft(text);
-      setNoteAttachments(attachmentsToSend);
-      if (referenced) setTargetMessage(referenced);
-      const message = e instanceof Error ? e.message : "Failed to post note";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setSending(false);
-    }
-  }
-
-  async function handleSendComment() {
-    const text = commentDraft.trim();
-    if (!text || !commentModalNote) return;
-
-    const rootNote = commentModalNote;
-    const tempId = `pending-${crypto.randomUUID()}`;
-    const author = meCache.current ?? { id: "me", fullName: "You", email: "" };
-    void resolveCurrentUser();
-
-    const optimistic = buildOptimisticNote({
-      tempId,
-      body: text,
-      author,
-      parentMessageId: rootNote.id,
-    });
-    setNotes((prev) => {
-      const next = [...prev, optimistic];
-      setCachedLeadThread(leadId, { notes: next });
-      if (conversationId) {
-        const existingConv = getCachedConversationThread(conversationId)?.messages ?? [];
-        setCachedConversationThread(conversationId, {
-          messages: [...existingConv.filter((n) => n.id !== tempId), optimistic],
-        });
-      }
-      return next;
-    });
-    setCommentError("");
-    setCommentDraft("");
-    onSent?.();
-    requestAnimationFrame(() => {
-      commentScrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-      commentComposeRef.current?.focus();
-    });
-
-    try {
-      const thread =
-        conversationId
-          ? { id: conversationId }
-          : await ensureRecordThread({ leadId });
-      const created = await api.sendConversationMessage(thread.id, {
-        body: text,
-        parentMessageId: rootNote.id,
-      });
-      setNotes((prev) => {
-        const next = [...prev.filter((n) => n.id !== tempId && n.id !== created.id), created];
-        setCachedLeadThread(leadId, { notes: next, conversationId: thread.id });
-        const existingConv = getCachedConversationThread(thread.id)?.messages ?? [];
-        setCachedConversationThread(thread.id, {
-          messages: [
-            ...existingConv.filter((n) => n.id !== tempId && n.id !== created.id),
-            created,
-          ],
-        });
-        return next;
-      });
-      setConversationId(thread.id);
-    } catch (e) {
-      setNotes((prev) => {
-        const next = prev.filter((n) => n.id !== tempId);
-        setCachedLeadThread(leadId, { notes: next });
-        return next;
-      });
-      setCommentDraft(text);
-      const message = e instanceof Error ? e.message : "Failed to post comment";
-      setCommentError(message);
-      toast.error(message);
-      requestAnimationFrame(() => commentComposeRef.current?.focus());
-    }
-  }
+    channel === "SMS" && teamConnectEnabled && smsNumbers.length > 0;
 
   async function handleSend() {
-    if (composeMode === "note") {
-      await handleSendNote();
-      return;
-    }
-
     const emailPayload = channel === "EMAIL" ? getEmailPayload(htmlBody) : null;
     const activeComposeRef = composeExpanded ? expandedComposeRef : composeRef;
     const mediaUrls = channel !== "SMS" ? (activeComposeRef.current?.getMediaUrls() ?? []) : [];
@@ -1743,21 +1631,7 @@ export default function LeadMessageThread({
     }
   }
 
-  const noteRepliesByParent = useMemo(() => {
-    const map = new Map<string, InternalMessageItem[]>();
-    for (const note of notes) {
-      if (note.isDeleted || !note.parentMessageId) continue;
-      const list = map.get(note.parentMessageId) ?? [];
-      list.push(note);
-      map.set(note.parentMessageId, list);
-    }
-    for (const [, list] of map) {
-      list.sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
-    }
-    return map;
-  }, [notes]);
+  const repliesByParent = useMemo(() => noteRepliesByParent(notes), [notes]);
 
   const sortedThreadEntries = useMemo(() => {
     const entries: ThreadEntry[] = [
@@ -1846,14 +1720,8 @@ export default function LeadMessageThread({
     }
   }
 
-  return (
-    <CurvedContainer
-      className={cn(
-        "flex min-h-[min(32rem,calc(100dvh-8rem))] max-h-[calc(100dvh-8rem)] flex-col overflow-hidden",
-        className
-      )}
-      showBorderAndShadow
-    >
+  const threadBody = (
+    <>
       {headerActions ? (
         <div className="flex shrink-0 items-center border-b border-(--color-tc-20) px-4 py-2">
           {headerActions}
@@ -1867,7 +1735,7 @@ export default function LeadMessageThread({
           <div className="flex h-full flex-col items-center justify-center py-12 text-center">
             <p className="text-sm font-medium text-(--color-tc-40)">No messages yet</p>
             <p className="mt-1 max-w-sm text-xs text-(--color-tc-30)">
-              Send a reply or add an internal note below. Replies, notes, and calls appear here together.
+              Send a reply below. Replies, internal notes, and calls appear here together.
             </p>
           </div>
         ) : (
@@ -1901,7 +1769,7 @@ export default function LeadMessageThread({
               <NoteThreadBubble
                 key={item.key}
                 note={item.note}
-                replies={noteRepliesByParent.get(item.note.id) ?? []}
+                replies={repliesByParent.get(item.note.id) ?? []}
                 onComment={openNoteComment}
               />
             ) : (
@@ -1909,8 +1777,8 @@ export default function LeadMessageThread({
                 key={item.key}
                 message={item.message}
                 customerName={customerName}
-                onReply={(message) => openComposer("reply", message)}
-                onAddNote={(message) => openComposer("note", message)}
+                onReply={(message) => openComposer(message)}
+                onAddNote={onAddNote}
               />
             )
           )}
@@ -1922,7 +1790,7 @@ export default function LeadMessageThread({
         {composeCollapsed ? (
           <button
             type="button"
-            onClick={() => openComposer("reply")}
+            onClick={() => openComposer()}
             className="flex w-full items-center justify-between rounded-2xl border border-(--color-tc-20) bg-white px-4 py-3 text-left text-sm text-(--color-tc-30) shadow-[0_1px_3px_rgba(15,23,42,0.06)] transition hover:border-(--color-primary)/30 hover:bg-(--color-nc-10)/50"
           >
             <span>{composePlaceholder}</span>
@@ -1930,41 +1798,10 @@ export default function LeadMessageThread({
           </button>
         ) : (
           <>
-            <div className="mb-3 flex items-center gap-1 rounded-xl bg-(--color-nc-10) p-1">
-              <button
-                type="button"
-                onClick={() => setComposeMode("reply")}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition",
-                  composeMode === "reply"
-                    ? "bg-white text-(--color-tc-40) shadow-sm"
-                    : "text-(--color-tc-30) hover:text-(--color-tc-40)"
-                )}
-              >
-                <Reply className="size-3.5" aria-hidden />
-                Reply
-              </button>
-              <button
-                type="button"
-                onClick={() => setComposeMode("note")}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition",
-                  composeMode === "note"
-                    ? "bg-white text-rose-900 shadow-sm"
-                    : "text-(--color-tc-30) hover:text-(--color-tc-40)"
-                )}
-              >
-                <StickyNote className="size-3.5" aria-hidden />
-                Internal note
-              </button>
-            </div>
-
             {targetMessage ? (
               <div className="mb-3 flex items-start gap-2 rounded-xl border border-(--color-tc-20) bg-(--color-nc-10)/60 px-3 py-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-medium text-(--color-tc-30)">
-                    {composeMode === "note" ? "Note on" : "Replying to"}
-                  </p>
+                  <p className="text-[11px] font-medium text-(--color-tc-30)">Replying to</p>
                   <p className="truncate text-xs text-(--color-tc-40)">
                     {messagePreviewSnippet(targetMessage)}
                   </p>
@@ -1980,7 +1817,7 @@ export default function LeadMessageThread({
               </div>
             ) : null}
 
-            {composeMode === "reply" && channel === "EMAIL" && !composeExpanded && (
+            {channel === "EMAIL" && !composeExpanded && (
               <div className="mb-3">
                 <TextField
                   id="lead-message-subject"
@@ -2011,113 +1848,24 @@ export default function LeadMessageThread({
               </div>
             )}
 
-            {composeMode === "note" ? (
-              <div className="relative">
-                {mentionSuggestions && activeMentionToken !== null && (
-                  <div className="absolute bottom-full left-0 z-20 mb-2 max-h-48 w-full overflow-y-auto rounded-xl border border-(--color-tc-20) bg-white py-1 shadow-lg">
-                    {mentionSuggestions.users.map((u) => (
-                      <button
-                        key={u.id}
-                        type="button"
-                        className="block w-full px-3 py-2 text-left text-sm hover:bg-(--color-nc-10)"
-                        onClick={() =>
-                          insertMentionToken(u.mention, noteDraft, setNoteDraft, noteComposeRef)
-                        }
-                      >
-                        @{u.mention} — {u.fullName}
-                      </button>
-                    ))}
-                    {mentionSuggestions.groups.map((g) => (
-                      <button
-                        key={g.alias}
-                        type="button"
-                        className="block w-full px-3 py-2 text-left text-sm hover:bg-(--color-nc-10)"
-                        onClick={() =>
-                          insertMentionToken(g.alias, noteDraft, setNoteDraft, noteComposeRef)
-                        }
-                      >
-                        @{g.alias}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <div className="mb-2 flex items-center justify-end gap-1">{composeWindowControls}</div>
-                <ChatComposeField
-                  ref={noteComposeRef}
-                  value={noteDraft}
-                  onChange={setNoteDraft}
-                  onSend={() => void handleSendNote()}
-                  sending={sending}
-                  placeholder={composePlaceholder}
-                  attachments={noteAttachments}
-                  onAddAttachments={(files) => {
-                    const remaining = MAX_CHAT_ATTACHMENTS - noteAttachments.length;
-                    if (remaining <= 0) return;
-                    const next: LocalPendingAttachment[] = [];
-                    for (const file of Array.from(files).slice(0, remaining)) {
-                      if (validateChatAttachmentFile(file)) continue;
-                      next.push({
-                        id: crypto.randomUUID(),
-                        file,
-                        filename: file.name,
-                        mimeType: file.type,
-                        sizeBytes: file.size,
-                        previewUrl: file.type.startsWith("image/")
-                          ? URL.createObjectURL(file)
-                          : undefined,
-                      });
-                    }
-                    if (next.length > 0) setNoteAttachments((prev) => [...prev, ...next]);
-                  }}
-                  onRemoveAttachment={(id) => {
-                    setNoteAttachments((prev) => {
-                      const removed = prev.find((item) => item.id === id);
-                      if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
-                      return prev.filter((item) => item.id !== id);
-                    });
-                  }}
-                  onKeyDown={(event) => {
-                    if (
-                      event.key !== "Enter" ||
-                      event.shiftKey ||
-                      !mentionSuggestions ||
-                      activeMentionToken === null
-                    ) {
-                      return;
-                    }
-                    const firstUser = mentionSuggestions.users[0];
-                    const firstGroup = mentionSuggestions.groups[0];
-                    if (!firstUser && !firstGroup) return;
-                    event.preventDefault();
-                    insertMentionToken(
-                      firstUser?.mention ?? firstGroup!.alias,
-                      noteDraft,
-                      setNoteDraft,
-                      noteComposeRef
-                    );
-                  }}
-                />
-              </div>
-            ) : (
-              <div className={composeExpanded ? "hidden" : undefined}>
-                <MessageRichCompose
-                  ref={composeRef}
-                  channel={channel}
-                  plainValue={plainBody}
-                  htmlValue={htmlBody}
-                  onPlainChange={setPlainBody}
-                  onHtmlChange={setHtmlBody}
-                  onSend={handleSend}
-                  sending={sending}
-                  enableImageAttachments
-                  onUploadImage={async (file) => (await api.uploadMessageMedia(file)).url}
-                  onAttachmentError={setError}
-                  trailingSlot={<ChannelSelector channel={channel} onChange={setChannel} />}
-                  placeholder={composePlaceholder}
-                  headerActions={composeWindowControls}
-                />
-              </div>
-            )}
+            <div className={composeExpanded ? "hidden" : undefined}>
+              <MessageRichCompose
+                ref={composeRef}
+                channel={channel}
+                plainValue={plainBody}
+                htmlValue={htmlBody}
+                onPlainChange={setPlainBody}
+                onHtmlChange={setHtmlBody}
+                onSend={handleSend}
+                sending={sending}
+                enableImageAttachments
+                onUploadImage={async (file) => (await api.uploadMessageMedia(file)).url}
+                onAttachmentError={setError}
+                trailingSlot={<ChannelSelector channel={channel} onChange={setChannel} />}
+                placeholder={composePlaceholder}
+                headerActions={composeWindowControls}
+              />
+            </div>
           </>
         )}
 
@@ -2200,166 +1948,33 @@ export default function LeadMessageThread({
         </div>
       </CrmModal>
 
-      <CrmSlidePanel
-        isOpen={Boolean(commentModalNote)}
-        title="Note comments"
+      <NoteCommentsSlidePanel
+        leadId={leadId}
+        conversationId={conversationId}
+        note={commentModalNote}
+        notes={notes}
         onClose={closeCommentModal}
-        closeDisabled={sending}
-        widthClassName="max-w-lg"
-        footer={
-          commentModalNote ? (
-            <div className="w-full space-y-2">
-              <div className="relative">
-                {mentionSuggestions && activeMentionToken !== null && (
-                  <div className="absolute bottom-full left-0 z-20 mb-2 max-h-48 w-full overflow-y-auto rounded-xl border border-(--color-tc-20) bg-white py-1 shadow-lg">
-                    {mentionSuggestions.users.map((u) => (
-                      <button
-                        key={u.id}
-                        type="button"
-                        className="block w-full px-3 py-2 text-left text-sm hover:bg-(--color-nc-10)"
-                        onClick={() =>
-                          insertMentionToken(
-                            u.mention,
-                            commentDraft,
-                            setCommentDraft,
-                            commentComposeRef
-                          )
-                        }
-                      >
-                        @{u.mention} — {u.fullName}
-                      </button>
-                    ))}
-                    {mentionSuggestions.groups.map((g) => (
-                      <button
-                        key={g.alias}
-                        type="button"
-                        className="block w-full px-3 py-2 text-left text-sm hover:bg-(--color-nc-10)"
-                        onClick={() =>
-                          insertMentionToken(
-                            g.alias,
-                            commentDraft,
-                            setCommentDraft,
-                            commentComposeRef
-                          )
-                        }
-                      >
-                        @{g.alias}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <ChatComposeField
-                  ref={commentComposeRef}
-                  value={commentDraft}
-                  onChange={setCommentDraft}
-                  onSend={() => void handleSendComment()}
-                  placeholder="Write a comment… Use @name to tag teammates"
-                  onKeyDown={(event) => {
-                    if (
-                      event.key !== "Enter" ||
-                      event.shiftKey ||
-                      !mentionSuggestions ||
-                      activeMentionToken === null
-                    ) {
-                      return;
-                    }
-                    const firstUser = mentionSuggestions.users[0];
-                    const firstGroup = mentionSuggestions.groups[0];
-                    if (!firstUser && !firstGroup) return;
-                    event.preventDefault();
-                    insertMentionToken(
-                      firstUser?.mention ?? firstGroup!.alias,
-                      commentDraft,
-                      setCommentDraft,
-                      commentComposeRef
-                    );
-                  }}
-                />
-              </div>
-              {commentError ? <p className="text-xs text-red-600">{commentError}</p> : null}
-              <div className="flex justify-end gap-2">
-                <SecondaryButton
-                  type="button"
-                  size="small"
-                  className="w-auto"
-                  onClick={closeCommentModal}
-                  disabled={sending}
-                >
-                  Close
-                </SecondaryButton>
-                <PrimaryButton
-                  type="button"
-                  className="w-auto"
-                  onClick={() => void handleSendComment()}
-                  disabled={!commentDraft.trim()}
-                >
-                  Post comment
-                </PrimaryButton>
-              </div>
-            </div>
-          ) : undefined
-        }
-      >
-        {commentModalNote ? (
-          <div className="space-y-3">
-            <div className="rounded-xl border border-rose-200/90 bg-rose-50 px-4 py-3">
-              <div className="mb-1.5 flex flex-wrap items-center gap-2 text-xs text-rose-900/70">
-                <StickyNote className="size-3.5 shrink-0 text-rose-700" aria-hidden />
-                <span className="font-semibold text-rose-950">Internal note</span>
-                <span className="font-medium text-rose-900">{commentModalNote.author.fullName}</span>
-                <span>{formatChatTime(commentModalNote.createdAt)}</span>
-              </div>
-              {commentModalNote.referencedPreview ? (
-                <p className="mb-2 truncate rounded-lg border border-rose-200/80 bg-white/70 px-2.5 py-1 text-[11px] text-rose-900/80">
-                  On:{" "}
-                  {commentModalNote.referencedPreview.subject?.trim() ||
-                    commentModalNote.referencedPreview.body}
-                </p>
-              ) : null}
-              <p className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-rose-950">
-                {renderNoteBody(commentModalNote.body, commentModalNote.mentions)}
-              </p>
-            </div>
+        onNotesChange={(next, nextConversationId) => {
+          setNotes(next);
+          if (nextConversationId) setConversationId(nextConversationId);
+        }}
+      />
+    </>
+  );
 
-            {(noteRepliesByParent.get(commentModalNote.id) ?? []).length === 0 ? (
-              <p className="ml-4 border-l-2 border-rose-100 pl-4 text-xs text-(--color-tc-30)">
-                No comments yet. Be the first.
-              </p>
-            ) : (
-              <div className="ml-4 space-y-2.5 border-l-2 border-rose-200 pl-4">
-                <p className="text-[11px] font-medium text-rose-800/80">
-                  {(noteRepliesByParent.get(commentModalNote.id) ?? []).length}{" "}
-                  {(noteRepliesByParent.get(commentModalNote.id) ?? []).length === 1
-                    ? "comment"
-                    : "comments"}
-                </p>
-                {(noteRepliesByParent.get(commentModalNote.id) ?? []).map((reply) => (
-                  <div
-                    key={reply.id}
-                    className={cn(
-                      "rounded-lg border border-rose-100 bg-white px-3 py-2.5 shadow-sm",
-                      reply.id.startsWith("pending-") && "opacity-70"
-                    )}
-                  >
-                    <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] text-rose-900/65">
-                      <span className="font-semibold text-rose-950">{reply.author.fullName}</span>
-                      <span>{formatChatTime(reply.createdAt)}</span>
-                    </div>
-                    <p className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-rose-950">
-                      {reply.isDeleted ? (
-                        <span className="italic text-rose-900/60">[Comment deleted]</span>
-                      ) : (
-                        renderNoteBody(reply.body, reply.mentions)
-                      )}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div ref={commentScrollRef} />
-          </div>
-        ) : null}
-      </CrmSlidePanel>
+  if (!framed) {
+    return <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", className)}>{threadBody}</div>;
+  }
+
+  return (
+    <CurvedContainer
+      className={cn(
+        "flex min-h-[min(32rem,calc(100dvh-8rem))] max-h-[calc(100dvh-8rem)] flex-col overflow-hidden",
+        className
+      )}
+      showBorderAndShadow
+    >
+      {threadBody}
     </CurvedContainer>
   );
 }

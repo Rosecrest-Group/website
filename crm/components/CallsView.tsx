@@ -635,10 +635,44 @@ function CallDetail({
   const pill = statusPill(call);
   const duration =
     call.durationSeconds != null ? formatCallDuration(call.durationSeconds) : null;
-  const transcript = call.transcript ?? call.recapSummary;
-  const transcriptLabel = call.transcript ? "Call transcript" : "Call recap";
+  const transcript = call.transcript;
+  const recapPurposes = call.recapPurposes ?? [];
+  const recapActionItems = call.recapActionItems ?? [];
+  const hasRecap = Boolean(
+    call.recapSummary ||
+      call.recapDisposition ||
+      recapPurposes.length ||
+      recapActionItems.length
+  );
   const number = call.contactNumber ?? call.customerPhone;
   const initials = initialsFromName(name);
+  const [recordingSrc, setRecordingSrc] = useState<string | null>(null);
+  const [recordingError, setRecordingError] = useState(false);
+
+  useEffect(() => {
+    if (!call.recordingUrl) {
+      setRecordingSrc(null);
+      setRecordingError(false);
+      return;
+    }
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    setRecordingError(false);
+    api
+      .fetchDialpadCallRecording(call.id)
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setRecordingSrc(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setRecordingError(true);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [call.id, call.recordingUrl]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -714,23 +748,52 @@ function CallDetail({
           {call.recordingUrl ? (
             <section className="rounded-xl border border-line bg-surface p-5">
               <h3 className="text-base font-medium text-ink">Recording</h3>
-              <audio controls preload="none" className="mt-3 w-full">
-                <source src={call.recordingUrl} />
-              </audio>
-              <a
-                href={call.recordingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-block text-xs font-medium text-brand hover:underline"
-              >
-                Open recording
-              </a>
+              {recordingSrc ? (
+                <audio controls preload="metadata" src={recordingSrc} className="mt-3 w-full" />
+              ) : recordingError ? (
+                <p className="mt-3 text-sm text-rose-700">Recording could not be loaded</p>
+              ) : (
+                <p className="mt-3 text-sm text-ink-muted">Loading recording…</p>
+              )}
+            </section>
+          ) : null}
+
+          {hasRecap ? (
+            <section className="rounded-xl border border-line bg-surface p-5">
+              <h3 className="text-base font-medium text-ink">Call recap</h3>
+              {call.recapSummary ? (
+                <p className="mt-3 max-h-80 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-ink">
+                  {call.recapSummary}
+                </p>
+              ) : null}
+              {call.recapDisposition ? (
+                <div className="mt-3">
+                  <h4 className="text-xs font-medium text-ink-muted">Outcome</h4>
+                  <p className="mt-1 text-sm text-ink">{call.recapDisposition}</p>
+                </div>
+              ) : null}
+              {recapPurposes.length > 0 ? (
+                <div className="mt-3">
+                  <h4 className="text-xs font-medium text-ink-muted">Purpose</h4>
+                  <p className="mt-1 text-sm text-ink">{recapPurposes.join(" · ")}</p>
+                </div>
+              ) : null}
+              {recapActionItems.length > 0 ? (
+                <div className="mt-3">
+                  <h4 className="text-xs font-medium text-ink-muted">Action items</h4>
+                  <ul className="mt-1 list-disc space-y-1 pl-4 text-sm text-ink">
+                    {recapActionItems.map((item, index) => (
+                      <li key={`${index}-${item.slice(0, 24)}`}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </section>
           ) : null}
 
           {transcript ? (
             <section className="rounded-xl border border-line bg-surface p-5">
-              <h3 className="text-base font-medium text-ink">{transcriptLabel}</h3>
+              <h3 className="text-base font-medium text-ink">Call transcript</h3>
               <p className="mt-3 max-h-80 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-ink">
                 {transcript}
               </p>

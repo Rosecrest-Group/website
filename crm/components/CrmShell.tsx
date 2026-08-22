@@ -61,8 +61,8 @@ function CrmShellInner({
 
   return (
     <div className={`crm-theme ${inter.variable} flex h-dvh w-full overflow-hidden bg-surface text-ink`}>
-      <div className="hidden min-h-0 lg:flex">
-        <CrmSidebar initialUser={initialUser} />
+      <div className="relative z-10 hidden min-h-0 lg:flex">
+        <CrmSidebar collapsible initialUser={initialUser} />
       </div>
 
       <button

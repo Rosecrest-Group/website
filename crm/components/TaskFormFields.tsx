@@ -22,6 +22,7 @@ export interface TaskFormFieldsProps {
   leadLink?: string | null;
   dueDatePlacement?: "up" | "down";
   disabled?: boolean;
+  wide?: boolean;
 }
 
 export default function TaskFormFields({
@@ -32,7 +33,52 @@ export default function TaskFormFields({
   leadLink,
   dueDatePlacement = "up",
   disabled = false,
+  wide = false,
 }: TaskFormFieldsProps) {
+  const assigneeField = (
+    <SelectField
+      label="Assign to"
+      value={form.assigneeId}
+      disabled={disabled}
+      onChange={(e) => onChange({ assigneeId: e.target.value })}
+    >
+      <option value="">Unassigned</option>
+      {teamMembers.map((member) => (
+        <option key={member.id} value={member.id}>
+          {member.fullName}
+        </option>
+      ))}
+    </SelectField>
+  );
+
+  const leadField = (
+    <LeadSearchPicker
+      value={form.leadId || null}
+      displayLabel={form.leadLabel || null}
+      placement={dueDatePlacement}
+      disabled={disabled}
+      onChange={(leadId, leadLabel) =>
+        onChange({
+          leadId: leadId ?? "",
+          leadLabel: leadLabel ?? "",
+        })
+      }
+    />
+  );
+
+  const dueDateField = (
+    <CalendarInput
+      id="task-due-date"
+      label="Due date"
+      name="dueAt"
+      value={form.dueAt}
+      placeholder="Select date and time"
+      placement={dueDatePlacement}
+      includeTime
+      onChange={(_name, value) => onChange({ dueAt: value })}
+    />
+  );
+
   return (
     <div className="space-y-4">
       {showStatus && (
@@ -77,48 +123,24 @@ export default function TaskFormFields({
         />
       </div>
 
-      <SelectField
-        label="Assign to"
-        value={form.assigneeId}
-        disabled={disabled}
-        onChange={(e) => onChange({ assigneeId: e.target.value })}
-      >
-        <option value="">Unassigned</option>
-        {teamMembers.map((member) => (
-          <option key={member.id} value={member.id}>
-            {member.fullName}
-          </option>
-        ))}
-      </SelectField>
-
-      <LeadSearchPicker
-        value={form.leadId || null}
-        displayLabel={form.leadLabel || null}
-        placement={dueDatePlacement}
-        disabled={disabled}
-        onChange={(leadId, leadLabel) =>
-          onChange({
-            leadId: leadId ?? "",
-            leadLabel: leadLabel ?? "",
-          })
-        }
-      />
-
-      {leadLink && form.leadId && (
-        <Link href={leadLink} className="inline-block text-sm text-(--color-primary) hover:underline">
-          View linked lead →
-        </Link>
+      {wide ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {assigneeField}
+          <div>{leadField}</div>
+          <div className="sm:col-span-2">{dueDateField}</div>
+        </div>
+      ) : (
+        <>
+          {assigneeField}
+          {dueDateField}
+          {leadField}
+          {leadLink && form.leadId && (
+            <Link href={leadLink} className="inline-block text-sm text-(--color-primary) hover:underline">
+              View linked lead →
+            </Link>
+          )}
+        </>
       )}
-
-      <CalendarInput
-        id="task-due-date"
-        label="Due date"
-        name="dueAt"
-        value={form.dueAt}
-        placeholder="Select date"
-        placement={dueDatePlacement}
-        onChange={(_name, value) => onChange({ dueAt: value })}
-      />
     </div>
   );
 }

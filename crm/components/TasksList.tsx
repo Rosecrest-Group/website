@@ -7,38 +7,24 @@ import { Check, Trash2 } from "lucide-react";
 import { api } from "@/crm/lib/api";
 import { getListPageCache, setListPageCache } from "@/crm/lib/listPageCache";
 import { TASK_STATUS_LABELS } from "@/crm/lib/constants";
-import {
-  buildTaskPayload,
-  emptyTaskForm,
-  type TaskFormState,
-} from "@/crm/lib/taskForm";
+import { formatTaskDueAt, isTaskOverdue } from "@/crm/lib/taskForm";
 import type { Task, TaskStatus } from "@/crm/types";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
-import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import SelectField from "@/crm/components/ui/SelectField";
 import Table, { type Column } from "@/crm/components/ui/Table";
 import StatusPill from "@/crm/components/ui/StatusPill";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
-import CrmModal from "@/crm/components/ui/CrmModal";
 import ActionDropdown from "@/crm/components/ui/ActionDropdown";
 import ConfirmModal from "@/crm/components/ui/ConfirmModal";
-import TaskFormFields from "@/crm/components/TaskFormFields";
+import CreateTaskModal from "@/crm/components/CreateTaskModal";
 import TaskDetailPanel from "@/crm/components/TaskDetailPanel";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 function taskStatusToPillVariant(status: TaskStatus): "completed" | "pending" {
   return status === "DONE" ? "completed" : "pending";
-}
-
-function formatDueDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 export default function TasksList({
@@ -62,9 +48,6 @@ export default function TasksList({
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState<TaskFormState>(emptyTaskForm);
-  const [createError, setCreateError] = useState("");
-  const [creating, setCreating] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -144,35 +127,7 @@ export default function TasksList({
   }, [searchParams, tasks, selectedTask?.id, router]);
 
   function openCreateModal() {
-    setCreateForm(emptyTaskForm);
-    setCreateError("");
     setCreateOpen(true);
-  }
-
-  function closeCreateModal() {
-    if (creating) return;
-    setCreateOpen(false);
-    setCreateForm(emptyTaskForm);
-    setCreateError("");
-  }
-
-  async function handleCreate() {
-    if (!createForm.title.trim()) {
-      setCreateError("Title is required");
-      return;
-    }
-
-    setCreating(true);
-    setCreateError("");
-    try {
-      await api.createTask(buildTaskPayload(createForm));
-      closeCreateModal();
-      load();
-    } catch (e) {
-      setCreateError(e instanceof Error ? e.message : "Failed to create task");
-    } finally {
-      setCreating(false);
-    }
   }
 
   function handleTaskUpdated(updated: Task) {
@@ -265,9 +220,20 @@ export default function TasksList({
     {
       key: "dueAt",
       header: "Due",
-      render: (value) => (
-        <span className="text-sm text-ink-muted tabular-nums">{formatDueDate(value as string | null)}</span>
-      ),
+      render: (value, row) => {
+        const overdue = isTaskOverdue(value as string | null, row.status);
+        return (
+          <span
+            className={cn(
+              "text-sm tabular-nums",
+              overdue ? "font-medium text-red-600" : "text-ink-muted"
+            )}
+          >
+            {formatTaskDueAt(value as string | null)}
+            {overdue ? " · Overdue" : ""}
+          </span>
+        );
+      },
     },
     {
       key: "status",
@@ -383,34 +349,15 @@ export default function TasksList({
         onDeleted={handleTaskDeleted}
       />
 
-      <CrmModal
+      <CreateTaskModal
         isOpen={createOpen}
-        title="New task"
-        description="Create a task and assign it to a team member."
-        onClose={closeCreateModal}
-        closeDisabled={creating}
-        footer={
-          <>
-            <SecondaryButton type="button" className="w-auto" disabled={creating} onClick={closeCreateModal}>
-              Cancel
-            </SecondaryButton>
-            <PrimaryButton type="button" className="w-auto px-6" disabled={creating} onClick={() => void handleCreate()}>
-              {creating ? "Creating…" : "Create task"}
-            </PrimaryButton>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <TaskFormFields
-            form={createForm}
-            onChange={(patch) => setCreateForm((f) => ({ ...f, ...patch }))}
-            teamMembers={teamMembers}
-            dueDatePlacement="up"
-            disabled={creating}
-          />
-          {createError && <p className="text-sm text-red-600">{createError}</p>}
-        </div>
-      </CrmModal>
+        onClose={() => setCreateOpen(false)}
+        teamMembers={teamMembers}
+        onCreated={() => {
+          toast.success("Task created");
+          load();
+        }}
+      />
 
       <ConfirmModal
         isOpen={!!deleteTarget}

@@ -15,6 +15,7 @@ export type CachedLeadThread = {
   activities: Activity[];
   page: number;
   hasMore: boolean;
+  notesLoaded: boolean;
   fetchedAt: number;
 };
 
@@ -37,6 +38,12 @@ export function setCachedLeadThread(leadId: string, patch: Partial<CachedLeadThr
     activities: patch.activities ?? existing?.activities ?? [],
     page: patch.page ?? existing?.page ?? 1,
     hasMore: patch.hasMore ?? existing?.hasMore ?? false,
+    notesLoaded:
+      patch.notesLoaded !== undefined
+        ? patch.notesLoaded
+        : patch.notes !== undefined
+          ? true
+          : (existing?.notesLoaded ?? false),
     fetchedAt: Date.now(),
   };
   cache.set(leadId, next);
@@ -71,10 +78,11 @@ export function prefetchLeadThread(
     activities?: Activity[];
     page: number;
     hasMore: boolean;
-  }>
+  }>,
+  opts?: { force?: boolean }
 ): Promise<CachedLeadThread> {
   const cached = cache.get(leadId);
-  if (cached) return Promise.resolve(cached);
+  if (!opts?.force && cached?.notesLoaded) return Promise.resolve(cached);
 
   const existing = inflight.get(leadId);
   if (existing) return existing;
@@ -88,6 +96,7 @@ export function prefetchLeadThread(
         activities: result.activities ?? [],
         page: result.page,
         hasMore: result.hasMore,
+        notesLoaded: true,
       })
     )
     .finally(() => {
