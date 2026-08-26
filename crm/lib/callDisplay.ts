@@ -20,13 +20,65 @@ export function callDisplayName(call: Pick<DialpadCall, "customerName" | "contac
   return call.customerName?.trim() || call.contactNumber || "Unknown caller";
 }
 
+export function phonesLooselyMatch(a?: string | null, b?: string | null): boolean {
+  if (!a || !b) return false;
+  const da = a.replace(/\D/g, "").slice(-10);
+  const db = b.replace(/\D/g, "").slice(-10);
+  return da.length >= 8 && da === db;
+}
+
+export function parseCallDirection(raw: unknown): DialpadCall["direction"] | null {
+  if (typeof raw !== "string") return null;
+  const text = raw.trim().toLowerCase();
+  if (!text) return null;
+  if (text === "inbound" || text === "incoming" || text === "in") return "inbound";
+  if (text === "outbound" || text === "outgoing" || text === "out") return "outbound";
+  if (text.includes("inbound") || text.includes("incoming")) return "inbound";
+  if (text.includes("outbound") || text.includes("outgoing")) return "outbound";
+  return null;
+}
+
+export function resolveCallDirection(
+  meta: Record<string, unknown> | null | undefined,
+  customerPhone?: string | null,
+  description?: string | null
+): DialpadCall["direction"] {
+  const record = meta ?? {};
+  const explicit = parseCallDirection(record.direction);
+  if (explicit) return explicit;
+
+  const from = typeof record.from === "string" ? record.from : null;
+  const to = typeof record.to === "string" ? record.to : null;
+  if (customerPhone && phonesLooselyMatch(from, customerPhone)) return "inbound";
+  if (customerPhone && phonesLooselyMatch(to, customerPhone)) return "outbound";
+
+  const nested =
+    record.metadata && typeof record.metadata === "object" && !Array.isArray(record.metadata)
+      ? (record.metadata as Record<string, unknown>)
+      : null;
+  const nestedDirection = parseCallDirection(nested?.direction);
+  if (nestedDirection) return nestedDirection;
+
+  const desc = (description ?? "").trim().toLowerCase();
+  if (desc.startsWith("inbound")) return "inbound";
+  if (desc.startsWith("outbound")) return "outbound";
+
+  return "outbound";
+}
+
+export function callDirectionLabel(direction: DialpadCall["direction"]): "Incoming" | "Outgoing" {
+  return direction === "outbound" ? "Outgoing" : "Incoming";
+}
+
 export function callStatusLabel(
   call: Pick<DialpadCall, "status" | "direction" | "outcome">
 ): string {
   if (call.status === "live") {
     return call.direction === "outbound" ? "Outgoing call…" : "Incoming call…";
   }
-  if (call.status === "voicemail") return "Voicemail";
+  if (call.status === "voicemail") {
+    return call.direction === "outbound" ? "Outgoing voicemail" : "Incoming voicemail";
+  }
   if (call.status === "missed") {
     const outcome = call.outcome ?? "";
     if (outcome === "busy") return "Busy";

@@ -10,6 +10,9 @@ type StatusVariant =
   | "failed"
   | "new"
   | "awaiting"
+  | "assigned"
+  | "upload"
+  | "qc"
   | "paused";
 
 type StatusPillProps = {
@@ -29,6 +32,9 @@ const statusConfig: Record<
       | "crmFailed"
       | "crmNew"
       | "crmAwaiting"
+      | "crmAssigned"
+      | "crmUpload"
+      | "crmQc"
       | "crmPaused";
     defaultLabel: string;
     dotClass: string;
@@ -64,9 +70,24 @@ const statusConfig: Record<
     defaultLabel: "Awaiting",
     dotClass: "bg-teal-500",
   },
+  assigned: {
+    badgeVariant: "crmAssigned",
+    defaultLabel: "Assigned",
+    dotClass: "bg-indigo-500",
+  },
+  upload: {
+    badgeVariant: "crmUpload",
+    defaultLabel: "Upload",
+    dotClass: "bg-blue-500",
+  },
+  qc: {
+    badgeVariant: "crmQc",
+    defaultLabel: "QC",
+    dotClass: "bg-rose-500",
+  },
   paused: {
     badgeVariant: "crmPaused",
-    defaultLabel: "Paused",
+    defaultLabel: "On hold",
     dotClass: "bg-slate-400",
   },
 };
@@ -94,6 +115,8 @@ export function leadStageToPillVariant(stage: string): StatusVariant {
 
 export function jobStageToPillVariant(stage: string): StatusVariant {
   switch (stage) {
+    case "PENDING_PAYMENT":
+      return "paused";
     case "PAID":
     case "WORK_SCHEDULED":
       return "new";
@@ -101,17 +124,23 @@ export function jobStageToPillVariant(stage: string): StatusVariant {
     case "WORK_IN_PROGRESS":
       return "pending";
     case "ACCESS_CONFIRMED":
-    case "INSPECTION_COMPLETE":
-    case "REPORT_DRAFTING":
-    case "REPORT_QC":
-    case "WORK_COMPLETE":
-      return "awaiting";
+      return "assigned";
     case "INSPECTION_BOOKED":
     case "SNAGGING":
       return "in-review";
+    case "INSPECTION_COMPLETE":
+    case "WORK_COMPLETE":
+      return "awaiting";
+    case "DATA_UPLOAD":
+    case "REPORT_DRAFTING":
+      return "upload";
+    case "REPORT_QC":
+      return "qc";
     case "REPORT_DELIVERED":
     case "COMPLETED":
       return "completed";
+    case "CANCELLED":
+      return "failed";
     default:
       return "in-review";
   }

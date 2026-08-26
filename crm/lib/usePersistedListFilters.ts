@@ -133,9 +133,9 @@ export function usePersistedListFilters<T extends ListFilterValues>(
     };
   }, [applyFilters, replaceUrl]);
 
-  const setFilter = useCallback(
-    (key: keyof T & string, value: string) => {
-      const next = { ...filtersRef.current, [key]: value };
+  const setFilters = useCallback(
+    (patch: Partial<T>) => {
+      const next = { ...filtersRef.current, ...patch };
       applyFilters(next);
       persist(next);
       replaceUrl(next);
@@ -143,5 +143,12 @@ export function usePersistedListFilters<T extends ListFilterValues>(
     [applyFilters, persist, replaceUrl],
   );
 
-  return { filters, setFilter, filtersReady };
+  const setFilter = useCallback(
+    (key: keyof T & string, value: string) => {
+      setFilters({ [key]: value } as Partial<T>);
+    },
+    [setFilters],
+  );
+
+  return { filters, setFilter, setFilters, filtersReady };
 }

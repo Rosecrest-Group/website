@@ -14,7 +14,7 @@ import { mergeBodyWithMediaUrls, parseTrailingMediaUrls } from "@/crm/lib/messag
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import TextField from "@/crm/components/ui/TextField";
-import { isHtmlContent, plainTextToHtml, sanitizeEmailHtml } from "@/crm/lib/messageFormatting";
+import { isDesignedEmailHtml, isHtmlContent, plainTextToHtml, sanitizeEmailHtml } from "@/crm/lib/messageFormatting";
 
 const MERGE_FIELDS = [
   "{{customer.firstName}}",
@@ -381,7 +381,9 @@ export default function TemplateEditorPanel({
             {preview.subject && <p className="mt-1 font-medium text-(--color-tc-40)">{preview.subject}</p>}
             {channel === "EMAIL" ? (
               <div
-                className="crm-email-body mt-2 rounded-xl bg-(--color-nc-10) p-3 text-sm text-(--color-tc-40) [&_a]:text-(--color-primary) [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl"
+                className={`crm-email-body mt-2 rounded-xl bg-(--color-nc-10) p-3 text-sm text-(--color-tc-40) [&_a]:text-(--color-primary) [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl${
+                  isDesignedEmailHtml(preview.body) ? " crm-email-body--designed" : ""
+                }`}
                 dangerouslySetInnerHTML={{
                   __html: sanitizeEmailHtml(
                     isHtmlContent(preview.body) ? preview.body : plainTextToHtml(preview.body)

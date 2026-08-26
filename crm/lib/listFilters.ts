@@ -119,6 +119,20 @@ export function listFiltersHref<T extends ListFilterValues>(pathname: string, fi
   return qs ? `${pathname}?${qs}` : pathname;
 }
 
+export function storedListFiltersHref<T extends ListFilterValues>(
+  pageKey: string,
+  pathname: string,
+  keys: readonly (keyof T & string)[],
+  defaults: T,
+  allow?: ListFilterAllow<T>,
+): string {
+  const userId = resolveListFilterUserId(null);
+  const stored = userId
+    ? readListFilters(pageKey, userId, keys, defaults, allow)
+    : { ...defaults };
+  return listFiltersHref(pathname, stored);
+}
+
 export function resolveListFilterUserId(cachedUserId: string | null | undefined): string | null {
   return cachedUserId || readLastUserId();
 }

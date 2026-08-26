@@ -27,6 +27,9 @@ playwright-report/
 start.bat
 checkapi.bat
 
+# local CRM drafts / prototypes
+/crm/docs/
+
 # API lives in a separate repo (Rosecrest-Group/crm-api)
 /api/
 /api-temp/

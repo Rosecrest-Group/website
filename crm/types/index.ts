@@ -551,6 +551,60 @@ export interface Lead {
   tags?: LeadTag[];
 }
 
+export type PipelineSlice =
+  | "all"
+  | "waiting_on_us"
+  | "clicked_unpaid"
+  | "new_untouched"
+  | "stale";
+
+export type PipelineBucket =
+  | "waiting_on_us"
+  | "clicked_unpaid"
+  | "new_untouched"
+  | "awaiting_cold"
+  | "follow_up_stale"
+  | "rest";
+
+export interface PipelineCard {
+  id: string;
+  stage: LeadStage;
+  source: LeadSource;
+  quotedAmount: number | null;
+  propertyAddress: string;
+  propertyPostcode: string;
+  customerName: string;
+  customerPhone: string | null;
+  customerEmail: string | null;
+  assignedTo: { id: string; fullName: string; email: string } | null;
+  paymentLinkClickedAt: string | null;
+  lastInboundAt: string | null;
+  lastOutboundAt: string | null;
+  lastHumanTouchAt: string | null;
+  stageEnteredAt: string | null;
+  createdAt: string;
+  rotting: boolean;
+  bucket: PipelineBucket;
+  reason: string;
+  score?: number;
+  pWin?: number;
+  scoreReasons?: string[];
+}
+
+export interface PipelineBoardColumn {
+  stage: LeadStage;
+  count: number;
+  quotedAmount: number;
+  rottingCount: number;
+  hasMore: boolean;
+  cards: PipelineCard[];
+}
+
+export interface PipelineBoardResponse {
+  totals: { count: number; quotedAmount: number; rottingCount: number };
+  columns: PipelineBoardColumn[];
+}
+
 export interface Activity {
   id: string;
   type: string;
@@ -558,6 +612,25 @@ export interface Activity {
   metadata?: Record<string, unknown> | null;
   createdAt: string;
   author?: { id: string; fullName: string } | null;
+}
+
+export interface LeadSignal {
+  id: string;
+  sourceKind: "MESSAGE" | "CALL" | "NOTE";
+  sourceId: string;
+  intent: string | null;
+  objection: string | null;
+  competitorMentioned: boolean;
+  statedTimeline: string | null;
+  exchangeDate: string | null;
+  decisionMakerPresent: boolean | null;
+  priceSensitivity: string | null;
+  sentiment: string | null;
+  explicitStop: boolean;
+  nextAction: string | null;
+  confidence: number | null;
+  modelVersion: string;
+  createdAt: string;
 }
 
 export interface Message {
@@ -725,6 +798,18 @@ export interface LeadDetail extends Lead {
   possibleDuplicateLeads?: PossibleDuplicateLead[];
   /** Partner free-text notes (e.g. Pinlocal survey requirements). */
   intakeMessage?: string | null;
+  intakeDocuments?: IntakeDocument[];
+  signals?: LeadSignal[];
+}
+
+export interface IntakeDocument {
+  id: string;
+  type: string;
+  filename: string;
+  storageUrl: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
 }
 
 export interface Job {
@@ -758,6 +843,8 @@ export interface Job {
   surveyorDiaryConfirmed?: boolean;
   surveyorDesktopResearch?: boolean;
   reviewRequestSentAt?: string | null;
+  reportDeliveredAt?: string | null;
+  surveyorNotifiedAt?: string | null;
   inspectionDate?: string | null;
   inspectionWindow?: string | null;
   reportInternalDeadline?: string | null;
@@ -838,6 +925,17 @@ export interface DashboardComparison {
   };
 }
 
+export interface ProductMixRow {
+  key: string;
+  leads: number;
+  quoted: number;
+  quoteRate: number;
+  won: number;
+  winRate: number;
+  revenue: number;
+  avgWonValue: number;
+}
+
 export interface DashboardSales {
   period?: DashboardPeriod;
   since?: string;
@@ -854,7 +952,45 @@ export interface DashboardSales {
   avgTimeToPayDays: number;
   avgTimeToQuoteDays?: number;
   avgTimeToWinDays?: number;
-  lostByReason?: { reason: string; count: number }[];
+  lostByReason?: { reason: string; count: number; value?: number }[];
+  timeseries?: {
+    granularity: "day" | "week";
+    points: {
+      bucket: string;
+      label: string;
+      leads: number;
+      quoted: number;
+      won: number;
+      revenue: number;
+      lost: number;
+    }[];
+  };
+  funnelSteps?: {
+    key: "created" | "quoted" | "clicked" | "won";
+    label: string;
+    count: number;
+    rateFromPrevious: number;
+    rateFromStart: number;
+    dropOff: number;
+  }[];
+  quoteFollowThrough?: {
+    quotedCount: number;
+    clickedCount: number;
+    clickRate: number;
+    wonFromClicked: number;
+    clickToPayRate: number;
+    avgDaysQuoteToClick: number;
+    avgDaysClickToPay: number;
+    clickedUnpaidCount: number;
+    clickedUnpaidValue: number;
+    quotedUnclickedCount: number;
+    quotedUnclickedValue: number;
+  };
+  productMix?: {
+    byJobType: ProductMixRow[];
+    bySurveyLevel: ProductMixRow[];
+    byBedroomBand: ProductMixRow[];
+  };
   jobsByStage?: { stage: string; _count: { id: number } }[];
   funnelBySource?: {
     source: string;
@@ -864,7 +1000,9 @@ export interface DashboardSales {
     acquisitionCost: number;
     quotedPipeline: number;
     conversionRate: number;
+    roi: number | null;
   }[];
+  speedToLead?: { cohort: string; leads: number; converted: number; conversionRate: number }[];
   recentLeads?: Lead[];
   totalAcquisitionCost30d?: number;
   revenueLast30d?: number;

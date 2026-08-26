@@ -29,6 +29,13 @@ test.describe("CRM authenticated flows", () => {
     await expect(page.getByRole("heading", { name: /leads/i })).toBeVisible();
   });
 
+  test("pipeline board loads", async ({ page }) => {
+    await page.goto("/crm/pipeline");
+    await expect(page.getByRole("heading", { name: /pipeline/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^pipeline$/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /new lead/i })).toBeVisible();
+  });
+
   test("jobs list page loads", async ({ page }) => {
     await page.goto("/crm/jobs");
     await expect(page.getByRole("heading", { name: /jobs/i })).toBeVisible();

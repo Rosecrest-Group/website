@@ -89,6 +89,7 @@ export const CRM_NAV_SECTIONS: CrmNavSection[] = [
     title: "Workspace",
     items: [
       { label: "Dashboard", href: CRM_BASE_PATH },
+      { label: "Pipeline", href: `${CRM_BASE_PATH}/pipeline` },
       { label: "Inbox", href: `${CRM_BASE_PATH}/inbox` },
       { label: "Calls", href: `${CRM_BASE_PATH}/calls` },
       { label: "Contacts", href: `${CRM_BASE_PATH}/customers` },
@@ -153,10 +154,9 @@ export const USER_ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: "READ_ONLY", label: "Read Only" },
 ];
 
-/** Lead intake sources (must match API LeadSource enum). */
 export const LEAD_SOURCES: { value: string; label: string }[] = [
   { value: "PINLOCAL", label: "Pinlocal" },
-  { value: "COMPARE_MY_MOVE", label: "Compare My Move" },
+  { value: "COMPARE_MY_MOVE", label: "Konnect You (CMM)" },
   { value: "REALLYMOVING", label: "ReallyMoving" },
   { value: "GET_A_SURVEYOR", label: "Get a Surveyor" },
   { value: "WEBSITE", label: "Website (homebuyer booking)" },
@@ -170,12 +170,24 @@ export const LEAD_SOURCES: { value: string; label: string }[] = [
   { value: "OTHER", label: "Other" },
 ];
 
+export function intakeMessageLabel(source: string): string {
+  if (source === "PINLOCAL") return "Survey requirements";
+  if (source === "PARTY_WALL_TOOL") return "Party Wall intake";
+  if (source === "WEBSITE_CONTACT_FORM") return "Message";
+  return "Comments";
+}
+
+export const INTAKE_DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  LAND_REGISTRY: "Land Registry",
+  TECHNICAL_DRAWINGS: "Technical drawings",
+};
+
 export const LEAD_STAGE_LABELS: Record<string, string> = {
   NEW: "New lead",
   QUOTE_SENT: "Quote sent",
   FOLLOWING_UP: "Following up",
   AWAITING_PAYMENT: "Awaiting payment",
-  PAUSED: "Paused",
+  PAUSED: "On hold",
   CONVERTED: "Won",
   LOST: "Lost",
 };
@@ -223,6 +235,19 @@ export const WORKFLOW_TRIGGERS: { value: string; label: string }[] = [
 export const TASK_STATUS_LABELS: Record<string, string> = {
   OPEN: "Open",
   DONE: "Done",
+};
+
+export const JOB_TYPE_LABELS: Record<string, string> = {
+  RICS_SURVEY: "RICS survey",
+  CPR_35_REPORT: "CPR-35 report",
+  DAMP_MOULD: "Damp & mould",
+  STOCK_CONDITION: "Stock condition",
+  HOUSING_DISREPAIR: "Housing disrepair",
+  EPC: "EPC",
+  ENVIRONMENTAL: "Environmental",
+  PARTY_WALL: "Party wall",
+  TRADE_WORK: "Trade work",
+  OTHER: "Other",
 };
 
 export const SURVEY_LEVELS: { value: string; label: string }[] = [

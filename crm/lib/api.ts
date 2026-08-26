@@ -810,6 +810,11 @@ export const api = {
 
   },
 
+  getLeadBoard: (params?: Record<string, string>) => {
+    const qs = params ? `?${new URLSearchParams(params)}` : "";
+    return request<import("@/crm/types").PipelineBoardResponse>(`/leads/board${qs}`);
+  },
+
   getLead: (id: string) => request<LeadDetail>(`/leads/${id}`),
 
   getLeadThread: (id: string, params?: { limit?: number }) => {
@@ -942,6 +947,12 @@ export const api = {
 
   confirmJobAccessDetails: (id: string) =>
     request<Job>(`/jobs/${id}/confirm-access-details`, { method: "POST" }),
+
+  notifyJobSurveyor: (id: string, payload?: { accessNotes?: string | null }) =>
+    request<Job>(`/jobs/${id}/notify-surveyor`, { method: "POST", body: JSON.stringify(payload ?? {}) }),
+
+  issueJobReport: (id: string) =>
+    request<Job>(`/jobs/${id}/issue-report`, { method: "POST" }),
 
   sendJobReviewRequest: (id: string) =>
     request<Job>(`/jobs/${id}/send-review-request`, { method: "POST" }),

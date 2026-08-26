@@ -8,7 +8,7 @@ import {
   findWorkflowAEntry,
   type WorkflowALevel,
 } from "@/crm/lib/workflowATemplates";
-import { isHtmlContent, plainTextToHtml, sanitizeEmailHtml } from "@/crm/lib/messageFormatting";
+import { isDesignedEmailHtml, isHtmlContent, plainTextToHtml, sanitizeEmailHtml } from "@/crm/lib/messageFormatting";
 import CrmPanel from "@/crm/components/ui/CrmPanel";
 import CrmModal from "@/crm/components/ui/CrmModal";
 import SelectField from "@/crm/components/ui/SelectField";
@@ -351,7 +351,9 @@ export default function LeadWorkflowASend({
             )}
             {selected?.channel === "EMAIL" ? (
               <div
-                className="crm-email-body rounded-xl border border-line bg-sidebar p-3 text-sm text-ink [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl"
+                className={`crm-email-body rounded-xl border border-line bg-sidebar p-3 text-sm text-ink [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl${
+                  isDesignedEmailHtml(preview.body) ? " crm-email-body--designed" : ""
+                }`}
                 dangerouslySetInnerHTML={{
                   __html: sanitizeEmailHtml(
                     isHtmlContent(preview.body) ? preview.body : plainTextToHtml(preview.body)

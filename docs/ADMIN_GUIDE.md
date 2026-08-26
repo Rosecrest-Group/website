@@ -28,7 +28,7 @@ Enforcement: sidebar + page redirects in the CRM UI; **API is authoritative** (`
 | Source | Endpoint |
 |--------|----------|
 | Pinlocal | `POST /api/v1/intake/leads/PINLOCAL` |
-| Compare My Move | `POST /api/v1/intake/leads/COMPARE_MY_MOVE` |
+| Konnect You (CMM) | `POST /api/v1/intake/leads/COMPARE_MY_MOVE` |
 | ReallyMoving | `POST /api/v1/intake/leads/REALLYMOVING` |
 | Get A Surveyor | `POST /api/v1/intake/leads/GET_A_SURVEYOR` |
 | Website (homebuyer booking) | `POST /api/v1/intake/leads/WEBSITE` |

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Columns2,
   BarChart3,
   BookOpen,
   CalendarDays,
@@ -47,11 +48,13 @@ import { canAccessAdminSettings, navSectionsForRole } from "@/crm/lib/rbac";
 import { useInboxUnreadCount } from "@/crm/lib/useInboxUnreadCount";
 import { useTeamChatUnreadCount } from "@/crm/lib/useTeamChatUnreadCount";
 import { getCachedApiUser } from "@/crm/lib/currentUserCache";
+import { prefetchLeadBoard } from "@/crm/lib/pipelineBoardCache";
 import type { ApiUser } from "@/crm/types";
 import { cn } from "@/lib/utils";
 
 const NAV_ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
+  pipeline: Columns2,
   inbox: Inbox,
   calls: Phone,
   conversations: MessagesSquare,
@@ -76,6 +79,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
 
 const HREF_ICON: Record<string, string> = {
   [CRM_BASE_PATH]: "dashboard",
+  [`${CRM_BASE_PATH}/pipeline`]: "pipeline",
   [`${CRM_BASE_PATH}/inbox`]: "inbox",
   [`${CRM_BASE_PATH}/calls`]: "calls",
   [`${CRM_BASE_PATH}/conversations`]: "conversations",
@@ -253,6 +257,9 @@ export default function CrmSidebar({
                       key={item.href}
                       href={item.href}
                       onClick={onNavigate}
+                      onMouseEnter={() => {
+                        if (item.href === `${CRM_BASE_PATH}/pipeline`) void prefetchLeadBoard();
+                      }}
                       title={railCollapsed ? item.label : undefined}
                       className={cn(
                         "group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors duration-200",

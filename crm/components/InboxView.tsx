@@ -26,6 +26,12 @@ import CurvedContainer from "@/crm/components/ui/CurvedContainer";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import PhoneButton from "@/crm/components/PhoneButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
+import SlidingPaneTabs, {
+  SlidingPane,
+  THREAD_PANE_LABEL,
+  THREAD_PANES,
+  type ThreadPane,
+} from "@/crm/components/ui/SlidingPaneTabs";
 import { api } from "@/crm/lib/api";
 import { formatInboxListTime, messageTimestamp } from "@/crm/lib/formatChatTime";
 import { getCachedLead, prefetchLead, setCachedLead } from "@/crm/lib/leadDetailCache";
@@ -43,18 +49,6 @@ const PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 200;
 const INBOX_PIN_LIMIT = 3;
 const INBOX_LAYOUT = { type: "spring", stiffness: 380, damping: 34, mass: 0.75 } as const;
-const INBOX_PANE = { type: "tween", duration: 0.38, ease: [0.32, 0.72, 0, 1] } as const;
-const INBOX_PANES = ["messages", "internal", "activity"] as const;
-type InboxPane = (typeof INBOX_PANES)[number];
-const INBOX_PANE_LABEL: Record<InboxPane, string> = {
-  messages: "Messages",
-  internal: "Internal notes",
-  activity: "Activity",
-};
-
-function inboxPaneOffset(pane: InboxPane, active: InboxPane) {
-  return `${(INBOX_PANES.indexOf(pane) - INBOX_PANES.indexOf(active)) * 100}%`;
-}
 
 function apiErrorCode(err: unknown): string | undefined {
   if (err && typeof err === "object" && "code" in err && typeof err.code === "string") {
@@ -155,10 +149,6 @@ function threadMatchesQuery(thread: InboxThread, query: string): boolean {
     if (phoneDigits.includes(digits)) return true;
   }
   return false;
-}
-
-function threadPanelTitle(thread: InboxThread): string {
-  return `${thread.customerName}${thread.propertyPostcode ? ` · ${thread.propertyPostcode}` : ""}`;
 }
 
 async function copyText(value: string, success: string) {
@@ -324,8 +314,8 @@ export default function InboxView({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
   const [mobileShowThread, setMobileShowThread] = useState(false);
-  const [leadPanel, setLeadPanel] = useState<{ leadId: string; title: string } | null>(null);
-  const [inboxPane, setInboxPane] = useState<InboxPane>("messages");
+  const [leadPanel, setLeadPanel] = useState<{ leadId: string } | null>(null);
+  const [inboxPane, setInboxPane] = useState<ThreadPane>("messages");
   const [notesMounted, setNotesMounted] = useState(false);
   const [activityMounted, setActivityMounted] = useState(false);
   const [activityLead, setActivityLead] = useState<LeadDetail | null>(null);
@@ -344,7 +334,6 @@ export default function InboxView({
   const threadsRef = useRef(threads);
   threadsRef.current = threads;
   const layoutTransition = reduceMotion ? { duration: 0 } : INBOX_LAYOUT;
-  const paneTransition = reduceMotion ? { duration: 0 } : INBOX_PANE;
 
   const loadThreads = useCallback(
     async (opts: { cursor: string | null; query: string; append: boolean }) => {
@@ -493,7 +482,7 @@ export default function InboxView({
   function openLeadPanel(thread: InboxThread) {
     if (!thread.leadId) return;
     void prefetchLead(thread.leadId);
-    setLeadPanel({ leadId: thread.leadId, title: threadPanelTitle(thread) });
+    setLeadPanel({ leadId: thread.leadId });
   }
 
   async function handleThreadAction(thread: InboxThread, actionId: string) {
@@ -804,43 +793,23 @@ export default function InboxView({
               <div className="flex shrink-0 items-center border-b border-line px-4 py-2">
                 <div className="flex w-full items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2">
-                    <LayoutGroup id="inbox-pane-tabs">
-                      <div className="flex items-center gap-0.5 rounded-lg bg-sidebar p-0.5">
-                        {INBOX_PANES.map((pane) => {
-                          const isActive = inboxPane === pane;
-                          return (
-                            <button
-                              key={pane}
-                              type="button"
-                              onClick={() => {
-                                if (pane === "internal") setNotesMounted(true);
-                                if (pane === "activity") {
-                                  setActivityMounted(true);
-                                  const cached = selected.leadId
-                                    ? getCachedLead(selected.leadId)
-                                    : null;
-                                  if (cached) setActivityLead(cached);
-                                }
-                                setInboxPane(pane);
-                              }}
-                              className={cn(
-                                "relative rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                                isActive ? "text-ink" : "text-ink-muted hover:text-ink"
-                              )}
-                            >
-                              {isActive ? (
-                                <motion.span
-                                  layoutId="inbox-pane-pill"
-                                  className="absolute inset-0 rounded-md bg-white shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
-                                  transition={paneTransition}
-                                />
-                              ) : null}
-                              <span className="relative z-10">{INBOX_PANE_LABEL[pane]}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </LayoutGroup>
+                    <SlidingPaneTabs
+                      id="inbox-pane-tabs"
+                      panes={THREAD_PANES}
+                      labels={THREAD_PANE_LABEL}
+                      value={inboxPane}
+                      onChange={(pane) => {
+                        if (pane === "internal") setNotesMounted(true);
+                        if (pane === "activity") {
+                          setActivityMounted(true);
+                          const cached = selected.leadId
+                            ? getCachedLead(selected.leadId)
+                            : null;
+                          if (cached) setActivityLead(cached);
+                        }
+                        setInboxPane(pane);
+                      }}
+                    />
                     <button
                       type="button"
                       onClick={() => setCreateTaskOpen(true)}
@@ -872,25 +841,12 @@ export default function InboxView({
                 </div>
               </div>
               <div className="relative min-h-0 flex-1 overflow-hidden">
-                <motion.div
-                  className={cn(
-                    "absolute inset-0 flex min-h-0 w-full flex-col overflow-hidden",
-                    inboxPane === "messages" ? "z-10" : "pointer-events-none"
-                  )}
-                  initial={false}
-                  animate={
-                    reduceMotion
-                      ? { x: 0, opacity: inboxPane === "messages" ? 1 : 0 }
-                      : { x: inboxPaneOffset("messages", inboxPane), opacity: 1 }
-                  }
-                  transition={paneTransition}
-                  inert={inboxPane !== "messages"}
-                  aria-hidden={inboxPane !== "messages"}
-                >
+                <SlidingPane panes={THREAD_PANES} pane="messages" active={inboxPane}>
                   <LeadMessageThread
                     key={selected.leadId}
                     leadId={selected.leadId}
                     customerName={selected.customerName}
+                    customerPhone={selected.customerPhone ?? customerPhone}
                     messages={INBOX_THREAD_MESSAGES}
                     revalidateSeed
                     isActive={inboxPane === "messages"}
@@ -904,22 +860,13 @@ export default function InboxView({
                     framed={false}
                     className="h-full min-h-0 max-h-none flex-1"
                   />
-                </motion.div>
+                </SlidingPane>
                 {notesMounted ? (
-                  <motion.div
-                    className={cn(
-                      "absolute inset-0 flex min-h-0 w-full flex-col overflow-hidden",
-                      inboxPane === "internal" ? "z-10" : "pointer-events-none"
-                    )}
-                    initial={reduceMotion ? false : { x: "100%" }}
-                    animate={
-                      reduceMotion
-                        ? { x: 0, opacity: inboxPane === "internal" ? 1 : 0 }
-                        : { x: inboxPaneOffset("internal", inboxPane), opacity: 1 }
-                    }
-                    transition={paneTransition}
-                    inert={inboxPane !== "internal"}
-                    aria-hidden={inboxPane !== "internal"}
+                  <SlidingPane
+                    panes={THREAD_PANES}
+                    pane="internal"
+                    active={inboxPane}
+                    slideInOnMount
                   >
                     <LeadInternalNotesPanel
                       key={selected.leadId}
@@ -931,23 +878,14 @@ export default function InboxView({
                       framed={false}
                       className="h-full min-h-0 flex-1"
                     />
-                  </motion.div>
+                  </SlidingPane>
                 ) : null}
                 {activityMounted ? (
-                  <motion.div
-                    className={cn(
-                      "absolute inset-0 flex min-h-0 w-full flex-col overflow-hidden",
-                      inboxPane === "activity" ? "z-10" : "pointer-events-none"
-                    )}
-                    initial={reduceMotion ? false : { x: "100%" }}
-                    animate={
-                      reduceMotion
-                        ? { x: 0, opacity: inboxPane === "activity" ? 1 : 0 }
-                        : { x: inboxPaneOffset("activity", inboxPane), opacity: 1 }
-                    }
-                    transition={paneTransition}
-                    inert={inboxPane !== "activity"}
-                    aria-hidden={inboxPane !== "activity"}
+                  <SlidingPane
+                    panes={THREAD_PANES}
+                    pane="activity"
+                    active={inboxPane}
+                    slideInOnMount
                   >
                     {activityLead ? (
                       <ActivityFeed
@@ -963,7 +901,7 @@ export default function InboxView({
                         <LoadingSpinner />
                       </div>
                     )}
-                  </motion.div>
+                  </SlidingPane>
                 ) : null}
               </div>
             </CurvedContainer>
@@ -984,7 +922,7 @@ export default function InboxView({
       leadId={leadPanel?.leadId ?? null}
       isOpen={Boolean(leadPanel)}
       onClose={() => setLeadPanel(null)}
-      title={leadPanel?.title}
+      hideHeading
       onDeleted={() => {
         const deletedId = leadPanel?.leadId;
         setLeadPanel(null);

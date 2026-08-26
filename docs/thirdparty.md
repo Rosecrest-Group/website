@@ -1,16 +1,18 @@
 # Third-party lead webhooks
 
-How to connect **Compare My Move**, **Pinlocal**, and **ReallyMoving** to the Rosecrest CRM API.
+How to connect **Konnect You (CMM)** (formerly Compare My Move), **Pinlocal**, and **ReallyMoving** to the Rosecrest CRM API.
 
 Production API base URL: `https://api.rosecrestgroupltd.co.uk` (`APP_PUBLIC_URL` on Railway — no trailing slash).
 
 ---
 
-## Compare My Move (CMM)
+## Konnect You (CMM)
+
+Formerly Compare My Move. The intake enum, webhook path, and env secret stay `COMPARE_MY_MOVE` so partner config does not change.
 
 Surveying referrals: home-buyer, building, valuation, and snagging leads all use the **same** webhook URL.
 
-### What you give CMM
+### What you give Konnect You / CMM
 
 | Item | Value |
 |------|--------|
@@ -48,7 +50,7 @@ The signature is sent in the JSON body as `signature`, alongside `timestamp`, `t
 1. Deploy the API with `APP_PUBLIC_URL=https://api.rosecrestgroupltd.co.uk`
 2. Set `COMPARE_MY_MOVE_WEBHOOK_SECRET` to the key agreed with CMM
 3. Register the webhook URL in CMM Lead Manager
-4. Send a test lead from CMM and confirm it appears in **CRM → Leads** (source: Compare My Move)
+4. Send a test lead from CMM and confirm it appears in **CRM → Leads** (source: Konnect You (CMM))
 5. If signature fails, double-check the secret matches exactly — do not use the `token` field as the secret
 
 ---
@@ -178,7 +180,7 @@ Polling is not required when webhooks are enabled — the intake endpoint above 
 # Public base URL of the API (Railway service URL)
 APP_PUBLIC_URL=https://api.rosecrestgroupltd.co.uk
 
-# Compare My Move
+# Konnect You (CMM) — enum/path remain COMPARE_MY_MOVE
 COMPARE_MY_MOVE_WEBHOOK_SECRET=<from CMM>
 
 # Pinlocal

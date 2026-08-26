@@ -760,7 +760,9 @@ function CallDetail({
 
           {hasRecap ? (
             <section className="rounded-xl border border-line bg-surface p-5">
-              <h3 className="text-base font-medium text-ink">Call recap</h3>
+              <h3 className="text-base font-medium text-ink">
+                {call.direction === "outbound" ? "Outgoing recap" : "Incoming recap"}
+              </h3>
               {call.recapSummary ? (
                 <p className="mt-3 max-h-80 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-ink">
                   {call.recapSummary}
@@ -793,7 +795,9 @@ function CallDetail({
 
           {transcript ? (
             <section className="rounded-xl border border-line bg-surface p-5">
-              <h3 className="text-base font-medium text-ink">Call transcript</h3>
+              <h3 className="text-base font-medium text-ink">
+                {call.direction === "outbound" ? "Outgoing transcript" : "Incoming transcript"}
+              </h3>
               <p className="mt-3 max-h-80 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-ink">
                 {transcript}
               </p>

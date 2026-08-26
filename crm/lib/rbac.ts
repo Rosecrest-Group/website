@@ -106,7 +106,7 @@ export function canTickJobQc(role: UserRole): boolean {
   return role === "SURVEYOR" || hasExactRole(role, LEAD_ACCESS_ROLES);
 }
 
-/** Ops/admin may upload and Report Delivered without QC ticks. */
+/** Ops/admin may move to Submit Report without QC ticks. */
 export function canBypassJobQc(role: UserRole): boolean {
   return hasExactRole(role, LEAD_ACCESS_ROLES);
 }
@@ -132,6 +132,7 @@ function pathAllowed(role: UserRole, pathname: string): boolean {
 
   if (
     pathname.startsWith(`${CRM_BASE_PATH}/leads`) ||
+    pathname.startsWith(`${CRM_BASE_PATH}/pipeline`) ||
     pathname.startsWith(`${CRM_BASE_PATH}/inbox`) ||
     pathname.startsWith(`${CRM_BASE_PATH}/calls`)
   ) {

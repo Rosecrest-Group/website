@@ -483,7 +483,7 @@ export default function IntegrationsAdmin() {
 
       <CrmPanel title="Registered lead sources">
         <p className="text-sm text-(--color-tc-30)">
-          PINLOCAL, Compare My Move, ReallyMoving, Get a Surveyor, Website, Website contact form, Party Wall Tool, Direct
+          PINLOCAL, Konnect You (CMM), ReallyMoving, Get a Surveyor, Website, Website contact form, Party Wall Tool, Direct
         </p>
         <p className="mt-2 text-xs text-(--color-tc-30)">POST /api/v1/intake/leads/:source</p>
       </CrmPanel>

@@ -1,18 +1,31 @@
-/** Visible survey job stages after the Torera walkthrough consolidation. */
+/** Visible survey job stages from JOB FLOW.docx. */
 export const SURVEY_JOB_STAGES = [
   "PAID",
   "ACCESS_REQUESTED",
   "ACCESS_CONFIRMED",
   "INSPECTION_BOOKED",
   "INSPECTION_COMPLETE",
+  "DATA_UPLOAD",
+  "REPORT_QC",
   "REPORT_DELIVERED",
 ] as const;
 
 export type SurveyJobStage = (typeof SURVEY_JOB_STAGES)[number];
 
-/** Fold removed survey stages onto the 6-step bar. Trade jobs are unchanged. */
+export const SURVEY_STAGE_LABELS: Record<string, string> = {
+  PAID: "Paid",
+  ACCESS_REQUESTED: "Access Requested",
+  ACCESS_CONFIRMED: "Surveyor Assigned",
+  INSPECTION_BOOKED: "Inspection Booked",
+  INSPECTION_COMPLETE: "Inspection Completed",
+  DATA_UPLOAD: "Data Upload",
+  REPORT_QC: "Quality Control",
+  REPORT_DELIVERED: "Submit Report",
+};
+
+/** Fold removed survey stages onto the 8-step bar. Trade jobs are unchanged. */
 export function canonicalSurveyStage(stage: string): string {
-  if (stage === "REPORT_DRAFTING" || stage === "REPORT_QC") return "INSPECTION_COMPLETE";
+  if (stage === "REPORT_DRAFTING") return "DATA_UPLOAD";
   if (stage === "COMPLETED") return "REPORT_DELIVERED";
   return stage;
 }
@@ -24,14 +37,22 @@ export function storedSurveyStage(jobType: string, stage: string): string {
 
 export function formatJobStageLabel(stage: string, jobType?: string | null): string {
   const value = jobType === "TRADE_WORK" ? stage : canonicalSurveyStage(stage);
-  return value.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  return (
+    SURVEY_STAGE_LABELS[value] ??
+    value.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+  );
 }
 
-export const SURVEYOR_SETTABLE_STAGES = ["INSPECTION_COMPLETE", "REPORT_DELIVERED"] as const;
+export const SURVEYOR_SETTABLE_STAGES = [
+  "INSPECTION_COMPLETE",
+  "DATA_UPLOAD",
+  "REPORT_QC",
+  "REPORT_DELIVERED",
+] as const;
 
 /**
- * Assigned surveyor may set Inspection Complete / Report Delivered once the
- * job is at Inspection Booked or later. Paid / Access stay ops-only.
+ * Assigned surveyor may set Inspection Completed / Data Upload / QC / Submit
+ * Report once the job is at Inspection Booked or later. Paid / Access stay ops-only.
  */
 export function surveyorMaySetSurveyStage(currentStage: string, targetStage: string): boolean {
   const current = canonicalSurveyStage(currentStage);
@@ -43,14 +64,11 @@ export function surveyorMaySetSurveyStage(currentStage: string, targetStage: str
 }
 
 export function stageMoveEmailWarning(stage: string): string | null {
-  if (stage === "ACCESS_REQUESTED") {
-    return "This emails the estate agent or vendor to request access.";
+  if (stage === "INSPECTION_BOOKED") {
+    return "This emails the client a confirmation, with the surveyor in copy.";
   }
   if (stage === "INSPECTION_COMPLETE") {
     return "This emails the client that the inspection is done.";
-  }
-  if (stage === "REPORT_DELIVERED") {
-    return "This emails the client with the report PDF attached.";
   }
   return null;
 }

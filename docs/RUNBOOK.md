@@ -39,6 +39,13 @@ API: `POST /api/v1/admin/webhook-events/:id/replay?mode=dry-run|safe|full`
 2. Manual run: **SLA dashboard → Run monitor** or `POST /api/v1/dashboards/sla/run-monitor`.
 3. Check `sla.escalation_recipients` in `SystemSetting`.
 
+## Pipeline scoring / daily call brief
+
+- Board order is expected-value scoring (`PIPELINE_SCORING_ENABLED`, default on). Set `false` to restore rotting-then-quote order.
+- Daily brief fires from the `sla_monitor` cron after 08:00 Europe/London on weekdays, and is also self-scheduled as `{ "type": "daily_call_brief" }`.
+- LLM extraction of inbound email/SMS/call text needs `OPENAI_API_KEY`. Without it, ranking still works from structured fields only.
+- Fit check (live `Lead` rows only, no dump tables): `npm run score:backtest` in the API repo.
+
 ## Database backup restore
 
 1. Use Supabase dashboard → Database → Backups.

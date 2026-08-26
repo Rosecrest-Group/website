@@ -9,14 +9,16 @@ import { getCachedLead, setCachedLead } from "@/crm/lib/leadDetailCache";
 import {
   BEDROOM_BAND_LABELS,
   CRM_BASE_PATH,
+  INTAKE_DOCUMENT_TYPE_LABELS,
+  LEAD_SOURCES,
   LEAD_STAGE_LABELS,
   LOST_REASON_OPTIONS,
   SURVEY_LEVEL_LABELS,
   formatPropertyValueLabel,
+  intakeMessageLabel,
 } from "@/crm/lib/constants";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Check, ChevronRight, Copy, Maximize2 } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, Copy, Maximize2, X } from "lucide-react";
 import PhoneButton from "@/crm/components/PhoneButton";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPanel from "@/crm/components/ui/CrmPanel";
@@ -24,6 +26,12 @@ import CrmModal from "@/crm/components/ui/CrmModal";
 import CurvedContainer from "@/crm/components/ui/CurvedContainer";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
+import SlidingPaneTabs, {
+  SlidingPane,
+  THREAD_PANE_LABEL,
+  THREAD_PANES,
+  type ThreadPane,
+} from "@/crm/components/ui/SlidingPaneTabs";
 import StatusPill, { leadStageToPillVariant } from "@/crm/components/ui/StatusPill";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import TextField from "@/crm/components/ui/TextField";
@@ -36,13 +44,24 @@ import LeadMessageThread from "@/crm/components/LeadMessageThread";
 import ActivityFeed from "@/crm/components/ActivityFeed";
 import LeadTags from "@/crm/components/LeadTags";
 import LeadWorkflowASend from "@/crm/components/LeadWorkflowASend";
+import EmbeddedLeadProfile from "@/crm/components/EmbeddedLeadProfile";
 import { useCrmTopBar } from "@/crm/lib/crmTopBarContext";
 import { filterLeadThreadActivities } from "@/crm/lib/threadActivities";
 import { getCachedCurrentUser } from "@/crm/lib/currentUserCache";
+import { storedListFiltersHref } from "@/crm/lib/listFilters";
 import { canSkipWorkflowWait } from "@/crm/lib/rbac";
 import { doneTopProgress, startTopProgress } from "@/crm/lib/topProgress";
 import { prefetchLeadThreadWithActivities } from "@/crm/lib/loadLeadThread";
 import { leadToTaskLabel } from "@/crm/lib/taskForm";
+
+function leadsListHref(): string {
+  return storedListFiltersHref(
+    "leads",
+    `${CRM_BASE_PATH}/leads`,
+    ["stage", "source", "page"],
+    { stage: "", source: "", page: "" },
+  );
+}
 
 function formatRelative(dateStr: string) {
   const d = new Date(dateStr);
@@ -103,10 +122,12 @@ function formatSchedule(iso: string): string {
 export default function LeadDetail({
   id,
   embedded = false,
+  onClose,
   onDeleted,
 }: {
   id: string;
   embedded?: boolean;
+  onClose?: () => void;
   onDeleted?: () => void;
 }) {
   const router = useRouter();
@@ -114,8 +135,10 @@ export default function LeadDetail({
   const [lead, setLead] = useState<LeadDetailType | null>(() => getCachedLead(id));
   const [loading, setLoading] = useState(() => !getCachedLead(id));
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("messages");
+  const [activeTab, setActiveTab] = useState<ThreadPane>("messages");
   const [noteTargetMessage, setNoteTargetMessage] = useState<Message | null>(null);
+  const [notesMounted, setNotesMounted] = useState(false);
+  const [activityMounted, setActivityMounted] = useState(false);
   const [messagesMaximized, setMessagesMaximized] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
@@ -333,7 +356,7 @@ export default function LeadDetail({
       if (embedded) {
         onDeleted?.();
       } else {
-        router.push("/crm/leads");
+        router.push(leadsListHref());
       }
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to delete lead");
@@ -372,7 +395,17 @@ export default function LeadDetail({
 
   if (loading) {
     return embedded ? (
-      <div className="flex justify-center py-12">
+      <div className="relative flex justify-center py-12">
+        {onClose ? (
+          <button
+            type="button"
+            className="absolute right-0 top-3 flex size-8 items-center justify-center rounded-lg text-ink-subtle transition-colors hover:bg-sidebar hover:text-ink"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X className="size-4" strokeWidth={1.75} />
+          </button>
+        ) : null}
         <LoadingSpinner />
       </div>
     ) : (
@@ -384,13 +417,23 @@ export default function LeadDetail({
 
   if (error || !lead) {
     return embedded ? (
-      <div>
+      <div className="relative pr-10">
+        {onClose ? (
+          <button
+            type="button"
+            className="absolute right-0 top-0 flex size-8 items-center justify-center rounded-lg text-ink-subtle transition-colors hover:bg-sidebar hover:text-ink"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X className="size-4" strokeWidth={1.75} />
+          </button>
+        ) : null}
         <p className="text-red-600">{error || "Lead not found"}</p>
       </div>
     ) : (
       <CrmPageContent>
         <p className="text-red-600">{error || "Lead not found"}</p>
-        <SecondaryButton type="button" className="mt-4 w-auto" onClick={() => router.push("/crm/leads")}>
+        <SecondaryButton type="button" className="mt-4 w-auto" onClick={() => router.push(leadsListHref())}>
           Back to leads
         </SecondaryButton>
       </CrmPageContent>
@@ -495,6 +538,59 @@ export default function LeadDetail({
         </div>
       )}
 
+      {embedded ? (
+        <EmbeddedLeadProfile
+          lead={lead}
+          onLeadChange={setLead}
+          onClose={onClose}
+          onSent={() => reload({ silent: true })}
+          onCreateTask={() => setCreateTaskOpen(true)}
+          onStopAutomation={() => void stopAutomation()}
+          stoppingAutomation={stoppingAutomation}
+          canStopAutomation={Boolean(canStopAutomation)}
+          canMarkLost={Boolean(canMarkLost)}
+          canMarkWon={Boolean(canMarkWon)}
+          canMoveToPaid={canMoveToPaid}
+          markingWon={markingWon}
+          movingToPaid={movingToPaid}
+          onOpenMarkWon={() => {
+            setMarkWonError(null);
+            setMarkWonAmount(
+              lead.quotedAmount != null && lead.quotedAmount > 0
+                ? String(lead.quotedAmount)
+                : ""
+            );
+            setMarkWonConfirmOpen(true);
+          }}
+          onOpenMoveToPaid={() => {
+            setMoveToPaidError(null);
+            setMoveToPaidAmount(
+              lead.quotedAmount != null && lead.quotedAmount > 0
+                ? String(lead.quotedAmount)
+                : ""
+            );
+            setMoveToPaidSurveyLevel(lead.surveyLevel ?? "LEVEL_2");
+            setMoveToPaidConfirmOpen(true);
+          }}
+          onOpenMarkLost={() => {
+            setLostReason(LOST_REASON_OPTIONS[0]?.value ?? "OTHER");
+            setLostReasonNote("");
+            setShowMarkLost(true);
+          }}
+          onOpenDelete={() => {
+            setDeleteConfirm("");
+            setShowDelete(true);
+          }}
+          nextStep={nextStep}
+          nextRun={nextRun}
+          canTriggerNextStep={canTriggerNextStep}
+          advancingWorkflow={advancingWorkflow}
+          onAdvanceWorkflow={() => {
+            setAdvanceWorkflowError(null);
+            setShowAdvanceWorkflow(true);
+          }}
+        />
+      ) : (
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <div className="space-y-6">
           <CurvedContainer className="p-4 sm:p-5">
@@ -579,16 +675,32 @@ export default function LeadDetail({
                   {formatPropertyValueLabel(lead)}
                 </p>
               </div>
-              {lead.intakeMessage ? (
+              {lead.intakeMessage || (lead.intakeDocuments?.length ?? 0) > 0 ? (
                 <div className="min-w-0 sm:col-span-2">
                   <p className="text-xs text-ink-muted">
-                    {lead.source === "PINLOCAL"
-                      ? "Survey requirements"
-                      : "Comments"}
+                    {intakeMessageLabel(lead.source)}
                   </p>
-                  <p className="mt-0.5 whitespace-pre-wrap text-sm font-medium text-ink">
-                    {lead.intakeMessage}
-                  </p>
+                  {lead.intakeMessage ? (
+                    <p className="mt-0.5 whitespace-pre-wrap text-sm font-medium text-ink">
+                      {lead.intakeMessage}
+                    </p>
+                  ) : null}
+                  {(lead.intakeDocuments?.length ?? 0) > 0 ? (
+                    <ul className={lead.intakeMessage ? "mt-2 space-y-1" : "mt-0.5 space-y-1"}>
+                      {lead.intakeDocuments!.map((doc) => (
+                        <li key={doc.id}>
+                          <a
+                            href={doc.storageUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm font-medium text-brand hover:underline"
+                          >
+                            {INTAKE_DOCUMENT_TYPE_LABELS[doc.type] ?? doc.type}: {doc.filename}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -636,7 +748,9 @@ export default function LeadDetail({
             )}
           </CurvedContainer>
 
-          <div className="grid gap-px overflow-hidden rounded-xl border border-(--color-tc-20) bg-(--color-tc-20) grid-cols-2">
+          <div
+            className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-(--color-tc-20) bg-(--color-tc-20)"
+          >
             {[
               {
                 label: "Survey level",
@@ -723,9 +837,38 @@ export default function LeadDetail({
             onChange={(tags) => setLead((prev) => (prev ? { ...prev, tags } : prev))}
           />
 
+          {(lead.signals?.length ?? 0) > 0 ? (
+            <CrmPanel title="Conversation signals">
+              <ul className="space-y-3">
+                {lead.signals!.slice(0, 5).map((signal) => (
+                  <li key={signal.id} className="text-sm">
+                    <p className="font-medium text-(--color-tc-40)">
+                      {signal.nextAction || signal.intent || "Signal"}
+                    </p>
+                    <p className="mt-0.5 text-xs text-(--color-tc-30)">
+                      {[
+                        signal.objection,
+                        signal.competitorMentioned ? "Competitor mentioned" : null,
+                        signal.exchangeDate
+                          ? `Exchange ${new Date(signal.exchangeDate).toLocaleDateString("en-GB")}`
+                          : null,
+                        signal.explicitStop ? "Asked not to be contacted" : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || signal.sourceKind.toLowerCase()}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </CrmPanel>
+          ) : null}
+
           <CrmPanel title="Lead origin">
             <div className="space-y-2 text-sm">
-              <Row label="Source" value={lead.source} />
+              <Row
+                label="Source"
+                value={LEAD_SOURCES.find((item) => item.value === lead.source)?.label ?? lead.source}
+              />
               <Row label="Source ref" value={lead.sourceRef ?? "—"} />
               <Row label="Received" value={formatRelative(lead.createdAt)} />
             </div>
@@ -776,99 +919,112 @@ export default function LeadDetail({
         </div>
 
         <div className="flex min-h-0 min-w-0 flex-col lg:sticky lg:top-3 lg:h-[calc(100dvh-5.5rem)] lg:self-start">
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="flex min-h-0 flex-1 flex-col"
+          <CurvedContainer
+            className="flex min-h-[min(32rem,calc(100dvh-8rem))] min-w-0 flex-1 flex-col overflow-hidden lg:h-full lg:min-h-0"
+            showBorderAndShadow
           >
-            <div className="mb-3 flex shrink-0 items-end gap-2 border-b border-(--color-tc-20)">
-              <TabsList className="h-auto min-w-0 flex-1 justify-start rounded-none border-0 bg-transparent p-0">
-                <TabsTrigger
-                  value="messages"
-                  className="h-auto rounded-none border-b-2 border-transparent px-3 py-1.5 text-(--color-tc-30) data-[state=active]:border-(--color-primary) data-[state=active]:bg-transparent data-[state=active]:text-(--color-primary) data-[state=active]:shadow-none"
+            <div className="flex shrink-0 items-center border-b border-line px-4 py-2">
+              <div className="flex w-full items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <SlidingPaneTabs
+                    id="lead-pane-tabs"
+                    panes={THREAD_PANES}
+                    labels={THREAD_PANE_LABEL}
+                    value={activeTab}
+                    onChange={(pane) => {
+                      if (pane === "internal") setNotesMounted(true);
+                      if (pane === "activity") setActivityMounted(true);
+                      setActiveTab(pane);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCreateTaskOpen(true)}
+                    className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-brand transition-colors hover:bg-brand-muted"
+                  >
+                    New task
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("messages");
+                    setMessagesMaximized(true);
+                  }}
+                  className="flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-sidebar hover:text-ink"
+                  title="Maximize messages"
+                  aria-label="Maximize messages"
                 >
-                  Messages ({lead.messages.length})
-                </TabsTrigger>
-                <TabsTrigger
-                  value="activity"
-                  className="h-auto rounded-none border-b-2 border-transparent px-3 py-1.5 text-(--color-tc-30) data-[state=active]:border-(--color-primary) data-[state=active]:bg-transparent data-[state=active]:text-(--color-primary) data-[state=active]:shadow-none"
-                >
-                  Activity ({lead.activities.length})
-                </TabsTrigger>
-                <TabsTrigger
-                  value="internal"
-                  className="h-auto rounded-none border-b-2 border-transparent px-3 py-1.5 text-(--color-tc-30) data-[state=active]:border-(--color-primary) data-[state=active]:bg-transparent data-[state=active]:text-(--color-primary) data-[state=active]:shadow-none"
-                >
-                  Internal notes
-                </TabsTrigger>
-              </TabsList>
-              <button
-                type="button"
-                onClick={() => setCreateTaskOpen(true)}
-                className="mb-1.5 shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-brand transition-colors hover:bg-brand-muted"
-              >
-                New task
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("messages");
-                  setMessagesMaximized(true);
-                }}
-                className="mb-1.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-sidebar hover:text-ink"
-                title="Maximize messages"
-                aria-label="Maximize messages"
-              >
-                <Maximize2 className="size-4" strokeWidth={1.75} />
-              </button>
+                  <Maximize2 className="size-4" strokeWidth={1.75} />
+                </button>
+              </div>
             </div>
-            <TabsContent
-              value="messages"
-              className="mt-0 min-h-0 flex-1 data-[state=active]:flex data-[state=active]:flex-col"
-            >
-              <LeadMessageThread
-                leadId={lead.id}
-                customerName={
-                  customer ? `${customer.firstName} ${customer.lastName}` : "Customer"
-                }
-                messages={lead.messages}
-                threadActivities={filterLeadThreadActivities(lead.activities)}
-                onSent={() => reload({ silent: true })}
-                onAddNote={(message) => {
-                  setNoteTargetMessage(message);
-                  setMessagesMaximized(false);
-                  setActiveTab("internal");
-                }}
-                className="h-full min-h-0 flex-1"
-              />
-            </TabsContent>
-            <TabsContent value="activity" className="mt-0 min-h-0 flex-1 overflow-y-auto">
-              <ActivityFeed
-                activities={lead.activities}
-                messages={lead.messages}
-                leadName={
-                  lead.customerName ??
-                  (lead.customer
-                    ? `${lead.customer.firstName} ${lead.customer.lastName}`
-                    : undefined)
-                }
-              />
-            </TabsContent>
-            <TabsContent
-              value="internal"
-              className="mt-0 min-h-0 flex-1 data-[state=active]:flex data-[state=active]:flex-col"
-            >
-              <LeadInternalNotesPanel
-                leadId={lead.id}
-                referencedMessage={noteTargetMessage}
-                onClearReferencedMessage={() => setNoteTargetMessage(null)}
-                onPosted={() => reload({ silent: true })}
-                className="h-full min-h-0 flex-1"
-              />
-            </TabsContent>
-          </Tabs>
+            <div className="relative min-h-0 flex-1 overflow-hidden">
+              <SlidingPane panes={THREAD_PANES} pane="messages" active={activeTab}>
+                <LeadMessageThread
+                  leadId={lead.id}
+                  customerName={
+                    customer ? `${customer.firstName} ${customer.lastName}` : "Customer"
+                  }
+                  customerPhone={customer?.phone}
+                  messages={lead.messages}
+                  threadActivities={filterLeadThreadActivities(lead.activities)}
+                  onSent={() => reload({ silent: true })}
+                  onAddNote={(message) => {
+                    setNoteTargetMessage(message);
+                    setMessagesMaximized(false);
+                    setNotesMounted(true);
+                    setActiveTab("internal");
+                  }}
+                  isActive={activeTab === "messages"}
+                  framed={false}
+                  className="h-full min-h-0 max-h-none flex-1"
+                />
+              </SlidingPane>
+              {notesMounted ? (
+                <SlidingPane
+                  panes={THREAD_PANES}
+                  pane="internal"
+                  active={activeTab}
+                  slideInOnMount
+                >
+                  <LeadInternalNotesPanel
+                    leadId={lead.id}
+                    referencedMessage={noteTargetMessage}
+                    onClearReferencedMessage={() => setNoteTargetMessage(null)}
+                    onPosted={() => reload({ silent: true })}
+                    isActive={activeTab === "internal"}
+                    framed={false}
+                    className="h-full min-h-0 flex-1"
+                  />
+                </SlidingPane>
+              ) : null}
+              {activityMounted ? (
+                <SlidingPane
+                  panes={THREAD_PANES}
+                  pane="activity"
+                  active={activeTab}
+                  slideInOnMount
+                >
+                  <ActivityFeed
+                    activities={lead.activities}
+                    messages={lead.messages}
+                    leadName={
+                      lead.customerName ??
+                      (lead.customer
+                        ? `${lead.customer.firstName} ${lead.customer.lastName}`
+                        : undefined)
+                    }
+                    framed={false}
+                    className="h-full min-h-0 flex-1"
+                  />
+                </SlidingPane>
+              ) : null}
+            </div>
+          </CurvedContainer>
         </div>
       </div>
+      )}
 
       {showMarkLost && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -1132,12 +1288,14 @@ export default function LeadDetail({
           customerName={
             customer ? `${customer.firstName} ${customer.lastName}` : "Customer"
           }
+          customerPhone={customer?.phone}
           messages={lead.messages}
           threadActivities={filterLeadThreadActivities(lead.activities)}
           onSent={() => reload({ silent: true })}
           onAddNote={(message) => {
             setNoteTargetMessage(message);
             setMessagesMaximized(false);
+            setNotesMounted(true);
             setActiveTab("internal");
           }}
           className="h-full min-h-0 max-h-none flex-1 rounded-none border-0"
@@ -1201,10 +1359,15 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 function LeadDetailBreadcrumb({ name }: { name?: string }) {
+  const [leadsHref, setLeadsHref] = useState(`${CRM_BASE_PATH}/leads`);
+  useEffect(() => {
+    setLeadsHref(leadsListHref());
+  }, []);
+
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-sm">
       <Link
-        href="/crm/leads"
+        href={leadsHref}
         className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-(--color-tc-30) transition-colors hover:bg-(--color-nc-10) hover:text-(--color-tc-40)"
       >
         <ArrowLeft className="size-3.5" />

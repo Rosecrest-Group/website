@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { MessageChannel } from "@/crm/components/ui/ChannelSelector";
 import { api } from "@/crm/lib/api";
-import { isHtmlContent, plainTextToHtml, sanitizeEmailHtml } from "@/crm/lib/messageFormatting";
+import { isDesignedEmailHtml, isHtmlContent, plainTextToHtml, sanitizeEmailHtml } from "@/crm/lib/messageFormatting";
 import { parseTrailingMediaUrls } from "@/crm/lib/messageMediaAttachments";
 
 type Props = {
@@ -100,7 +100,9 @@ export default function WorkflowTemplatePreviewModal({
               )}
               {channel === "EMAIL" ? (
                 <div
-                  className="crm-email-body mt-3 rounded-xl p-3 text-sm [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl"
+                  className={`crm-email-body mt-3 rounded-xl p-3 text-sm [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl${
+                    preview.body && isDesignedEmailHtml(preview.body) ? " crm-email-body--designed" : ""
+                  }`}
                   style={{ background: "var(--wf-bg-subtle)", color: "var(--wf-text-1)" }}
                   dangerouslySetInnerHTML={{
                     __html: sanitizeEmailHtml(

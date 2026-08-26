@@ -3,17 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
-import type { DashboardOps, DashboardPeriod, DashboardSales } from "@/crm/types";
+import type { DashboardPeriod, DashboardSales } from "@/crm/types";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import StatsCard from "@/crm/components/admin/StatsCard";
 import ExportCsvButton from "@/crm/components/ExportCsvButton";
 import FilterDropdown from "@/crm/components/ui/FilterDropdown";
 import Table, { type Column } from "@/crm/components/ui/Table";
+import TrendChart from "@/crm/components/ui/TrendChart";
+import FunnelChart from "@/crm/components/ui/FunnelChart";
 import {
-  ClipboardCheck,
-  FileEdit,
-  Wrench,
   UserMinus,
   CheckCircle,
   TrendingUp,
@@ -30,15 +29,19 @@ import {
   Target,
   Send,
   Percent,
+  MousePointerClick,
+  Wallet,
 } from "lucide-react";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import {
+  BEDROOM_BAND_LABELS,
   DASHBOARD_PERIODS,
+  JOB_TYPE_LABELS,
   LEAD_SOURCES,
   LOST_REASON_OPTIONS,
+  SURVEY_LEVEL_LABELS,
   vsPeriodTrend,
 } from "@/crm/lib/constants";
-import { formatJobStageLabel } from "@/crm/lib/jobStages";
 import { cn } from "@/lib/utils";
 
 function sourceLabel(source: string) {
@@ -66,28 +69,75 @@ function pounds(value: number, digits = 0) {
   return `£${value.toFixed(digits)}`;
 }
 
+function mixLabel(kind: "jobType" | "surveyLevel" | "bedroomBand", key: string) {
+  if (key === "UNSET") return "Not set";
+  if (kind === "jobType") return JOB_TYPE_LABELS[key] ?? key.replace(/_/g, " ");
+  if (kind === "surveyLevel") return SURVEY_LEVEL_LABELS[key] ?? key.replace(/_/g, " ");
+  return BEDROOM_BAND_LABELS[key] ?? key.replace(/_/g, " ");
+}
+
+function mixColumns(kind: "jobType" | "surveyLevel" | "bedroomBand"): Column<Record<string, unknown>>[] {
+  return [
+    {
+      key: "key",
+      header: kind === "jobType" ? "Type" : kind === "surveyLevel" ? "Level" : "Beds",
+      render: (value) => (
+        <span className="text-sm font-medium text-ink">{mixLabel(kind, String(value))}</span>
+      ),
+    },
+    {
+      key: "leads",
+      header: "Leads",
+      align: "right",
+      render: (value) => (
+        <span className="text-sm font-medium text-ink tabular-nums">{value as number}</span>
+      ),
+    },
+    {
+      key: "quoteRate",
+      header: "Quote %",
+      align: "right",
+      render: (value) => (
+        <span className="text-sm font-medium text-ink tabular-nums">{value as number}%</span>
+      ),
+    },
+    {
+      key: "winRate",
+      header: "Win %",
+      align: "right",
+      render: (value) => (
+        <span className="text-sm font-medium text-ink tabular-nums">{value as number}%</span>
+      ),
+    },
+    {
+      key: "revenue",
+      header: "Won £",
+      align: "right",
+      render: (value) => (
+        <span className="text-sm font-medium text-ink tabular-nums">{pounds(value as number)}</span>
+      ),
+    },
+    {
+      key: "avgWonValue",
+      header: "Avg",
+      align: "right",
+      render: (value, row) => (
+        <span className="text-sm font-medium text-ink tabular-nums">
+          {Number(row.won) > 0 ? pounds(value as number) : "—"}
+        </span>
+      ),
+    },
+  ];
+}
+
 export default function CrmAnalytics() {
   const router = useRouter();
   const [period, setPeriod] = useState<DashboardPeriod>("30d");
-  const [data, setData] = useState<DashboardOps | null>(null);
   const [sales, setSales] = useState<DashboardSales | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const fetchGeneration = useRef(0);
   const hasLoadedSales = useRef(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getDashboardOps()
-      .then((ops) => {
-        if (!cancelled) setData(ops);
-      })
-      .catch(console.error);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     const generation = ++fetchGeneration.current;
@@ -112,24 +162,6 @@ export default function CrmAnalytics() {
     DASHBOARD_PERIODS.find((item) => item.value === period)?.short ?? "30d";
   const comparisonLabel = sales?.comparison?.label;
   const deltas = sales?.comparison?.deltas;
-
-  const stageRows =
-    data?.jobsByStage?.map((row) => ({
-      stage: formatJobStageLabel(row.stage),
-      count: row._count.id,
-    })) ?? [];
-
-  const stageColumns: Column<{ stage: string; count: number }>[] = [
-    { key: "stage", header: "Stage" },
-    {
-      key: "count",
-      header: "Jobs",
-      align: "right",
-      render: (value) => (
-        <span className="text-sm font-medium text-ink tabular-nums">{value as number}</span>
-      ),
-    },
-  ];
 
   const funnelRows = (sales?.funnelBySource ?? []).map((row) => ({
     ...row,
@@ -200,6 +232,16 @@ export default function CrmAnalytics() {
         </span>
       ),
     },
+    {
+      key: "roi",
+      header: "ROI",
+      align: "right",
+      render: (value) => (
+        <span className="text-sm font-medium text-ink tabular-nums">
+          {value == null ? "—" : `${Number(value).toFixed(2)}x`}
+        </span>
+      ),
+    },
   ];
 
   const lostTotal = sales?.lostLast30d ?? 0;
@@ -222,6 +264,16 @@ export default function CrmAnalytics() {
       align: "right",
       render: (value) => (
         <span className="text-sm font-medium text-ink tabular-nums">{value as number}</span>
+      ),
+    },
+    {
+      key: "value",
+      header: "Lost £",
+      align: "right",
+      render: (value) => (
+        <span className="text-sm font-medium text-ink tabular-nums">
+          {pounds(Number(value ?? 0))}
+        </span>
       ),
     },
     {
@@ -248,12 +300,25 @@ export default function CrmAnalytics() {
   const cost = sales?.totalAcquisitionCost30d ?? 0;
   const costPerLead = sales?.costPerLead30d ?? 0;
   const costPerWin = sales?.costPerConversion30d ?? 0;
+  const follow = sales?.quoteFollowThrough ?? {
+    quotedCount: 0,
+    clickedCount: 0,
+    clickRate: 0,
+    wonFromClicked: 0,
+    clickToPayRate: 0,
+    avgDaysQuoteToClick: 0,
+    avgDaysClickToPay: 0,
+    clickedUnpaidCount: 0,
+    clickedUnpaidValue: 0,
+    quotedUnclickedCount: 0,
+    quotedUnclickedValue: 0,
+  };
 
   return (
     <CrmPageContent>
       <CrmPageHeader
         title="Analytics"
-        subtitle="Conversion, cost, and operations metrics"
+        subtitle="Where money is won, lost, and still sitting in the pipeline"
         actions={
           <>
             <FilterDropdown
@@ -353,7 +418,7 @@ export default function CrmAnalytics() {
             value={pounds(sales?.forecast ?? 0)}
             icon={<Target />}
             iconTint="info"
-            subtitle={`Pipeline × ${sales?.conversionRate30d ?? 0}%`}
+            subtitle="Expected value of open pipeline"
             trend={vsPeriodTrend(deltas?.forecast, comparisonLabel)}
           />
           <StatsCard
@@ -432,6 +497,91 @@ export default function CrmAnalytics() {
           />
         </div>
 
+        <TrendChart
+          title={`Revenue and conversion · ${periodShort}`}
+          points={sales?.timeseries?.points ?? []}
+        />
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <FunnelChart
+            title={`Stage funnel · ${periodShort}`}
+            steps={sales?.funnelSteps ?? []}
+          />
+          <Table
+            title={`Lost reasons · ${periodShort}`}
+            columns={lostColumns}
+            data={lostRows}
+            getRowKey={(row) => String(row.reason)}
+            emptyMessage="No lost leads in this period"
+          />
+        </div>
+
+        <div className="space-y-3">
+          <h2 className="text-base font-medium text-ink">Quote follow-through</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatsCard
+              title={`Click rate · ${periodShort}`}
+              value={`${follow.clickRate}%`}
+              icon={<MousePointerClick />}
+              iconTint="primary"
+              subtitle={`${follow.clickedCount} clicked / ${follow.quotedCount} quoted`}
+            />
+            <StatsCard
+              title={`Click to pay · ${periodShort}`}
+              value={`${follow.clickToPayRate}%`}
+              icon={<Percent />}
+              iconTint="success"
+              subtitle={`${follow.wonFromClicked} paid · ${follow.avgDaysClickToPay}d after click`}
+            />
+            <StatsCard
+              title="Clicked, unpaid"
+              value={pounds(follow.clickedUnpaidValue)}
+              icon={<Wallet />}
+              iconTint="warning"
+              subtitle={`${follow.clickedUnpaidCount} open · money on the table`}
+              action={{ label: "Chase now", href: "/crm/pipeline?slice=clicked_unpaid" }}
+            />
+            <StatsCard
+              title="Quoted, not clicked"
+              value={pounds(follow.quotedUnclickedValue)}
+              icon={<Send />}
+              iconTint="info"
+              subtitle={`${follow.quotedUnclickedCount} open · ${follow.avgDaysQuoteToClick}d quote to click`}
+              action={{ label: "View pipeline", href: "/crm/pipeline" }}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <h2 className="text-base font-medium text-ink">Product and pricing mix</h2>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <Table
+              title={`Survey level · ${periodShort}`}
+              columns={mixColumns("surveyLevel")}
+              data={(sales?.productMix?.bySurveyLevel ?? []).map((row) => ({ ...row }))}
+              getRowKey={(row) => `level:${row.key}`}
+              compact
+              emptyMessage="No leads in this period"
+            />
+            <Table
+              title={`Job type · ${periodShort}`}
+              columns={mixColumns("jobType")}
+              data={(sales?.productMix?.byJobType ?? []).map((row) => ({ ...row }))}
+              getRowKey={(row) => `type:${row.key}`}
+              compact
+              emptyMessage="No leads in this period"
+            />
+            <Table
+              title={`Bedroom band · ${periodShort}`}
+              columns={mixColumns("bedroomBand")}
+              data={(sales?.productMix?.byBedroomBand ?? []).map((row) => ({ ...row }))}
+              getRowKey={(row) => `beds:${row.key}`}
+              compact
+              emptyMessage="No leads in this period"
+            />
+          </div>
+        </div>
+
         <Table
           title={`Funnel by source · ${periodShort}`}
           columns={funnelColumns}
@@ -444,56 +594,38 @@ export default function CrmAnalytics() {
         />
 
         <Table
-          title={`Lost reasons · ${periodShort}`}
-          columns={lostColumns}
-          data={lostRows}
-          getRowKey={(row) => String(row.reason)}
-          emptyMessage="No lost leads in this period"
+          title={`Speed to first touch · ${periodShort}`}
+          columns={[
+            { key: "cohort", header: "Cohort" },
+            {
+              key: "leads",
+              header: "Leads",
+              align: "right",
+              render: (value) => (
+                <span className="text-sm font-medium text-ink tabular-nums">{value as number}</span>
+              ),
+            },
+            {
+              key: "converted",
+              header: "Won",
+              align: "right",
+              render: (value) => (
+                <span className="text-sm font-medium text-ink tabular-nums">{value as number}</span>
+              ),
+            },
+            {
+              key: "conversionRate",
+              header: "Conv %",
+              align: "right",
+              render: (value) => (
+                <span className="text-sm font-medium text-ink tabular-nums">{value as number}%</span>
+              ),
+            },
+          ]}
+          data={sales?.speedToLead ?? []}
+          getRowKey={(row) => String(row.cohort)}
+          emptyMessage="No resolved leads in this period"
         />
-
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-base font-medium text-ink">Live operations</h2>
-            <p className="mt-1 text-sm text-ink-muted">Not affected by the period filter</p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatsCard
-              title="Inspections this week"
-              value={data?.inspectionsThisWeek ?? 0}
-              icon={<ClipboardCheck />}
-              iconTint="primary"
-            />
-            <StatsCard
-              title="Reports in QC / drafting"
-              value={data?.reportsInQc ?? 0}
-              icon={<FileEdit />}
-              iconTint="info"
-            />
-            <StatsCard
-              title="Trade jobs active"
-              value={data?.tradeInProgress ?? 0}
-              icon={<Wrench />}
-              iconTint="warning"
-            />
-            <StatsCard
-              title="Unassigned jobs"
-              value={data?.unassignedJobs ?? 0}
-              icon={<UserMinus />}
-              iconTint="danger"
-              action={{ label: "View jobs", href: "/crm/jobs" }}
-            />
-          </div>
-        </div>
-
-        {stageRows.length > 0 && (
-          <Table
-            title="Jobs by stage · live"
-            columns={stageColumns}
-            data={stageRows}
-            getRowKey={(row) => String(row.stage)}
-            emptyMessage="No jobs"
-          />
-        )}
       </div>
     </CrmPageContent>
   );

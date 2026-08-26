@@ -151,7 +151,7 @@
 }
 
 .crm-email-body--thread blockquote {
-  margin: 0.65em 0;
+  margin: 0.65em 0 0.65em 0.85em;
   padding: 0.35em 0 0.35em 0.75em;
   border-left: 3px solid color-mix(in srgb, var(--color-brand) 35%, var(--color-line));
   color: var(--color-ink-muted);
@@ -159,7 +159,7 @@
 }
 
 .crm-email-body--thread blockquote blockquote {
-  margin: 0.4em 0;
+  margin: 0.4em 0 0.4em 0.5em;
   border-left-color: color-mix(in srgb, var(--color-brand) 20%, var(--color-line));
 }
 
@@ -202,8 +202,11 @@
 }
 
 .crm-email-body--designed a[style*="display:inline-block"],
-.crm-email-body--designed a[style*="display: inline-block"] {
+.crm-email-body--designed a[style*="display: inline-block"],
+.crm-email-body--designed a[style*="display:block"],
+.crm-email-body--designed a[style*="display: block"] {
   text-decoration: none !important;
+  box-sizing: border-box;
 }
 
 .crm-email-body--designed img {

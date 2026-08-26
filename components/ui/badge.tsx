@@ -25,6 +25,12 @@ const badgeVariants = cva(
           "rounded-full border-0 bg-sky-50 px-2.5 py-1 text-[11px] font-medium text-sky-700 sm:text-xs",
         crmAwaiting:
           "rounded-full border-0 bg-teal-50 px-2.5 py-1 text-[11px] font-medium text-teal-700 sm:text-xs",
+        crmAssigned:
+          "rounded-full border-0 bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-700 sm:text-xs",
+        crmUpload:
+          "rounded-full border-0 bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700 sm:text-xs",
+        crmQc:
+          "rounded-full border-0 bg-rose-50 px-2.5 py-1 text-[11px] font-medium text-rose-700 sm:text-xs",
         crmPaused:
           "rounded-full border-0 bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600 sm:text-xs",
         crmNav:

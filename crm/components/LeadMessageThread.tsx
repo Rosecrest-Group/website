@@ -39,17 +39,13 @@ import MessageRichCompose, {
   type MessageRichComposeHandle,
 } from "@/crm/components/ui/MessageRichCompose";
 import {
-  NoteCommentsSlidePanel,
-  NoteThreadBubble,
-} from "@/crm/components/LeadInternalNotesPanel";
-import {
   formatChatDateSeparator,
   formatChatTime,
   initialsFromName,
   messageTimestamp,
 } from "@/crm/lib/formatChatTime";
 import { linkifyText } from "@/crm/lib/formatMessageBody";
-import { messagePreviewSnippet, noteRepliesByParent, rootNoteOf } from "@/crm/lib/leadNotes";
+import { messagePreviewSnippet } from "@/crm/lib/leadNotes";
 import {
   isDesignedEmailHtml,
   parseWhatsAppFormatting,
@@ -58,6 +54,7 @@ import {
 import { scrollChatContainerToBottom } from "@/crm/lib/scrollChatThread";
 import { parseTrailingMediaUrls } from "@/crm/lib/messageMediaAttachments";
 import { cadenceStopTooltip } from "@/crm/lib/cadenceStopReason";
+import { callDirectionLabel, resolveCallDirection } from "@/crm/lib/callDisplay";
 import SelectField from "@/crm/components/ui/SelectField";
 import { usePhone } from "@/crm/lib/phoneContext";
 import { refreshInboxUnreadCount } from "@/crm/lib/useInboxUnreadCount";
@@ -77,7 +74,6 @@ type Channel = MessageChannel;
 
 type ThreadEntry =
   | { kind: "message"; id: string; createdAt: string; message: Message }
-  | { kind: "note"; id: string; createdAt: string; note: InternalMessageItem }
   | { kind: "call"; id: string; createdAt: string; activity: Activity }
   | { kind: "cadence_stop"; id: string; createdAt: string; activity: Activity }
   | { kind: "payment"; id: string; createdAt: string; activity: Activity };
@@ -735,6 +731,9 @@ function CallNotesPanel({
   const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
   if (!active) return null;
 
+  const directionLabel = callDirectionLabel(isOutbound ? "outbound" : "inbound");
+  const muted = isOutbound ? "text-sky-900/70" : "text-emerald-900/70";
+
   return (
     <div className="w-full max-w-[min(100%,36rem)]">
       <div
@@ -746,6 +745,9 @@ function CallNotesPanel({
         )}
       >
         <div className="mb-2 flex flex-wrap items-center gap-2">
+          <span className={cn("text-xs font-semibold tracking-wide", isOutbound ? "text-sky-950" : "text-emerald-950")}>
+            {directionLabel}
+          </span>
           {tabs.length > 1 ? (
             <div
               className={cn(
@@ -753,7 +755,7 @@ function CallNotesPanel({
                 isOutbound ? "bg-sky-100/80" : "bg-emerald-100/80"
               )}
               role="tablist"
-              aria-label="Call notes"
+              aria-label={`${directionLabel} call notes`}
             >
               {tabs.map((tab) => {
                 const selected = tab.id === active.id;
@@ -780,15 +782,13 @@ function CallNotesPanel({
             </div>
           ) : (
             <span className={cn("text-xs font-semibold", isOutbound ? "text-sky-950" : "text-emerald-950")}>
-              {active.id === "recap" ? "Call recap" : "Call transcript"}
+              {active.id === "recap" ? "Recap" : "Transcript"}
             </span>
           )}
           {duration ? (
-            <span className={cn("text-xs", isOutbound ? "text-sky-900/70" : "text-emerald-900/70")}>
-              {duration}
-            </span>
+            <span className={cn("text-xs", muted)}>{duration}</span>
           ) : null}
-          <span className={cn("text-xs", isOutbound ? "text-sky-900/70" : "text-emerald-900/70")}>{time}</span>
+          <span className={cn("text-xs", muted)}>{time}</span>
         </div>
         <CollapsiblePlainBody
           key={active.id}
@@ -845,11 +845,16 @@ function callNumberFromMeta(
   return null;
 }
 
-function CallThreadBanner({ activity }: { activity: Activity }) {
+function CallThreadBanner({
+  activity,
+  customerPhone,
+}: {
+  activity: Activity;
+  customerPhone?: string | null;
+}) {
   const meta = activity.metadata ?? {};
-  const directionRaw = String(meta.direction ?? "outbound").toLowerCase();
-  const isOutbound = directionRaw !== "inbound";
-  const direction: "inbound" | "outbound" = isOutbound ? "outbound" : "inbound";
+  const direction = resolveCallDirection(meta, customerPhone, activity.description);
+  const isOutbound = direction === "outbound";
   const outcome = typeof meta.outcome === "string" ? meta.outcome.toLowerCase() : "";
   const durationSeconds =
     asFiniteNumber(meta.durationSeconds) ?? asFiniteNumber(meta.duration);
@@ -863,6 +868,7 @@ function CallThreadBanner({ activity }: { activity: Activity }) {
     outcome === "busy" ||
     outcome === "cancelled" ||
     outcome === "canceled";
+  const isVoicemail = outcome === "voicemail";
 
   const duration =
     durationSeconds != null && (durationSeconds > 0 || !isInitiated)
@@ -889,7 +895,11 @@ function CallThreadBanner({ activity }: { activity: Activity }) {
       : null;
   const time = formatChatTime(activity.createdAt);
 
-  const label = missed
+  const label = isVoicemail
+    ? isOutbound
+      ? "Outgoing voicemail"
+      : "Incoming voicemail"
+    : missed
     ? isOutbound
       ? outcome === "busy"
         ? "Busy"
@@ -1010,8 +1020,9 @@ function ThreadBubble({
     : customerName;
   const ChannelIcon =
     message.channel === "EMAIL" ? Mail : message.channel === "WHATSAPP" ? Phone : MessageSquare;
+  // Inbound replies often quote designed cards; keep bubble padding so reply text isn't flush.
   const designedEmail =
-    message.channel === "EMAIL" && isDesignedEmailHtml(message.body);
+    message.channel === "EMAIL" && isOutbound && isDesignedEmailHtml(message.body);
   const addressLabel = counterpartAddressLabel(message, isOutbound);
 
   return (
@@ -1019,7 +1030,7 @@ function ThreadBubble({
       <div
         className={cn(
           "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-          isOutbound ? "bg-(--color-primary) text-white" : "bg-(--color-nc-10) text-(--color-tc-40)"
+          isOutbound ? "bg-(--color-primary) text-white" : "bg-brand-muted text-brand"
         )}
         aria-hidden
       >
@@ -1140,6 +1151,7 @@ function ThreadBubble({
 export default function LeadMessageThread({
   leadId,
   customerName,
+  customerPhone,
   messages: initialMessages,
   threadActivities: initialThreadActivities = [],
   onSent,
@@ -1154,6 +1166,7 @@ export default function LeadMessageThread({
 }: {
   leadId: string;
   customerName: string;
+  customerPhone?: string | null;
   messages: Message[];
   /** Calls + cadence-stop + payment system events, sorted into the chat by time */
   threadActivities?: Activity[];
@@ -1173,10 +1186,6 @@ export default function LeadMessageThread({
   const [messages, setMessages] = useState(() =>
     initialMessages.length > 0 ? initialMessages : cachedThread?.messages ?? []
   );
-  const [notes, setNotes] = useState<InternalMessageItem[]>(() => cachedThread?.notes ?? []);
-  const [conversationId, setConversationId] = useState<string | null>(
-    () => cachedThread?.conversationId ?? null
-  );
   const [threadActivities, setThreadActivities] = useState<Activity[]>(() =>
     initialThreadActivities.length > 0
       ? initialThreadActivities
@@ -1193,7 +1202,6 @@ export default function LeadMessageThread({
   );
   const [sending, setSending] = useState(false);
   const [targetMessage, setTargetMessage] = useState<Message | null>(null);
-  const [commentModalNote, setCommentModalNote] = useState<InternalMessageItem | null>(null);
   const [channel, setChannel] = useState<Channel>("EMAIL");
   const [subject, setSubject] = useState("");
   const [plainBody, setPlainBody] = useState("");
@@ -1236,8 +1244,6 @@ export default function LeadMessageThread({
     });
     setMessagesPage(result.page);
     setMessagesHasMore(hasMore);
-    if (extras?.notes) setNotes(extras.notes);
-    if (extras?.conversationId !== undefined) setConversationId(extras.conversationId);
     if (extras?.activities) setThreadActivities(extras.activities);
 
     const cached = getCachedLeadThread(leadId);
@@ -1285,8 +1291,6 @@ export default function LeadMessageThread({
 
     if (cached) {
       setMessages(cached.messages);
-      setNotes(cached.notes);
-      setConversationId(cached.conversationId);
       setMessagesPage(cached.page);
       setMessagesHasMore(cached.hasMore);
       setThreadActivities(cached.activities);
@@ -1297,8 +1301,6 @@ export default function LeadMessageThread({
       setLoading(true);
     } else {
       setMessages([]);
-      setNotes([]);
-      setConversationId(null);
       setMessagesPage(1);
       setMessagesHasMore(false);
       setLoading(true);
@@ -1390,14 +1392,6 @@ export default function LeadMessageThread({
     hasScrolledToBottomRef.current = false;
   }, [leadId]);
 
-  useEffect(() => {
-    if (!isActive) return;
-    const cached = getCachedLeadThread(leadId);
-    if (!cached) return;
-    setNotes(cached.notes);
-    if (cached.conversationId) setConversationId(cached.conversationId);
-  }, [isActive, leadId]);
-
   // Opening the thread clears it for the whole team and drops the matching bell items.
   useEffect(() => {
     onReadRef.current?.(leadId);
@@ -1411,17 +1405,15 @@ export default function LeadMessageThread({
 
   useLayoutEffect(() => {
     // Jump on the thread's first paint; only animate for messages that arrive after it.
-    const itemCount = sortedMessages.length + notes.length + threadActivities.length;
+    const itemCount = sortedMessages.length + threadActivities.length;
     const behavior: ScrollBehavior =
       itemCount > 0 && hasScrolledToBottomRef.current ? "smooth" : "instant";
     if (itemCount > 0) hasScrolledToBottomRef.current = true;
     scrollChatContainerToBottom(scrollRef.current, behavior);
   }, [
     sortedMessages.length,
-    notes.length,
     threadActivities.length,
     sortedMessages[sortedMessages.length - 1]?.id,
-    notes[notes.length - 1]?.id,
   ]);
 
   useEffect(() => {
@@ -1454,14 +1446,6 @@ export default function LeadMessageThread({
         setSubject(suggestEmailSubject(sortedMessages, message));
       }
     }
-  }
-
-  function openNoteComment(note: InternalMessageItem) {
-    setCommentModalNote(rootNoteOf(note, notes));
-  }
-
-  function closeCommentModal() {
-    setCommentModalNote(null);
   }
 
   function closeExpandedComposer() {
@@ -1631,8 +1615,6 @@ export default function LeadMessageThread({
     }
   }
 
-  const repliesByParent = useMemo(() => noteRepliesByParent(notes), [notes]);
-
   const sortedThreadEntries = useMemo(() => {
     const entries: ThreadEntry[] = [
       ...sortedMessages.map((message) => ({
@@ -1641,15 +1623,6 @@ export default function LeadMessageThread({
         createdAt: messageTimestamp(message),
         message,
       })),
-      // Root notes only — comments nest under the parent like Slack.
-      ...notes
-        .filter((note) => !note.isDeleted && !note.parentMessageId)
-        .map((note) => ({
-          kind: "note" as const,
-          id: note.id,
-          createdAt: note.createdAt,
-          note,
-        })),
       ...threadActivities.flatMap((activity): ThreadEntry[] => {
         if (activity.type === "payment.received") {
           return [
@@ -1689,12 +1662,11 @@ export default function LeadMessageThread({
     return entries.sort(
       (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
-  }, [sortedMessages, notes, threadActivities]);
+  }, [sortedMessages, threadActivities]);
 
   const threadItems: Array<
     | { kind: "date"; key: string; label: string }
     | { kind: "message"; key: string; message: Message }
-    | { kind: "note"; key: string; note: InternalMessageItem }
     | { kind: "call"; key: string; activity: Activity }
     | { kind: "cadence_stop"; key: string; activity: Activity }
     | { kind: "payment"; key: string; activity: Activity }
@@ -1709,8 +1681,6 @@ export default function LeadMessageThread({
     }
     if (entry.kind === "message") {
       threadItems.push({ kind: "message", key: entry.id, message: entry.message });
-    } else if (entry.kind === "note") {
-      threadItems.push({ kind: "note", key: entry.id, note: entry.note });
     } else if (entry.kind === "cadence_stop") {
       threadItems.push({ kind: "cadence_stop", key: entry.id, activity: entry.activity });
     } else if (entry.kind === "payment") {
@@ -1735,7 +1705,7 @@ export default function LeadMessageThread({
           <div className="flex h-full flex-col items-center justify-center py-12 text-center">
             <p className="text-sm font-medium text-(--color-tc-40)">No messages yet</p>
             <p className="mt-1 max-w-sm text-xs text-(--color-tc-30)">
-              Send a reply below. Replies, internal notes, and calls appear here together.
+              Send a reply below. Replies and calls appear here together.
             </p>
           </div>
         ) : (
@@ -1764,13 +1734,10 @@ export default function LeadMessageThread({
             ) : item.kind === "payment" ? (
               <PaymentReceivedThreadBanner key={item.key} activity={item.activity} />
             ) : item.kind === "call" ? (
-              <CallThreadBanner key={item.key} activity={item.activity} />
-            ) : item.kind === "note" ? (
-              <NoteThreadBubble
+              <CallThreadBanner
                 key={item.key}
-                note={item.note}
-                replies={repliesByParent.get(item.note.id) ?? []}
-                onComment={openNoteComment}
+                activity={item.activity}
+                customerPhone={customerPhone}
               />
             ) : (
               <ThreadBubble
@@ -1947,18 +1914,6 @@ export default function LeadMessageThread({
           {error && <p className="shrink-0 text-xs text-red-600">{error}</p>}
         </div>
       </CrmModal>
-
-      <NoteCommentsSlidePanel
-        leadId={leadId}
-        conversationId={conversationId}
-        note={commentModalNote}
-        notes={notes}
-        onClose={closeCommentModal}
-        onNotesChange={(next, nextConversationId) => {
-          setNotes(next);
-          if (nextConversationId) setConversationId(nextConversationId);
-        }}
-      />
     </>
   );
 

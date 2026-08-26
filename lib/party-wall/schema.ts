@@ -307,8 +307,8 @@ export function buildPartyWallCrmMessage(
     `Date of service: ${values.dateOfService}`,
     "",
     "Documents:",
-    `  Land Registry: ${values.landRegistryFileName}${files?.landRegistry ? " (attached as base64 in payload)" : ""}`,
-    `  Technical drawings: ${values.technicalDrawingsFileName}${files?.technicalDrawings ? " (attached as base64 in payload)" : ""}`,
+    `  Land Registry: ${values.landRegistryFileName}${files?.landRegistry ? " (attached)" : ""}`,
+    `  Technical drawings: ${values.technicalDrawingsFileName}${files?.technicalDrawings ? " (attached)" : ""}`,
     "",
     "Terms accepted: Yes"
   );

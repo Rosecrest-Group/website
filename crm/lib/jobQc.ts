@@ -1,10 +1,13 @@
-/** QC required before surveyor upload / Report Delivered. Ops/admin may bypass. */
+/** QC required before Submit Report. Ops/admin may bypass. */
 
-export function qcDeliverableLabel(surveyLevel?: string | null): string | null {
-  if (surveyLevel === "LEVEL_2") return "Next Steps Action Plan reviewed";
-  if (surveyLevel === "LEVEL_3") return "Repair costings verified";
-  if (surveyLevel === "CPR_35") return "CPR-35 supporting documents complete";
-  return null;
+export const QC_TICKS = [
+  { field: "qcOttoReviewComplete" as const, label: "Technical review completed" },
+  { field: "qcRicsPassConfirmed" as const, label: "95% RICS pass rate" },
+  { field: "qcLevelDeliverableComplete" as const, label: "Repair costings verified" },
+];
+
+export function qcDeliverableLabel(_surveyLevel?: string | null): string {
+  return "Repair costings verified";
 }
 
 export function isJobQcComplete(job: {
@@ -13,10 +16,10 @@ export function isJobQcComplete(job: {
   qcRicsPassConfirmed?: boolean | null;
   qcLevelDeliverableComplete?: boolean | null;
 }): boolean {
-  if (!job.qcOttoReviewComplete || !job.qcRicsPassConfirmed) return false;
-  if (qcDeliverableLabel(job.surveyLevel) && !job.qcLevelDeliverableComplete) return false;
-  return true;
+  return Boolean(
+    job.qcOttoReviewComplete && job.qcRicsPassConfirmed && job.qcLevelDeliverableComplete
+  );
 }
 
 export const QC_INCOMPLETE_MESSAGE =
-  "Complete the QC checks before uploading or moving to Report Delivered";
+  "Complete the QC checks before moving to Submit Report";

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { api } from "@/crm/lib/api";
 import {
   canBypassJobQc,
@@ -24,7 +25,7 @@ import TextField from "@/crm/components/ui/TextField";
 import SelectField from "@/crm/components/ui/SelectField";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import ConfirmModal from "@/crm/components/ui/ConfirmModal";
-import { ArrowLeft, Building2, CalendarDays, CheckSquare, ClipboardList, FileText, KeyRound, UserRound, Wallet } from "lucide-react";
+import { ArrowLeft, Building2, CalendarDays, CheckSquare, ClipboardList, FileText, KeyRound, Loader2, Upload, UserRound, Wallet } from "lucide-react";
 import {
   canonicalSurveyStage,
   formatJobStageLabel,
@@ -32,8 +33,209 @@ import {
   SURVEY_JOB_STAGES,
   surveyorMaySetSurveyStage,
 } from "@/crm/lib/jobStages";
-import { isJobQcComplete, qcDeliverableLabel, QC_INCOMPLETE_MESSAGE } from "@/crm/lib/jobQc";
+import { isJobQcComplete, QC_INCOMPLETE_MESSAGE, QC_TICKS } from "@/crm/lib/jobQc";
 import { doneTopProgress, startTopProgress } from "@/crm/lib/topProgress";
+import { cn } from "@/lib/utils";
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  REPORT: "Report",
+  ACTION_PLAN: "Action plan",
+  COSTING: "Costing",
+  OTHER: "Other",
+};
+
+const DOC_FILE_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.gif";
+const DROP_SPRING = { type: "spring", stiffness: 420, damping: 32, mass: 0.7 } as const;
+
+function JobDocumentsFields({
+  docType,
+  docFile,
+  docError,
+  uploadingDoc,
+  documents,
+  showUpload,
+  onTypeChange,
+  onFileChange,
+  onUpload,
+}: {
+  docType: string;
+  docFile: File | null;
+  docError: string | null;
+  uploadingDoc: boolean;
+  documents: JobDocument[];
+  showUpload: boolean;
+  onTypeChange: (type: string) => void;
+  onFileChange: (file: File | null) => void;
+  onUpload: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dragCount = useRef(0);
+  const [dragOver, setDragOver] = useState(false);
+  const reduceMotion = useReducedMotion();
+
+  function isFileDrag(e: DragEvent) {
+    return Array.from(e.dataTransfer.types).includes("Files");
+  }
+
+  function onDragEnter(e: DragEvent) {
+    if (uploadingDoc || !isFileDrag(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragCount.current += 1;
+    setDragOver(true);
+  }
+
+  function onDragOver(e: DragEvent) {
+    if (uploadingDoc || !isFileDrag(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "copy";
+  }
+
+  function onDragLeave(e: DragEvent) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragCount.current = Math.max(0, dragCount.current - 1);
+    if (dragCount.current === 0) setDragOver(false);
+  }
+
+  function onDrop(e: DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCount.current = 0;
+    setDragOver(false);
+    if (uploadingDoc) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file) onFileChange(file);
+  }
+
+  return (
+    <div className="space-y-4">
+      {showUpload && (
+        <div className="space-y-3">
+          <input
+            ref={inputRef}
+            id="job-document-file"
+            type="file"
+            accept={DOC_FILE_ACCEPT}
+            className="sr-only"
+            onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
+          />
+          <motion.div
+            role="button"
+            tabIndex={uploadingDoc ? -1 : 0}
+            aria-disabled={uploadingDoc}
+            onClick={() => {
+              if (!uploadingDoc) inputRef.current?.click();
+            }}
+            onKeyDown={(e) => {
+              if (uploadingDoc) return;
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                inputRef.current?.click();
+              }
+            }}
+            onDragEnter={onDragEnter}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+            animate={
+              reduceMotion
+                ? undefined
+                : { scale: dragOver ? 1.015 : 1 }
+            }
+            transition={DROP_SPRING}
+            className={cn(
+              "flex min-h-[8.5rem] w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-[border-color,background-color,box-shadow] duration-200",
+              uploadingDoc ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+              dragOver
+                ? "border-brand bg-brand-muted/40 shadow-[0_0_0_4px_rgb(109_40_217_/_0.12)]"
+                : "border-line bg-surface hover:border-brand-light hover:bg-brand-muted/20",
+            )}
+          >
+            <span
+              className={cn(
+                "flex size-10 items-center justify-center rounded-lg transition-colors duration-200",
+                dragOver ? "bg-brand text-white" : "bg-brand-muted text-brand",
+              )}
+            >
+              <Upload className="size-5" aria-hidden />
+            </span>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={dragOver ? "over" : docFile ? "file" : "idle"}
+                initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
+                transition={{ duration: 0.15 }}
+                className="space-y-0.5"
+              >
+                {dragOver ? (
+                  <span className="block text-sm font-medium text-brand">Drop here</span>
+                ) : docFile ? (
+                  <>
+                    <span className="block text-sm font-medium text-ink">{docFile.name}</span>
+                    <span className="block text-xs text-ink-muted">Click or drop another file to replace</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="block text-sm font-medium text-ink">Drop a file here, or click to browse</span>
+                    <span className="block text-xs text-ink-muted">PDF, Word, Excel, or image</span>
+                  </>
+                )}
+              </motion.span>
+            </AnimatePresence>
+          </motion.div>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <SelectField
+              label="Type"
+              value={docType}
+              onChange={(e) => onTypeChange(e.target.value)}
+              className="min-w-[11rem]"
+            >
+              <option value="REPORT">Report</option>
+              <option value="ACTION_PLAN">Action plan</option>
+              <option value="COSTING">Costing</option>
+              <option value="OTHER">Other</option>
+            </SelectField>
+            <PrimaryButton
+              type="button"
+              className="ml-auto w-auto shrink-0 px-6"
+              onClick={onUpload}
+              disabled={!docFile || uploadingDoc}
+            >
+              {uploadingDoc ? "Uploading…" : "Upload"}
+            </PrimaryButton>
+          </div>
+        </div>
+      )}
+      {docError && <p className="text-sm text-red-600">{docError}</p>}
+      {documents.length > 0 ? (
+        <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
+          {documents.map((d) => (
+            <li key={d.id}>
+              <a
+                href={d.storageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-3 px-3 py-2.5 text-sm text-ink transition-colors hover:bg-sidebar hover:text-brand"
+              >
+                <FileText className="size-4 shrink-0 text-brand" aria-hidden />
+                <span className="min-w-0 flex-1 truncate">{d.filename}</span>
+                <span className="shrink-0 text-xs text-ink-muted">
+                  {DOC_TYPE_LABELS[d.type] ?? d.type}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        showUpload ? null : <p className="text-sm text-ink-muted">No documents yet</p>
+      )}
+    </div>
+  );
+}
 
 function paymentStatusVariant(status: string): "completed" | "pending" | "in-review" | "failed" {
   if (status === "PAID") return "completed";
@@ -79,42 +281,26 @@ function surveyStageIndex(stage: string): number {
 }
 
 /** Which Job Detail panels to show for the current survey stage. */
-function surveyStagePanels(stage: string, opts: { hasSurveyor: boolean; accessPendingReview: boolean }) {
+function surveyStagePanels(stage: string) {
   const canonical = canonicalSurveyStage(stage);
-  const idx = surveyStageIndex(canonical);
   const is = (...stages: string[]) => stages.includes(canonical);
-  const atOrAfter = (s: SurveyStage) => {
-    const target = SURVEY_STAGES.indexOf(s);
-    return target >= 0 && idx >= target;
-  };
-  const beforeSite =
-    opts.hasSurveyor &&
-    (is("PENDING_PAYMENT", "PAID", "ACCESS_REQUESTED", "ACCESS_CONFIRMED", "INSPECTION_BOOKED") ||
-      (idx >= 0 && idx < SURVEY_STAGES.indexOf("INSPECTION_COMPLETE")));
-
-  const accessPhase = is("PENDING_PAYMENT", "PAID", "ACCESS_REQUESTED") || opts.accessPendingReview;
-  const bookingPhase = is("ACCESS_CONFIRMED", "INSPECTION_BOOKED");
-  const inspectionDetails =
-    stage === "PENDING_PAYMENT" ||
-    (idx >= 0 && idx <= SURVEY_STAGES.indexOf("INSPECTION_BOOKED"));
 
   return {
-    /** Unpaid payment actions stay available until paid regardless of stage. */
-    surveyor: idx < SURVEY_STAGES.indexOf("INSPECTION_COMPLETE") || !opts.hasSurveyor,
-    accessEditor: accessPhase,
-    accessReadOnly: !accessPhase && atOrAfter("ACCESS_CONFIRMED"),
-    showAccessNotes: atOrAfter("ACCESS_REQUESTED"),
-    /** Torera: checkpoints once assigned, before attending site. */
-    preSiteCheckpoints: beforeSite,
-    /** Proposed / booked date + arrival window — needed before Access Request email. */
-    inspectionDetails,
-    inspectionDetailsProposed: accessPhase && !bookingPhase,
-    dataCapture: is("INSPECTION_COMPLETE"),
-    documents: atOrAfter("INSPECTION_COMPLETE"),
-    documentsUpload: atOrAfter("INSPECTION_COMPLETE"),
+    startAccessRequest: is("PAID"),
+    surveyor: is("ACCESS_REQUESTED"),
+    accessEditor: is("ACCESS_REQUESTED"),
+    accessReadOnly: is("ACCESS_CONFIRMED"),
+    accessNotesEditor: is("ACCESS_CONFIRMED"),
+    showAccessNotes: is("ACCESS_CONFIRMED"),
+    preSiteCheckpoints: is("INSPECTION_BOOKED"),
+    inspectionDetails: is("INSPECTION_BOOKED"),
+    inspectionDetailsProposed: is("ACCESS_REQUESTED"),
+    dataCapture: is("DATA_UPLOAD"),
+    qcChecks: is("REPORT_QC"),
+    documents: is("REPORT_DELIVERED"),
+    documentsUpload: is("REPORT_DELIVERED"),
     reviewRequest: is("REPORT_DELIVERED"),
     paymentsHistory: is("REPORT_DELIVERED"),
-    earlierDetails: atOrAfter("INSPECTION_COMPLETE"),
   };
 }
 
@@ -148,8 +334,6 @@ export default function JobDetail({ id }: { id: string }) {
   const [accessContactKind, setAccessContactKind] = useState<AccessContactKind>("agent");
   const [inspectionDate, setInspectionDate] = useState("");
   const [inspectionWindow, setInspectionWindow] = useState("");
-  const [inspectionError, setInspectionError] = useState<string | null>(null);
-  const [savingInspection, setSavingInspection] = useState(false);
   const [stageError, setStageError] = useState<string | null>(null);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [accessSaved, setAccessSaved] = useState(false);
@@ -158,6 +342,13 @@ export default function JobDetail({ id }: { id: string }) {
   const [pendingStage, setPendingStage] = useState<string | null>(null);
   const [stageSaving, setStageSaving] = useState(false);
   const [justMovedStage, setJustMovedStage] = useState<string | null>(null);
+  const [pendingSurveyorId, setPendingSurveyorId] = useState<string | null>(null);
+  const [assigningSurveyor, setAssigningSurveyor] = useState(false);
+  const [assignSurveyorError, setAssignSurveyorError] = useState<string | null>(null);
+  const [notifyingSurveyor, setNotifyingSurveyor] = useState(false);
+  const [issueReportOpen, setIssueReportOpen] = useState(false);
+  const [issuingReport, setIssuingReport] = useState(false);
+  const [issueReportError, setIssueReportError] = useState<string | null>(null);
 
   function reload(silent = true) {
     if (!silent) setLoading(true);
@@ -281,10 +472,7 @@ export default function JobDetail({ id }: { id: string }) {
   const isTrade = job.jobType === "TRADE_WORK";
   const documents = (job.documents ?? []) as JobDocument[];
   const hasReportDocument = documents.some((d) => d.type === "REPORT");
-  const panels = surveyStagePanels(job.stage, {
-    hasSurveyor: Boolean(job.assignedTo),
-    accessPendingReview: Boolean(job.accessDetailsPendingReview),
-  });
+  const panels = surveyStagePanels(job.stage);
   const activeStageStyle: CSSProperties = {
     backgroundColor: "var(--color-primary)",
     borderColor: "var(--color-primary)",
@@ -308,22 +496,8 @@ export default function JobDetail({ id }: { id: string }) {
     }
     if (canonicalSurveyStage(job.stage) === stage) return;
     setStageError(null);
-    if (stage === "ACCESS_REQUESTED") {
-      if (!job.assignedTo) {
-        setStageError("Assign a surveyor before moving to Access Requested");
-        return;
-      }
-      if (!job.inspectionDate || !job.inspectionWindow?.trim()) {
-        setStageError(
-          "Set proposed inspection date and arrival window before Access Requested — they go in the agent email"
-        );
-        return;
-      }
-    }
-    if (stage === "REPORT_DELIVERED" && !hasReportDocument) {
-      setStageError(
-        "Upload a Report document before moving to Report Delivered — it is attached to the client email"
-      );
+    if (stage === "REPORT_QC" && role === "SURVEYOR" && !job.dataCaptureComplete) {
+      setStageError("Tick data upload before moving to Quality Control");
       return;
     }
     if (stage === "REPORT_DELIVERED" && !bypassQc && !isJobQcComplete(job)) {
@@ -416,7 +590,13 @@ export default function JobDetail({ id }: { id: string }) {
     setAccessSaved(false);
     setSavingAccess(true);
     try {
-      await api.updateJob(id, accessDetailsPayload());
+      await api.updateJob(id, {
+        ...accessDetailsPayload(),
+        inspectionDate: inspectionDate.trim()
+          ? new Date(`${inspectionDate}T12:00:00.000Z`).toISOString()
+          : null,
+        inspectionWindow: normalizeInspectionWindow(inspectionWindow) || null,
+      });
       await reload();
       setAccessSaved(true);
     } catch (e) {
@@ -445,35 +625,64 @@ export default function JobDetail({ id }: { id: string }) {
       await api.confirmJobAccessDetails(id);
       await reload();
     } catch (e) {
-      setAccessError(e instanceof Error ? e.message : "Could not confirm access details");
+      setAccessError(e instanceof Error ? e.message : "Could not request access");
     } finally {
       setConfirmingAccess(false);
     }
   }
 
-  async function assignSurveyor(surveyorId: string) {
-    await api.updateJob(id, { assignedToId: surveyorId || null });
-    reload();
-  }
-
-  async function saveInspectionDetails() {
-    if (!canSetInspectionDate) return;
-    setInspectionError(null);
-    setSavingInspection(true);
+  async function notifySurveyor() {
+    setAccessError(null);
+    setAccessSaved(false);
+    setNotifyingSurveyor(true);
     try {
-      // Noon UTC keeps the calendar day stable across UK timezones.
-      const iso = inspectionDate
-        ? new Date(`${inspectionDate}T12:00:00.000Z`).toISOString()
-        : null;
-      await api.updateJob(id, {
-        inspectionDate: iso,
-        inspectionWindow: normalizeInspectionWindow(inspectionWindow) || null,
-      });
+      await api.updateJob(id, accessDetailsPayload());
+      await api.notifyJobSurveyor(id, { accessNotes: accessForm.accessNotes });
+      toast.success("Surveyor notified");
       await reload();
     } catch (e) {
-      setInspectionError(e instanceof Error ? e.message : "Could not save inspection details");
+      const msg = e instanceof Error ? e.message : "Could not notify surveyor";
+      setAccessError(msg);
+      toast.error(msg);
     } finally {
-      setSavingInspection(false);
+      setNotifyingSurveyor(false);
+    }
+  }
+
+  function surveyorName(surveyorId: string) {
+    if (!surveyorId) return "Unassigned";
+    return (
+      surveyors.find((s) => s.id === surveyorId)?.fullName ??
+      job?.assignedTo?.fullName ??
+      "this surveyor"
+    );
+  }
+
+  function requestAssignSurveyor(surveyorId: string) {
+    if ((job?.assignedTo?.id ?? "") === surveyorId) return;
+    setAssignSurveyorError(null);
+    setPendingSurveyorId(surveyorId);
+    startTopProgress();
+  }
+
+  async function confirmAssignSurveyor() {
+    if (pendingSurveyorId === null || assigningSurveyor) return;
+    const surveyorId = pendingSurveyorId;
+    setAssigningSurveyor(true);
+    startTopProgress();
+    try {
+      await api.updateJob(id, { assignedToId: surveyorId || null });
+      toast.success(surveyorId ? `Assigned ${surveyorName(surveyorId)}` : "Surveyor unassigned");
+      await reload();
+      setPendingSurveyorId(null);
+      setAssignSurveyorError(null);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not assign surveyor";
+      setAssignSurveyorError(msg);
+      toast.error(msg);
+    } finally {
+      doneTopProgress();
+      setAssigningSurveyor(false);
     }
   }
 
@@ -509,6 +718,24 @@ export default function JobDetail({ id }: { id: string }) {
     } catch (e) {
       await reload();
       alert(e instanceof Error ? e.message : "Could not update checkpoint");
+    }
+  }
+
+  async function confirmIssueReport() {
+    if (issuingReport) return;
+    setIssuingReport(true);
+    setIssueReportError(null);
+    startTopProgress();
+    try {
+      await api.issueJobReport(id);
+      setIssueReportOpen(false);
+      toast.success("Report sent to the client");
+      await reload();
+    } catch (e) {
+      setIssueReportError(e instanceof Error ? e.message : "Could not send the report");
+    } finally {
+      doneTopProgress();
+      setIssuingReport(false);
     }
   }
 
@@ -732,11 +959,102 @@ export default function JobDetail({ id }: { id: string }) {
 
         {!isTrade && (
           <>
-            {(panels.surveyor ||
-              (panels.accessEditor && canManageAccess) ||
-              (!canManageAccess && panels.accessReadOnly)) && (
-            <CrmPanel title="Surveyor & access">
+            <CrmPanel title="Survey workflow">
               <div className="space-y-6">
+                {stageError && <p className="text-sm text-red-600">{stageError}</p>}
+
+                <section className="space-y-3">
+                  <div>
+                    <h3 className="text-sm font-medium text-ink">Stage</h3>
+                    <p className="text-xs text-ink-muted">
+                      {canManageAccess || role === "SURVEYOR"
+                        ? "Click a step to move the job — you’ll confirm before it saves"
+                        : "Current job stage"}
+                    </p>
+                  </div>
+                  <div className="overflow-x-auto pb-5">
+                    <ol className="flex min-w-max items-stretch gap-1.5">
+                      {SURVEY_STAGES.map((s, i) => {
+                        const currentIndex = surveyStageIndex(job.stage);
+                        const isCurrent = canonicalSurveyStage(job.stage) === s;
+                        const isDone = currentIndex > i;
+                        const surveyorCanClick =
+                          role === "SURVEYOR" && surveyorMaySetSurveyStage(job.stage, s);
+                        const canClick = !isCurrent && (canManageAccess || surveyorCanClick);
+                        const needsDataCaptureFirst =
+                          s === "REPORT_QC" && role === "SURVEYOR" && !job.dataCaptureComplete;
+                        const justMoved = justMovedStage === s && isCurrent;
+                        return (
+                          <li key={s} className="flex items-stretch gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => canClick && void requestStageMove(s)}
+                              disabled={!canClick}
+                              title={
+                                isCurrent
+                                  ? "Current stage"
+                                  : !canClick
+                                  ? "Ops moves this stage."
+                                  : needsDataCaptureFirst
+                                    ? "Tick data upload first"
+                                  : undefined
+                              }
+                              className={[
+                                "flex h-14 shrink-0 flex-col justify-center whitespace-nowrap rounded-lg border px-3 py-2 text-left text-xs font-medium transition-colors",
+                                isCurrent
+                                  ? "border-brand bg-brand text-white shadow-sm"
+                                  : isDone
+                                    ? "border-brand-light/40 bg-brand-muted text-brand"
+                                    : "border-line bg-surface text-ink-muted",
+                                canClick ? "hover:border-brand-light hover:text-ink" : "",
+                                !canClick ? "cursor-not-allowed" : "",
+                                justMoved ? "ring-2 ring-brand ring-offset-2" : "",
+                                needsDataCaptureFirst && !isCurrent
+                                  ? "opacity-60"
+                                  : "",
+                              ].join(" ")}
+                            >
+                              <span className="block tabular-nums text-[10px] opacity-70">
+                                {String(i + 1).padStart(2, "0")}
+                              </span>
+                              <span className="mt-0.5 block whitespace-nowrap leading-snug">
+                                {formatJobStageLabel(s)}
+                              </span>
+                            </button>
+                            {i < SURVEY_STAGES.length - 1 && (
+                              <span
+                                className={`hidden h-px w-3 shrink-0 self-center sm:block ${
+                                  isDone || isCurrent ? "bg-brand-light" : "bg-line"
+                                }`}
+                                aria-hidden
+                              />
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </div>
+                  {panels.startAccessRequest && canManageAccess && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-sidebar/40 px-4 py-3">
+                      <p className="text-xs text-ink-muted">
+                        Paid is complete. Start the access request when you are ready to assign a surveyor and contact.
+                      </p>
+                      <PrimaryButton
+                        type="button"
+                        className="w-auto shrink-0 px-6"
+                        onClick={() => void requestStageMove("ACCESS_REQUESTED")}
+                      >
+                        Start access request
+                      </PrimaryButton>
+                    </div>
+                  )}
+                  {canonicalSurveyStage(job.stage) === "REPORT_DELIVERED" && !job.reportDeliveredAt && !hasReportDocument && (
+                    <p className="text-xs text-amber-700">
+                      Upload a Report on this stage, then submit it to send it to the client.
+                    </p>
+                  )}
+                </section>
+
                 {canManageAccess && job.accessDetailsPendingReview && (
                   <div className="rounded-xl border border-amber-300 bg-amber-50/50 p-4">
                     <p className="text-sm text-amber-900">
@@ -746,9 +1064,10 @@ export default function JobDetail({ id }: { id: string }) {
                   </div>
                 )}
 
+                {(panels.surveyor || panels.accessEditor || panels.accessReadOnly) && (
                 <div
                   className={`grid gap-6 ${
-                    panels.surveyor && (panels.accessEditor || panels.accessReadOnly || canManageAccess)
+                    panels.surveyor && (panels.accessEditor || panels.accessReadOnly)
                       ? "lg:grid-cols-2"
                       : "lg:grid-cols-1"
                   }`}
@@ -768,8 +1087,10 @@ export default function JobDetail({ id }: { id: string }) {
                         <>
                           <SelectField
                             label="Assigned surveyor"
-                            value={job.assignedTo?.id ?? ""}
-                            onChange={(e) => assignSurveyor(e.target.value)}
+                            value={pendingSurveyorId ?? job.assignedTo?.id ?? ""}
+                            disabled={assigningSurveyor || pendingSurveyorId !== null}
+                            className={pendingSurveyorId !== null ? "border-brand-light ring-2 ring-brand-muted" : undefined}
+                            onChange={(e) => requestAssignSurveyor(e.target.value)}
                           >
                             <option value="">Unassigned</option>
                             {surveyors.map((s) => (
@@ -778,12 +1099,18 @@ export default function JobDetail({ id }: { id: string }) {
                               </option>
                             ))}
                           </SelectField>
-                          {!job.assignedTo && (
+                          {(pendingSurveyorId !== null || assigningSurveyor) && (
+                            <p className="flex items-center gap-1.5 text-xs text-brand">
+                              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                              {assigningSurveyor ? "Saving assignment…" : "Confirm to assign"}
+                            </p>
+                          )}
+                          {!job.assignedTo && pendingSurveyorId === null && (
                             <p className="text-xs text-amber-700">Assign a surveyor before requesting access.</p>
                           )}
-                          {job.assignedTo && (
+                          {job.assignedTo && !assigningSurveyor && (
                             <p className="text-xs text-ink-muted">
-                              Booking details go out when you mark Access Confirmed.
+                              Booking details go out when you notify the surveyor.
                             </p>
                           )}
                         </>
@@ -855,6 +1182,7 @@ export default function JobDetail({ id }: { id: string }) {
                       </div>
                     </section>
                   ) : (
+                    (panels.accessEditor || panels.accessReadOnly) &&
                     (job.agentName ||
                       job.agentEmail ||
                       job.agentPhone ||
@@ -894,9 +1222,106 @@ export default function JobDetail({ id }: { id: string }) {
                     )
                   )}
                 </div>
+                )}
 
-                {panels.accessEditor && canManageAccess && panels.showAccessNotes && (
-                <section className="space-y-3">
+                {panels.accessNotesEditor && (
+                <section className="space-y-2 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
+                  <h3 className="text-sm font-medium text-ink">Inspection</h3>
+                  <dl className="grid gap-3 text-sm sm:grid-cols-3">
+                    <div>
+                      <dt className="text-xs text-ink-muted">Surveyor</dt>
+                      <dd className="flex flex-wrap items-center gap-2 text-ink">
+                        <span>{job.assignedTo?.fullName ?? "Unassigned"}</span>
+                        {job.surveyorNotifiedAt ? (
+                          <StatusPill variant="completed" label="Surveyor notified" />
+                        ) : null}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-ink-muted">Date</dt>
+                      <dd className="text-ink">
+                        {inspectionDate
+                          ? new Date(`${inspectionDate}T12:00:00`).toLocaleDateString("en-GB", {
+                              weekday: "long",
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                            })
+                          : "Not set yet"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-ink-muted">Arrival window</dt>
+                      <dd className="text-ink">{inspectionWindow.trim() || "Not set yet"}</dd>
+                    </div>
+                  </dl>
+                </section>
+                )}
+
+                {panels.accessEditor && canManageAccess && panels.inspectionDetailsProposed && (
+                <section className="space-y-4 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
+                      <CalendarDays className="size-4" aria-hidden />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-ink">Proposed inspection</h3>
+                      <p className="text-xs text-ink-muted">
+                        Required before the access request email to the agent
+                      </p>
+                    </div>
+                  </div>
+                  {canSetInspectionDate ? (
+                    <>
+                      <TextField
+                        label="Date"
+                        type="date"
+                        value={inspectionDate}
+                        onChange={(e) => setInspectionDate(e.target.value)}
+                      />
+                      <SelectField
+                        label="Arrival window"
+                        value={inspectionWindow}
+                        onChange={(e) => setInspectionWindow(e.target.value)}
+                      >
+                        <option value="">Select window</option>
+                        {INSPECTION_WINDOWS.map((window) => (
+                          <option key={window} value={window}>
+                            {window}
+                          </option>
+                        ))}
+                        {inspectionWindow &&
+                          !(INSPECTION_WINDOWS as readonly string[]).includes(inspectionWindow) && (
+                            <option value={inspectionWindow}>{inspectionWindow}</option>
+                          )}
+                      </SelectField>
+                    </>
+                  ) : (
+                    <dl className="space-y-2 text-sm">
+                      <div>
+                        <dt className="text-xs text-ink-muted">Date</dt>
+                        <dd className="text-ink">
+                          {inspectionDate
+                            ? new Date(`${inspectionDate}T12:00:00`).toLocaleDateString("en-GB", {
+                                weekday: "long",
+                                day: "numeric",
+                                month: "long",
+                                year: "numeric",
+                              })
+                            : "Not set yet"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-ink-muted">Arrival window</dt>
+                        <dd className="text-ink">{inspectionWindow.trim() || "Not set yet"}</dd>
+                      </div>
+                    </dl>
+                  )}
+                </section>
+                )}
+
+                {panels.accessNotesEditor && canManageAccess && (
+                <section className="space-y-3 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
                   <div className="flex items-center gap-2.5">
                     <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
                       <KeyRound className="size-4" aria-hidden />
@@ -918,7 +1343,7 @@ export default function JobDetail({ id }: { id: string }) {
                 )}
 
                 {!canManageAccess && panels.showAccessNotes && job.accessNotes && (
-                  <section className="space-y-2">
+                  <section className="space-y-2 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
                     <div className="flex items-center gap-2.5">
                       <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
                         <KeyRound className="size-4" aria-hidden />
@@ -940,7 +1365,7 @@ export default function JobDetail({ id }: { id: string }) {
                       </p>
                     ) : (
                       <p className="text-xs text-ink-muted">
-                        Save a draft anytime. Confirm when ready to request access.
+                        Save a draft anytime. Request access when ready to email the contact.
                       </p>
                     )}
                     {accessSaved && !accessError && (
@@ -964,105 +1389,67 @@ export default function JobDetail({ id }: { id: string }) {
                       onClick={confirmAccessDetails}
                       disabled={savingAccess || confirmingAccess}
                     >
-                      {confirmingAccess ? "Confirming…" : "Confirm & request access"}
+                      {confirmingAccess ? "Requesting…" : "Request Access"}
                     </PrimaryButton>
                   </div>
                 </div>
                 )}
-              </div>
-            </CrmPanel>
-            )}
 
-            <CrmPanel title="Survey workflow">
-              <div className="space-y-6">
-                {stageError && <p className="text-sm text-red-600">{stageError}</p>}
-
-                <section className="space-y-3">
-                  <div>
-                    <h3 className="text-sm font-medium text-ink">Stage</h3>
-                    <p className="text-xs text-ink-muted">
-                      {canManageAccess || role === "SURVEYOR"
-                        ? "Click a step to move the job — you’ll confirm before it saves"
-                        : "Current job stage"}
-                    </p>
-                  </div>
-                  <div className="overflow-x-auto pb-1">
-                    <ol className="flex min-w-max items-stretch gap-1.5">
-                      {SURVEY_STAGES.map((s, i) => {
-                        const currentIndex = surveyStageIndex(job.stage);
-                        const isCurrent = canonicalSurveyStage(job.stage) === s;
-                        const isDone = currentIndex > i;
-                        const surveyorCanClick =
-                          role === "SURVEYOR" && surveyorMaySetSurveyStage(job.stage, s);
-                        const canClick = !isCurrent && (canManageAccess || surveyorCanClick);
-                        const needsReportFirst = s === "REPORT_DELIVERED" && !hasReportDocument;
-                        const needsInspectionFirst =
-                          s === "ACCESS_REQUESTED" &&
-                          (!job.inspectionDate || !job.inspectionWindow?.trim());
-                        const justMoved = justMovedStage === s && isCurrent;
-                        return (
-                          <li key={s} className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => canClick && void requestStageMove(s)}
-                              disabled={!canClick}
-                              title={
-                                isCurrent
-                                  ? "Current stage"
-                                  : !canClick
-                                  ? "Ops moves this stage."
-                                  : needsReportFirst
-                                  ? "Upload a Report document first — it is attached to the client email"
-                                  : needsInspectionFirst
-                                    ? "Set proposed inspection date and arrival window first"
-                                  : undefined
-                              }
-                              className={[
-                                "rounded-lg border px-3 py-2 text-left text-xs font-medium transition-colors",
-                                isCurrent
-                                  ? "border-brand bg-brand text-white shadow-sm"
-                                  : isDone
-                                    ? "border-brand-light/40 bg-brand-muted text-brand"
-                                    : "border-line bg-surface text-ink-muted",
-                                canClick ? "hover:border-brand-light hover:text-ink" : "",
-                                !canClick ? "cursor-not-allowed" : "",
-                                justMoved ? "ring-2 ring-brand ring-offset-2" : "",
-                                (needsReportFirst || needsInspectionFirst) && !isCurrent
-                                  ? "opacity-60"
-                                  : "",
-                              ].join(" ")}
-                            >
-                              <span className="block tabular-nums text-[10px] opacity-70">
-                                {String(i + 1).padStart(2, "0")}
-                              </span>
-                              <span className="mt-0.5 block max-w-[7.5rem] leading-snug">
-                                {s
-                                  .replace(/_/g, " ")
-                                  .toLowerCase()
-                                  .replace(/\b\w/g, (c) => c.toUpperCase())}
-                              </span>
-                            </button>
-                            {i < SURVEY_STAGES.length - 1 && (
-                              <span
-                                className={`hidden h-px w-3 shrink-0 sm:block ${
-                                  isDone || isCurrent ? "bg-brand-light" : "bg-line"
-                                }`}
-                                aria-hidden
-                              />
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ol>
-                  </div>
-                  {panels.documents && !hasReportDocument && (
-                      <p className="text-xs text-amber-700">
-                        Upload a Report document before Report Delivered — the issued email attaches it
-                        automatically.
+                {panels.accessNotesEditor && canManageAccess && (
+                <div className="flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 space-y-1">
+                    {job.surveyorNotifiedAt ? (
+                      <p className="text-xs text-emerald-700">
+                        Surveyor notified {new Date(job.surveyorNotifiedAt).toLocaleString()}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-ink-muted">
+                        Save a draft anytime. Notify the surveyor when access notes are ready.
                       </p>
                     )}
-                </section>
-
+                    {accessSaved && !accessError && (
+                      <p className="text-xs text-emerald-700">Draft saved.</p>
+                    )}
+                    {accessError && <p className="text-sm text-red-600">{accessError}</p>}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <SecondaryButton
+                      type="button"
+                      size="small"
+                      className="w-auto"
+                      onClick={saveAccessDetails}
+                      disabled={savingAccess || notifyingSurveyor}
+                    >
+                      {savingAccess ? "Saving…" : "Save draft"}
+                    </SecondaryButton>
+                    {job.surveyorNotifiedAt ? (
+                      <>
+                        <PrimaryButton type="button" className="w-auto px-6" disabled>
+                          Surveyor notified
+                        </PrimaryButton>
+                        <SecondaryButton
+                          type="button"
+                          size="small"
+                          className="w-auto"
+                          onClick={notifySurveyor}
+                          disabled={savingAccess || notifyingSurveyor || !job.assignedTo}
+                        >
+                          {notifyingSurveyor ? "Notifying…" : "Notify again"}
+                        </SecondaryButton>
+                      </>
+                    ) : (
+                      <PrimaryButton
+                        type="button"
+                        className="w-auto px-6"
+                        onClick={notifySurveyor}
+                        disabled={savingAccess || notifyingSurveyor || !job.assignedTo}
+                      >
+                        {notifyingSurveyor ? "Notifying…" : "Notify Surveyor"}
+                      </PrimaryButton>
+                    )}
+                  </div>
+                </div>
+                )}
                 {(panels.preSiteCheckpoints || panels.inspectionDetails) && (
                 <div
                   className={`grid gap-6 ${
@@ -1119,150 +1506,185 @@ export default function JobDetail({ id }: { id: string }) {
                         <CalendarDays className="size-4" aria-hidden />
                       </div>
                       <div>
-                        <h3 className="text-sm font-medium text-ink">
-                          {panels.inspectionDetailsProposed ? "Proposed inspection" : "Inspection"}
-                        </h3>
+                        <h3 className="text-sm font-medium text-ink">Inspection</h3>
+                        <p className="text-xs text-ink-muted">Booked date and arrival window for the site visit</p>
+                      </div>
+                    </div>
+                    <dl className="space-y-2 text-sm">
+                      <div>
+                        <dt className="text-xs text-ink-muted">Date</dt>
+                        <dd className="text-ink">
+                          {inspectionDate
+                            ? new Date(`${inspectionDate}T12:00:00`).toLocaleDateString("en-GB", {
+                                weekday: "long",
+                                day: "numeric",
+                                month: "long",
+                                year: "numeric",
+                              })
+                            : "Not set yet"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-ink-muted">Arrival window</dt>
+                        <dd className="text-ink">{inspectionWindow.trim() || "Not set yet"}</dd>
+                      </div>
+                    </dl>
+                  </section>
+                  )}
+                </div>
+                )}
+
+                {panels.qcChecks && (
+                <section className="space-y-4 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
+                      <CheckSquare className="size-4" aria-hidden />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-ink">QC before report submission</h3>
+                      <p className="text-xs text-ink-muted">
+                        All three must be checked before moving to Submit Report.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {QC_TICKS.map((tick) => (
+                      <label
+                        key={tick.field}
+                        className={`flex items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink ${canTickQc ? "cursor-pointer" : "cursor-not-allowed opacity-80"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={Boolean(job[tick.field])}
+                          disabled={!canTickQc}
+                          onChange={(e) => void toggleQcField(tick.field, e.target.checked)}
+                          className="size-4 rounded border-line text-brand focus:ring-brand-muted"
+                        />
+                        {tick.label}
+                      </label>
+                    ))}
+                  </div>
+                </section>
+                )}
+
+                {(panels.dataCapture || panels.documents || panels.paymentsHistory) && (
+                <div
+                  className={`grid gap-6 ${
+                    !panels.dataCapture && showMoney && panels.paymentsHistory && panels.documents
+                      ? "lg:grid-cols-2"
+                      : "lg:grid-cols-1"
+                  }`}
+                >
+                  {panels.dataCapture && (
+                  <section className="space-y-5 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
+                        <ClipboardList className="size-4" aria-hidden />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-ink">Data upload</h3>
                         <p className="text-xs text-ink-muted">
-                          {canSetInspectionDate
-                            ? panels.inspectionDetailsProposed
-                              ? "Required before the access request email to the agent"
-                              : "Booked date and arrival window for the site visit"
-                            : "Set by ops — shown for your diary"}
+                          Tick when inspection data is in the reporting software. Data upload must be done by 5pm on the day of inspection.
                         </p>
                       </div>
                     </div>
-                    {canSetInspectionDate ? (
-                      <>
-                        <TextField
-                          label="Date"
-                          type="date"
-                          value={inspectionDate}
-                          onChange={(e) => setInspectionDate(e.target.value)}
-                        />
-                        <SelectField
-                          label="Arrival window"
-                          value={inspectionWindow}
-                          onChange={(e) => setInspectionWindow(e.target.value)}
-                        >
-                          <option value="">Select window</option>
-                          {INSPECTION_WINDOWS.map((window) => (
-                            <option key={window} value={window}>
-                              {window}
-                            </option>
-                          ))}
-                          {inspectionWindow &&
-                            !(INSPECTION_WINDOWS as readonly string[]).includes(inspectionWindow) && (
-                              <option value={inspectionWindow}>{inspectionWindow}</option>
-                            )}
-                        </SelectField>
-                        {inspectionError && (
-                          <p className="text-sm text-red-600">{inspectionError}</p>
-                        )}
-                        {!inspectionDate.trim() || !inspectionWindow.trim() ? (
-                          <p className="text-xs text-amber-700">
-                            Date and arrival window are included in the Access Request and surveyor emails.
-                          </p>
-                        ) : null}
-                        <div className="mt-auto flex justify-end border-t border-line pt-3">
-                          <SecondaryButton
-                            type="button"
-                            size="small"
-                            className="w-auto"
-                            onClick={saveInspectionDetails}
-                            disabled={savingInspection}
-                          >
-                            {savingInspection ? "Saving…" : "Save"}
-                          </SecondaryButton>
-                        </div>
-                      </>
+                    <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(job.dataCaptureComplete)}
+                        onChange={toggleDataCapture}
+                        className="size-4 rounded border-line text-brand focus:ring-brand-muted"
+                      />
+                      Data captured on surveyor’s reporting system
+                    </label>
+                  </section>
+                  )}
+
+                  {showMoney && panels.paymentsHistory && (
+                  <section className="space-y-4 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
+                        <Wallet className="size-4" aria-hidden />
+                      </div>
+                      <h3 className="text-sm font-medium text-ink">Payments history</h3>
+                    </div>
+                    {(job.payments ?? []).length === 0 ? (
+                      <p className="text-sm text-ink-muted">No payments recorded</p>
                     ) : (
-                      <dl className="space-y-2 text-sm">
-                        <div>
-                          <dt className="text-xs text-ink-muted">Date</dt>
-                          <dd className="text-ink">
-                            {inspectionDate
-                              ? new Date(`${inspectionDate}T12:00:00`).toLocaleDateString("en-GB", {
-                                  weekday: "long",
-                                  day: "numeric",
-                                  month: "long",
-                                  year: "numeric",
-                                })
-                              : "Not set yet"}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-ink-muted">Arrival window</dt>
-                          <dd className="text-ink">{inspectionWindow.trim() || "Not set yet"}</dd>
-                        </div>
-                      </dl>
+                      <div className="space-y-2">
+                        {job.payments!.map((p) => (
+                          <div
+                            key={p.id}
+                            className="flex items-center justify-between gap-3 rounded-lg border border-line bg-surface px-3 py-2.5"
+                          >
+                            <span className="text-sm font-medium tabular-nums text-ink">£{p.amount}</span>
+                            <StatusPill variant={paymentStatusVariant(p.status)} label={p.status} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                  )}
+
+                  {panels.documents && !panels.dataCapture && (
+                  <section className="space-y-4 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
+                        <FileText className="size-4" aria-hidden />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-ink">Report</h3>
+                        <p className="text-xs text-ink-muted">
+                          {job.reportDeliveredAt
+                            ? "Report has been sent to the client."
+                            : "Upload the report here, then submit to email it to the client."}
+                        </p>
+                      </div>
+                    </div>
+                    <JobDocumentsFields
+                      docType={docType}
+                      docFile={docFile}
+                      docError={docError}
+                      uploadingDoc={uploadingDoc}
+                      documents={documents}
+                      showUpload={Boolean(panels.documentsUpload) && !job.reportDeliveredAt}
+                      onTypeChange={setDocType}
+                      onFileChange={(file) => {
+                        setDocError(null);
+                        setDocFile(file);
+                      }}
+                      onUpload={uploadDocument}
+                    />
+                    {canManageAccess && !job.reportDeliveredAt && (
+                      <div className="flex justify-end">
+                        <PrimaryButton
+                          type="button"
+                          className="w-auto shrink-0 px-6"
+                          disabled={!hasReportDocument}
+                          onClick={() => {
+                            setIssueReportError(null);
+                            setIssueReportOpen(true);
+                          }}
+                        >
+                          Submit report
+                        </PrimaryButton>
+                      </div>
+                    )}
+                    {canManageAccess && job.reportDeliveredAt && (
+                      <p className="text-xs text-emerald-700">
+                        Sent {new Date(job.reportDeliveredAt).toLocaleString()}
+                      </p>
+                    )}
+                    {!canManageAccess && !job.reportDeliveredAt && (
+                      <p className="text-xs text-ink-muted">Ops sends this report to the client after you upload it.</p>
                     )}
                   </section>
                   )}
                 </div>
                 )}
 
-                {panels.dataCapture && (
-                <section className="space-y-4 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
-                      <ClipboardList className="size-4" aria-hidden />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-ink">After inspection</h3>
-                      <p className="text-xs text-ink-muted">
-                        Tick when inspection data is on OTTO (not this CRM). QC must be done before the report PDF is uploaded.
-                      </p>
-                    </div>
-                  </div>
-                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(job.dataCaptureComplete)}
-                      onChange={toggleDataCapture}
-                      className="size-4 rounded border-line text-brand focus:ring-brand-muted"
-                    />
-                    Data captured on surveyor’s reporting system (OTTO)
-                  </label>
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-ink">QC before upload</p>
-                    <label className={`flex items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink ${canTickQc ? "cursor-pointer" : "cursor-not-allowed opacity-80"}`}>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(job.qcOttoReviewComplete)}
-                        disabled={!canTickQc}
-                        onChange={(e) => void toggleQcField("qcOttoReviewComplete", e.target.checked)}
-                        className="size-4 rounded border-line text-brand focus:ring-brand-muted"
-                      />
-                      OTTO technical review completed
-                    </label>
-                    <label className={`flex items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink ${canTickQc ? "cursor-pointer" : "cursor-not-allowed opacity-80"}`}>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(job.qcRicsPassConfirmed)}
-                        disabled={!canTickQc}
-                        onChange={(e) => void toggleQcField("qcRicsPassConfirmed", e.target.checked)}
-                        className="size-4 rounded border-line text-brand focus:ring-brand-muted"
-                      />
-                      95% RICS pass rate
-                    </label>
-                    {qcDeliverableLabel(job.surveyLevel) ? (
-                      <label className={`flex items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink ${canTickQc ? "cursor-pointer" : "cursor-not-allowed opacity-80"}`}>
-                        <input
-                          type="checkbox"
-                          checked={Boolean(job.qcLevelDeliverableComplete)}
-                          disabled={!canTickQc}
-                          onChange={(e) => void toggleQcField("qcLevelDeliverableComplete", e.target.checked)}
-                          className="size-4 rounded border-line text-brand focus:ring-brand-muted"
-                        />
-                        {qcDeliverableLabel(job.surveyLevel)}
-                      </label>
-                    ) : null}
-                  </div>
-                </section>
-                )}
-
-                {panels.reviewRequest && canManageAccess && (
-                  <div className="flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+                {panels.reviewRequest && canManageAccess && job.reportDeliveredAt && (
+                  <section className="flex flex-col gap-3 rounded-xl border border-line bg-sidebar/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-ink">Review request</p>
                       <p className="text-xs text-ink-muted">
@@ -1279,174 +1701,10 @@ export default function JobDetail({ id }: { id: string }) {
                         Send review request
                       </PrimaryButton>
                     )}
-                  </div>
+                  </section>
                 )}
               </div>
             </CrmPanel>
-
-            {panels.earlierDetails && canManageAccess && (
-              <details className="rounded-xl border border-line bg-surface">
-                <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-ink">
-                  Earlier details — surveyor &amp; access
-                </summary>
-                <div className="space-y-4 border-t border-line px-4 py-4">
-                  {!panels.surveyor && (
-                  <div>
-                    <p className="text-xs text-ink-muted">Surveyor</p>
-                    {canAssignSurveyor ? (
-                      <SelectField
-                        label="Assigned surveyor"
-                        value={job.assignedTo?.id ?? ""}
-                        onChange={(e) => assignSurveyor(e.target.value)}
-                      >
-                        <option value="">Unassigned</option>
-                        {surveyors.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.fullName}
-                          </option>
-                        ))}
-                      </SelectField>
-                    ) : (
-                      <p className="text-sm text-ink">{job.assignedTo?.fullName ?? "Unassigned"}</p>
-                    )}
-                  </div>
-                  )}
-                  <div className="grid gap-4 text-sm lg:grid-cols-1">
-                    <div>
-                      <p className="text-xs text-ink-muted">
-                        {job.agentName || job.agentEmail || job.agentPhone
-                          ? "Estate agent"
-                          : "Vendor / occupant"}
-                      </p>
-                      <p className="text-ink">{job.agentName || job.vendorName || "—"}</p>
-                      <p className="text-ink-muted">{job.agentEmail || job.vendorEmail || "—"}</p>
-                      <p className="text-ink-muted">{job.agentPhone || job.vendorPhone || "—"}</p>
-                    </div>
-                  </div>
-                  {job.accessNotes && (
-                    <div>
-                      <p className="text-xs text-ink-muted">Access notes</p>
-                      <p className="whitespace-pre-wrap text-sm text-ink">{job.accessNotes}</p>
-                    </div>
-                  )}
-                  {inspectionDate && (
-                    <div>
-                      <p className="text-xs text-ink-muted">Inspection date</p>
-                      <p className="text-sm text-ink">
-                        {new Date(`${inspectionDate}T12:00:00`).toLocaleDateString("en-GB", {
-                          weekday: "long",
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </details>
-            )}
-
-            {(panels.documents || panels.paymentsHistory) && (
-            <div className={`grid gap-6 ${showMoney && panels.paymentsHistory ? "lg:grid-cols-2" : "lg:grid-cols-1"}`}>
-              {showMoney && panels.paymentsHistory && (
-              <CrmPanel title="Payments history">
-                {(job.payments ?? []).length === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-sidebar/40 px-4 py-8 text-center">
-                    <Wallet className="size-5 text-ink-faint" aria-hidden />
-                    <p className="text-sm text-ink-muted">No payments recorded</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {job.payments!.map((p) => (
-                      <div
-                        key={p.id}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-line bg-sidebar/40 px-3 py-2.5"
-                      >
-                        <span className="text-sm font-medium tabular-nums text-ink">£{p.amount}</span>
-                        <StatusPill variant={paymentStatusVariant(p.status)} label={p.status} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CrmPanel>
-              )}
-
-              {panels.documents && (
-              <CrmPanel title="Documents">
-                <div className="space-y-4">
-                  {panels.documentsUpload && (
-                    <div className="space-y-3">
-                      {role === "SURVEYOR" && !bypassQc && !isJobQcComplete(job) ? (
-                        <p className="text-xs text-amber-700">{QC_INCOMPLETE_MESSAGE}</p>
-                      ) : (
-                    <div className="flex flex-wrap items-end gap-3">
-                      <SelectField
-                        label="Type"
-                        value={docType}
-                        onChange={(e) => setDocType(e.target.value)}
-                      >
-                        <option value="REPORT">Report</option>
-                        <option value="ACTION_PLAN">Action plan</option>
-                        <option value="COSTING">Costing</option>
-                        <option value="OTHER">Other</option>
-                      </SelectField>
-                      <div className="min-w-0 flex-1 space-y-1.5">
-                        <label htmlFor="job-document-file" className="block text-sm font-medium text-ink">
-                          File
-                        </label>
-                        <input
-                          id="job-document-file"
-                          type="file"
-                          accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.gif"
-                          onChange={(e) => {
-                            setDocError(null);
-                            setDocFile(e.target.files?.[0] ?? null);
-                          }}
-                          className="block w-full text-sm text-ink file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:opacity-90"
-                        />
-                      </div>
-                      <SecondaryButton
-                        type="button"
-                        size="small"
-                        className="w-auto shrink-0"
-                        onClick={uploadDocument}
-                        disabled={!docFile || uploadingDoc}
-                      >
-                        {uploadingDoc ? "Uploading…" : "Upload"}
-                      </SecondaryButton>
-                    </div>
-                      )}
-                    </div>
-                  )}
-                  {docError && <p className="text-sm text-red-600">{docError}</p>}
-
-                  {documents.length > 0 ? (
-                    <ul className="space-y-2">
-                      {documents.map((d) => (
-                        <li key={d.id}>
-                          <a
-                            href={d.storageUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center gap-2.5 rounded-lg border border-line bg-sidebar/40 px-3 py-2.5 text-sm text-ink transition-colors hover:border-brand-light hover:text-brand"
-                          >
-                            <FileText className="size-4 shrink-0 text-brand" aria-hidden />
-                            <span className="min-w-0 truncate">
-                              {d.filename}
-                              <span className="ml-1.5 text-xs text-ink-muted">({d.type})</span>
-                            </span>
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-ink-muted">No documents yet</p>
-                  )}
-                </div>
-              </CrmPanel>
-              )}
-            </div>
-            )}
           </>
         )}
 
@@ -1498,6 +1756,32 @@ export default function JobDetail({ id }: { id: string }) {
       </div>
 
       <ConfirmModal
+        isOpen={pendingSurveyorId !== null}
+        title={
+          pendingSurveyorId === ""
+            ? "Unassign surveyor?"
+            : `Assign ${pendingSurveyorId ? surveyorName(pendingSurveyorId) : "surveyor"}?`
+        }
+        description={
+          pendingSurveyorId === ""
+            ? `This removes ${job?.assignedTo?.fullName ?? "the surveyor"} from the job. You’ll need to assign someone before requesting access.`
+            : job?.assignedTo && job.assignedTo.id !== pendingSurveyorId
+              ? `This replaces ${job.assignedTo.fullName} with ${surveyorName(pendingSurveyorId ?? "")}. No email is sent yet.`
+              : `This assigns ${surveyorName(pendingSurveyorId ?? "")} to the job. No email is sent yet — booking details go out when you notify the surveyor.`
+        }
+        confirmLabel={pendingSurveyorId === "" ? "Unassign" : "Assign surveyor"}
+        loading={assigningSurveyor}
+        error={assignSurveyorError ?? undefined}
+        onConfirm={() => void confirmAssignSurveyor()}
+        onCancel={() => {
+          if (assigningSurveyor) return;
+          setPendingSurveyorId(null);
+          setAssignSurveyorError(null);
+          doneTopProgress();
+        }}
+      />
+
+      <ConfirmModal
         isOpen={Boolean(pendingStage)}
         title={pendingStage ? `Move to ${formatJobStageLabel(pendingStage, job?.jobType)}?` : "Move stage?"}
         description={
@@ -1517,6 +1801,30 @@ export default function JobDetail({ id }: { id: string }) {
         onCancel={() => {
           if (stageSaving) return;
           setPendingStage(null);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={issueReportOpen}
+        title="Send report to client?"
+        description={
+          job
+            ? [
+                job.customer?.email
+                  ? `This emails ${[job.customer.firstName, job.customer.lastName].filter(Boolean).join(" ") || "the client"} at ${job.customer.email} with the uploaded report attached.`
+                  : "This emails the client with the uploaded report attached.",
+                "The Report Issued workflow also copies anyone already on that send, including the monitoring inbox.",
+              ].join(" ")
+            : undefined
+        }
+        confirmLabel="Send report"
+        loading={issuingReport}
+        error={issueReportError ?? undefined}
+        onConfirm={() => void confirmIssueReport()}
+        onCancel={() => {
+          if (issuingReport) return;
+          setIssueReportOpen(false);
+          setIssueReportError(null);
         }}
       />
 

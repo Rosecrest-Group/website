@@ -36,10 +36,20 @@ const STAGES: LeadStage[] = [
 
 const PAGE_SIZE = 10;
 
-type LeadListFilters = { stage: string; source: string };
+type LeadListFilters = { stage: string; source: string; page: string };
 
-const LEAD_LIST_FILTER_DEFAULTS: LeadListFilters = { stage: "", source: "" };
-const LEAD_LIST_FILTER_KEYS = ["stage", "source"] as const;
+const LEAD_LIST_FILTER_DEFAULTS: LeadListFilters = { stage: "", source: "", page: "" };
+const LEAD_LIST_FILTER_KEYS = ["stage", "source", "page"] as const;
+
+function pageFromFilter(value: string): number {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed > 1 ? parsed : 1;
+}
+
+function pageToFilter(page: number): string {
+  return page > 1 ? String(page) : "";
+}
+
 const LEAD_LIST_FILTER_ALLOW = {
   stage: STAGES,
   source: LEAD_SOURCES.map((s) => s.value),
@@ -69,7 +79,7 @@ export default function LeadsList({
   initialData?: LeadsListInitialData | null;
 }) {
   const router = useRouter();
-  const { filters, setFilter, filtersReady } = usePersistedListFilters<LeadListFilters>({
+  const { filters, setFilter, setFilters, filtersReady } = usePersistedListFilters<LeadListFilters>({
     pageKey: "leads",
     pathname: `${CRM_BASE_PATH}/leads`,
     keys: LEAD_LIST_FILTER_KEYS,
@@ -77,23 +87,15 @@ export default function LeadsList({
     allow: LEAD_LIST_FILTER_ALLOW,
   });
   const { stage, source } = filters;
+  const page = pageFromFilter(filters.page);
   const initialDataRef = useRef(initialData);
   initialDataRef.current = initialData;
   const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const filterSlice = `${stage}|${source}`;
-  const prevFilterSliceRef = useRef(filterSlice);
-
-  useEffect(() => {
-    if (prevFilterSliceRef.current === filterSlice) return;
-    prevFilterSliceRef.current = filterSlice;
-    setPage(1);
-  }, [filterSlice]);
 
   useEffect(() => {
     if (!filtersReady) return;
@@ -152,19 +154,17 @@ export default function LeadsList({
   function handleSearchChange(value: string) {
     setLoading(true);
     setSearch(value);
-    setPage(1);
+    setFilters({ page: "" });
   }
 
   function handleStageChange(value: string) {
     setLoading(true);
-    setPage(1);
-    setFilter("stage", value);
+    setFilters({ stage: value, page: "" });
   }
 
   function handleSourceChange(value: string) {
     setLoading(true);
-    setPage(1);
-    setFilter("source", value);
+    setFilters({ source: value, page: "" });
   }
 
   function warmLead(leadId: string) {
@@ -306,7 +306,7 @@ export default function LeadsList({
           pageSize={PAGE_SIZE}
           onPageChange={(next) => {
             setLoading(true);
-            setPage(next);
+            setFilter("page", pageToFilter(next));
           }}
           loading={loading}
         />

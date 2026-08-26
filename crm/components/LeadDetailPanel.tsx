@@ -8,6 +8,7 @@ export interface LeadDetailPanelProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
+  hideHeading?: boolean;
   onDeleted?: () => void;
 }
 
@@ -16,6 +17,7 @@ export default function LeadDetailPanel({
   isOpen,
   onClose,
   title = "Lead details",
+  hideHeading = false,
   onDeleted,
 }: LeadDetailPanelProps) {
   function handleDeleted() {
@@ -27,11 +29,18 @@ export default function LeadDetailPanel({
     <CrmSlidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={title}
-      description="Full lead profile, activity, and actions"
-      widthClassName="max-w-5xl"
+      title={hideHeading ? undefined : title}
+      description={hideHeading ? undefined : "Lead profile and actions"}
+      widthClassName="max-w-4xl"
     >
-      {leadId && <LeadDetail id={leadId} embedded onDeleted={handleDeleted} />}
+      {leadId && (
+        <LeadDetail
+          id={leadId}
+          embedded
+          onClose={hideHeading ? onClose : undefined}
+          onDeleted={handleDeleted}
+        />
+      )}
     </CrmSlidePanel>
   );
 }
