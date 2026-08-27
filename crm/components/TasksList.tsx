@@ -34,7 +34,7 @@ export default function TasksList({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const seed = initialData ?? getListPageCache<{ items: Task[]; total: number }>("tasks:default");
+  const seed = initialData ?? getListPageCache<{ items: Task[]; total: number }>("tasks:mine");
   const [tasks, setTasks] = useState<Task[]>(() => seed?.items ?? []);
   const [total, setTotal] = useState(() => seed?.total ?? 0);
   const [search, setSearch] = useState("");
@@ -69,7 +69,7 @@ export default function TasksList({
         setTotal(res.total);
         setError("");
         if (!search && !status && !assigneeFilter) {
-          setListPageCache("tasks:default", res);
+          setListPageCache("tasks:mine", res);
         }
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load tasks"))
@@ -298,7 +298,7 @@ export default function TasksList({
         <LoadingSpinner />
       ) : (
         <Table
-          title="All tasks"
+          title="My tasks"
           search={search}
           onSearchChange={setSearch}
           searchPlaceholder="Search tasks…"
