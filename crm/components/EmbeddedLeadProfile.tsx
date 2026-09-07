@@ -2,15 +2,15 @@
 
 import { useState, type ReactNode } from "react";
 import { Check, Copy, X } from "lucide-react";
-import type { LeadDetail as LeadDetailType } from "@/crm/types";
+import type { LeadDetail as LeadDetailType, SurveyType } from "@/crm/types";
 import {
   BEDROOM_BAND_LABELS,
   INTAKE_DOCUMENT_TYPE_LABELS,
   LEAD_SOURCES,
   LEAD_STAGE_LABELS,
-  SURVEY_LEVEL_LABELS,
   formatPropertyValueLabel,
   intakeMessageLabel,
+  surveyLevelLabel,
 } from "@/crm/lib/constants";
 import { cn } from "@/lib/utils";
 import PhoneButton from "@/crm/components/PhoneButton";
@@ -111,6 +111,7 @@ function Field({
 
 export default function EmbeddedLeadProfile({
   lead,
+  surveyTypes = [],
   onLeadChange,
   onClose,
   onSent,
@@ -134,6 +135,7 @@ export default function EmbeddedLeadProfile({
   onAdvanceWorkflow,
 }: {
   lead: LeadDetailType;
+  surveyTypes?: SurveyType[];
   onLeadChange: (lead: LeadDetailType) => void;
   onClose?: () => void;
   onSent: () => void;
@@ -167,9 +169,7 @@ export default function EmbeddedLeadProfile({
   const stats = [
     {
       label: "Survey",
-      value: lead.surveyLevel
-        ? SURVEY_LEVEL_LABELS[lead.surveyLevel] ?? lead.surveyLevel
-        : "—",
+      value: lead.surveyLevel ? surveyLevelLabel(lead.surveyLevel, surveyTypes) : "—",
       sub: lead.quotedAmount ? `£${lead.quotedAmount}` : "",
     },
     {

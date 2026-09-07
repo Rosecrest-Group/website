@@ -31,7 +31,17 @@ export type LeadSource =
   | "OTHER"
   | "DIRECT";
 
-export type SurveyLevel = "LEVEL_1" | "LEVEL_2" | "LEVEL_3" | "CPR_35";
+export type SurveyLevel = string;
+
+export interface SurveyType {
+  id: string;
+  slug: string;
+  label: string;
+  isBuiltIn: boolean;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export type CustomerType = "HOMEBUYER" | "LANDLORD" | "LEGAL" | "COUNCIL" | "TRADE";
 

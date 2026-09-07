@@ -7,14 +7,14 @@ import { prefetchLead } from "@/crm/lib/leadDetailCache";
 import { prefetchLeadThreadWithActivities } from "@/crm/lib/loadLeadThread";
 import { getListPageCache, setListPageCache } from "@/crm/lib/listPageCache";
 import { usePersistedListFilters } from "@/crm/lib/usePersistedListFilters";
-import type { Lead, LeadStage, Paginated } from "@/crm/types";
+import type { Lead, LeadStage, Paginated, SurveyType } from "@/crm/types";
 import {
   BEDROOM_BAND_LABELS,
   CRM_BASE_PATH,
   LEAD_SOURCES,
   LEAD_STAGE_LABELS,
-  SURVEY_LEVEL_LABELS,
   formatPropertyValueLabel,
+  surveyLevelLabel,
 } from "@/crm/lib/constants";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
@@ -95,7 +95,23 @@ export default function LeadsList({
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [surveyTypes, setSurveyTypes] = useState<SurveyType[]>([]);
   const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .listSurveyTypes({ includeArchived: true })
+      .then((result) => {
+        if (!cancelled) setSurveyTypes(result.items);
+      })
+      .catch(() => {
+        if (!cancelled) setSurveyTypes([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!filtersReady) return;
@@ -210,7 +226,7 @@ export default function LeadsList({
       header: "Survey",
       render: (value) => (
         <span className="text-sm text-ink">
-          {value ? SURVEY_LEVEL_LABELS[value as string] ?? (value as string) : "—"}
+          {value ? surveyLevelLabel(value as string, surveyTypes) : "—"}
         </span>
       ),
     },

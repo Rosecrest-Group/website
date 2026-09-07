@@ -19,6 +19,7 @@ import TextField from "@/crm/components/ui/TextField";
 import SelectField from "@/crm/components/ui/SelectField";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
+import SurveyTypeSelect from "@/crm/components/SurveyTypeSelect";
 
 function normalizeUkPhone(phoneRaw: string): string {
   const trimmed = phoneRaw.trim();
@@ -258,16 +259,13 @@ export default function NewLeadForm() {
               onChange={(e) => setPostcode(e.target.value)}
               required
             />
-            <SelectField
+            <SurveyTypeSelect
               label="Survey level"
               name="surveyLevel"
               value={surveyLevel}
-              onChange={(e) => setSurveyLevel(e.target.value as SurveyLevel)}
-            >
-              <option value="LEVEL_1">Level 1</option>
-              <option value="LEVEL_2">Level 2</option>
-              <option value="LEVEL_3">Level 3</option>
-            </SelectField>
+              onChange={(slug) => setSurveyLevel(slug)}
+              variant="new-lead"
+            />
             <SelectField
               label="Bedrooms"
               name="bedrooms"

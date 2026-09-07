@@ -34,6 +34,7 @@ import type {
   LeadThreadPage,
 
   LeadTag,
+  SurveyType,
 
   Message,
 
@@ -900,6 +901,17 @@ export const api = {
     const qs = search ? `?${new URLSearchParams({ search })}` : "";
     return request<{ items: LeadTag[] }>(`/tags${qs}`);
   },
+
+  listSurveyTypes: (params?: { includeArchived?: boolean }) => {
+    const qs = params?.includeArchived ? "?includeArchived=1" : "";
+    return request<{ items: SurveyType[] }>(`/survey-types${qs}`);
+  },
+
+  createSurveyType: (payload: { label: string }) =>
+    request<SurveyType>("/survey-types", { method: "POST", body: JSON.stringify(payload) }),
+
+  updateSurveyType: (id: string, payload: { label?: string; archived?: boolean }) =>
+    request<SurveyType>(`/survey-types/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
 
   addLeadTag: (leadId: string, payload: { tagId?: string; name?: string; color?: string }) =>
     request<Lead>(`/leads/${leadId}/tags`, { method: "POST", body: JSON.stringify(payload) }),

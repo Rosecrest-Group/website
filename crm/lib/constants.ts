@@ -261,6 +261,16 @@ export const SURVEY_LEVEL_LABELS: Record<string, string> = Object.fromEntries(
   SURVEY_LEVELS.map((level) => [level.value, level.label])
 );
 
+export function surveyLevelLabel(
+  slug: string | null | undefined,
+  types?: { slug: string; label: string }[]
+): string {
+  if (!slug) return "—";
+  const fromCatalog = types?.find((type) => type.slug === slug)?.label;
+  if (fromCatalog) return fromCatalog;
+  return SURVEY_LEVEL_LABELS[slug] ?? slug.replace(/_/g, " ");
+}
+
 export const BEDROOM_BANDS = [
   "STUDIO",
   "1_BED",

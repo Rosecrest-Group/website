@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
-import type { LeadDetail as LeadDetailType, Message, SurveyLevel } from "@/crm/types";
+import type { LeadDetail as LeadDetailType, Message, SurveyLevel, SurveyType } from "@/crm/types";
 import { getCachedLead, setCachedLead } from "@/crm/lib/leadDetailCache";
 import {
   BEDROOM_BAND_LABELS,
@@ -13,9 +13,9 @@ import {
   LEAD_SOURCES,
   LEAD_STAGE_LABELS,
   LOST_REASON_OPTIONS,
-  SURVEY_LEVEL_LABELS,
   formatPropertyValueLabel,
   intakeMessageLabel,
+  surveyLevelLabel,
 } from "@/crm/lib/constants";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Check, ChevronRight, Copy, Maximize2, X } from "lucide-react";
@@ -45,6 +45,7 @@ import ActivityFeed from "@/crm/components/ActivityFeed";
 import LeadTags from "@/crm/components/LeadTags";
 import LeadWorkflowASend from "@/crm/components/LeadWorkflowASend";
 import EmbeddedLeadProfile from "@/crm/components/EmbeddedLeadProfile";
+import SurveyTypeSelect from "@/crm/components/SurveyTypeSelect";
 import { useCrmTopBar } from "@/crm/lib/crmTopBarContext";
 import { filterLeadThreadActivities } from "@/crm/lib/threadActivities";
 import { getCachedCurrentUser } from "@/crm/lib/currentUserCache";
@@ -153,6 +154,7 @@ export default function LeadDetail({
   const [moveToPaidError, setMoveToPaidError] = useState<string | null>(null);
   const [moveToPaidAmount, setMoveToPaidAmount] = useState("");
   const [moveToPaidSurveyLevel, setMoveToPaidSurveyLevel] = useState<SurveyLevel>("LEVEL_2");
+  const [surveyTypes, setSurveyTypes] = useState<SurveyType[]>([]);
   const [markWonConfirmOpen, setMarkWonConfirmOpen] = useState(false);
   const [markingWon, setMarkingWon] = useState(false);
   const [markWonError, setMarkWonError] = useState<string | null>(null);
@@ -197,6 +199,21 @@ export default function LeadDetail({
     setError("");
     reload();
   }, [id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .listSurveyTypes({ includeArchived: true })
+      .then((result) => {
+        if (!cancelled) setSurveyTypes(result.items);
+      })
+      .catch(() => {
+        if (!cancelled) setSurveyTypes([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Poll while waiting for the customer to open the pay link so the CRM updates without a manual refresh.
   useEffect(() => {
@@ -497,14 +514,14 @@ export default function LeadDetail({
                   typeof activity.metadata?.quotedAmount === "number"
                     ? activity.metadata.quotedAmount
                     : null;
-                const label = SURVEY_LEVEL_LABELS[level] ?? level ?? "another survey";
+                const label = surveyLevelLabel(level, surveyTypes) || "another survey";
                 return amount != null ? `${label} (£${amount})` : label;
               })
               .join(" and ")}
           </p>
           <p className="mt-1 text-ink-muted">
             Kept as one lead. Original request was{" "}
-            {lead.surveyLevel ? SURVEY_LEVEL_LABELS[lead.surveyLevel] ?? lead.surveyLevel : "the first survey"}
+            {lead.surveyLevel ? surveyLevelLabel(lead.surveyLevel, surveyTypes) : "the first survey"}
             {lead.quotedAmount != null ? ` (£${lead.quotedAmount})` : ""}. Partner credit-back applies on the extra enquiry.
           </p>
         </div>
@@ -541,6 +558,7 @@ export default function LeadDetail({
       {embedded ? (
         <EmbeddedLeadProfile
           lead={lead}
+          surveyTypes={surveyTypes}
           onLeadChange={setLead}
           onClose={onClose}
           onSent={() => reload({ silent: true })}
@@ -755,7 +773,7 @@ export default function LeadDetail({
               {
                 label: "Survey level",
                 value: lead.surveyLevel
-                  ? `${SURVEY_LEVEL_LABELS[lead.surveyLevel]} · Homebuyer`
+                  ? `${surveyLevelLabel(lead.surveyLevel, surveyTypes)} · Homebuyer`
                   : "—",
                 sub: lead.quotedAmount ? `£${lead.quotedAmount} quoted` : "",
               },
@@ -1194,7 +1212,7 @@ export default function LeadDetail({
           <p className="mt-1.5 text-xs text-ink-muted">
             Original quote: £{lead.quotedAmount}
             {lead.surveyLevel
-              ? ` · ${SURVEY_LEVEL_LABELS[lead.surveyLevel] ?? lead.surveyLevel}`
+              ? ` · ${surveyLevelLabel(lead.surveyLevel, surveyTypes)}`
               : ""}
             . Change it above if the won amount is different.
           </p>
@@ -1227,21 +1245,19 @@ export default function LeadDetail({
           This creates the job as paid and stops nurture.
         </p>
         <div className="space-y-3">
-          <SelectField
+          <SurveyTypeSelect
             label="Survey level"
             value={moveToPaidSurveyLevel}
             disabled={movingToPaid}
-            onChange={(e) => {
-              setMoveToPaidSurveyLevel(e.target.value as SurveyLevel);
+            variant="all-active"
+            allowCreate={false}
+            allowManage={false}
+            onCatalogChange={setSurveyTypes}
+            onChange={(slug) => {
+              setMoveToPaidSurveyLevel(slug);
               if (moveToPaidError) setMoveToPaidError(null);
             }}
-          >
-            {(Object.keys(SURVEY_LEVEL_LABELS) as SurveyLevel[]).map((level) => (
-              <option key={level} value={level}>
-                {SURVEY_LEVEL_LABELS[level]}
-              </option>
-            ))}
-          </SelectField>
+          />
           <div>
             <TextField
               label="Amount (£)"
@@ -1263,7 +1279,7 @@ export default function LeadDetail({
               <p className="mt-1.5 text-xs text-ink-muted">
                 Quoted: £{lead.quotedAmount}
                 {lead.surveyLevel
-                  ? ` · ${SURVEY_LEVEL_LABELS[lead.surveyLevel] ?? lead.surveyLevel}`
+                  ? ` · ${surveyLevelLabel(lead.surveyLevel, surveyTypes)}`
                   : ""}
               </p>
             ) : null}
