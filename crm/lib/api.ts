@@ -853,6 +853,12 @@ export const api = {
       quotedAmount?: number;
       surveyLevel?: SurveyLevel;
       assignedToId?: string | null;
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      phone?: string;
+      propertyAddress?: string;
+      propertyPostcode?: string;
     }
   ) => request<Lead>(`/leads/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
 
@@ -954,8 +960,14 @@ export const api = {
   updateJob: (id: string, payload: Record<string, unknown>) =>
     request<Job>(`/jobs/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
 
-  updateJobStage: (id: string, stage: string) =>
-    request<Job>(`/jobs/${id}/stage`, { method: "POST", body: JSON.stringify({ stage }) }),
+  updateJobStage: (id: string, stage: string, opts?: { skipTrigger?: boolean }) =>
+    request<Job>(`/jobs/${id}/stage`, {
+      method: "POST",
+      body: JSON.stringify({
+        stage,
+        ...(opts?.skipTrigger ? { skipStageTrigger: true } : {}),
+      }),
+    }),
 
   confirmJobAccessDetails: (id: string) =>
     request<Job>(`/jobs/${id}/confirm-access-details`, { method: "POST" }),
@@ -1498,6 +1510,117 @@ export const api = {
       responses: Record<string, { description: string; body: unknown }>;
       example: { request: { headers: Record<string, string>; body: unknown } };
     }>("/intake/docs/third-party"),
+
+  getProspectingStatus: () =>
+    request<import("@/crm/types/prospecting").ProspectingStatus>("/prospecting/status"),
+
+  listProspectingRuns: (params?: { page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const suffix = qs.size ? `?${qs}` : "";
+    return request<{
+      items: import("@/crm/types/prospecting").ProspectingRunSummary[];
+      total: number;
+    }>(`/prospecting/runs${suffix}`);
+  },
+
+  startProspectingRun: (
+    kind: import("@/crm/types/prospecting").ProspectingRunKind = "manual",
+    extra?: { query?: string; lane?: string; serviceId?: string },
+  ) =>
+    request<import("@/crm/types/prospecting").ProspectingRunSummary>("/prospecting/runs", {
+      method: "POST",
+      body: JSON.stringify({ kind, ...extra }),
+    }),
+
+  listProspectingOpportunities: (params?: { page?: number; search?: string; status?: string; workflow?: string; lane?: string; decision?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.search) qs.set("search", params.search);
+    if (params?.status) qs.set("status", params.status);
+    if (params?.workflow) qs.set("workflow", params.workflow);
+    if (params?.lane) qs.set("lane", params.lane);
+    if (params?.decision) qs.set("decision", params.decision);
+    const suffix = qs.size ? `?${qs}` : "";
+    return request<import("@/crm/types/prospecting").ProspectingListResponse<import("@/crm/types/prospecting").ProspectOpportunityRow>>(
+      `/prospecting/opportunities${suffix}`,
+    );
+  },
+
+  getProspectingCard: (id: string) =>
+    request<import("@/crm/types/prospecting").ProspectCard>(`/prospecting/opportunities/${id}`),
+
+  reviewProspectingOpportunity: (
+    id: string,
+    body: { action: "approve" | "reject" | "escalate" | "override"; reason?: string; ownerUserId?: string },
+  ) =>
+    request<{ id: string; status: string; decision: string | null }>(`/prospecting/opportunities/${id}/review`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  listProspectingSignals: (params?: { page?: number }) =>
+    request<import("@/crm/types/prospecting").ProspectingListResponse<import("@/crm/types/prospecting").ProspectSignalRow>>(
+      `/prospecting/signals${params?.page ? `?page=${params.page}` : ""}`,
+    ),
+
+  listProspectingAccounts: (params?: { page?: number; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.search) qs.set("search", params.search);
+    const suffix = qs.size ? `?${qs}` : "";
+    return request<import("@/crm/types/prospecting").ProspectingListResponse<import("@/crm/types/prospecting").ProspectAccountRow>>(
+      `/prospecting/accounts${suffix}`,
+    );
+  },
+
+  listProspectingContacts: (params?: { page?: number }) =>
+    request<import("@/crm/types/prospecting").ProspectingListResponse<import("@/crm/types/prospecting").ProspectContactRow>>(
+      `/prospecting/contacts${params?.page ? `?page=${params.page}` : ""}`,
+    ),
+
+  listProspectingProcurements: (params?: { page?: number; frameworks?: boolean }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.frameworks) qs.set("frameworks", "1");
+    const suffix = qs.size ? `?${qs}` : "";
+    return request<import("@/crm/types/prospecting").ProspectingListResponse<import("@/crm/types/prospecting").ProspectProcurementRow>>(
+      `/prospecting/procurements${suffix}`,
+    );
+  },
+
+  listProspectingNetworks: (params?: { page?: number }) =>
+    request<import("@/crm/types/prospecting").ProspectingListResponse<import("@/crm/types/prospecting").ProspectNetworkRow>>(
+      `/prospecting/networks${params?.page ? `?page=${params.page}` : ""}`,
+    ),
+
+  listProspectingResults: () =>
+    request<{ items: import("@/crm/types/prospecting").ProspectResultRow[]; total: number }>("/prospecting/results"),
+
+  getProspectingAdmin: () =>
+    request<import("@/crm/types/prospecting").ProspectingAdminConfig>("/prospecting/admin"),
+
+  patchProspectingSource: (id: string, enabled: boolean) =>
+    request<{ id: string; enabled: boolean }>(`/prospecting/admin/sources/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled }),
+    }),
+
+  patchProspectingService: (id: string, active: boolean) =>
+    request<{ id: string; active: boolean }>(`/prospecting/admin/services/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ active }),
+    }),
+
+  patchProspectingCoverage: (id: string, active: boolean) =>
+    request<{ id: string; active: boolean }>(`/prospecting/admin/coverage/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ active }),
+    }),
+
+  exportProspecting: (type: "accounts" | "opportunities" | "evidence" | "frameworks" | "contacts") =>
+    request<{ type: string; rows: Record<string, unknown>[] }>(`/prospecting/export/${type}`),
 
 };
 

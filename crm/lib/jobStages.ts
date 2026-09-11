@@ -50,6 +50,18 @@ export const SURVEYOR_SETTABLE_STAGES = [
   "REPORT_DELIVERED",
 ] as const;
 
+/** Jobs list “Completed” section — Inspection Completed and later (not trade). */
+export function isCompletedJobsListStage(stage: string, jobType?: string | null): boolean {
+  if (jobType === "TRADE_WORK") return false;
+  const value = canonicalSurveyStage(stage);
+  return (
+    value === "INSPECTION_COMPLETE" ||
+    value === "DATA_UPLOAD" ||
+    value === "REPORT_QC" ||
+    value === "REPORT_DELIVERED"
+  );
+}
+
 /**
  * Assigned surveyor may set Inspection Completed / Data Upload / QC / Submit
  * Report once the job is at Inspection Booked or later. Paid / Access stay ops-only.

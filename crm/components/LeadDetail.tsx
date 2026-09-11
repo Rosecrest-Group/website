@@ -18,7 +18,7 @@ import {
   surveyLevelLabel,
 } from "@/crm/lib/constants";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Check, ChevronRight, Copy, Maximize2, X } from "lucide-react";
+import { ArrowLeft, ChevronRight, Maximize2, X } from "lucide-react";
 import PhoneButton from "@/crm/components/PhoneButton";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPanel from "@/crm/components/ui/CrmPanel";
@@ -37,6 +37,7 @@ import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import TextField from "@/crm/components/ui/TextField";
 import SelectField from "@/crm/components/ui/SelectField";
 import ConfirmModal from "@/crm/components/ui/ConfirmModal";
+import CopyValue, { EditValueButton } from "@/crm/components/ui/CopyValue";
 import CreateTaskModal from "@/crm/components/CreateTaskModal";
 import { toast } from "sonner";
 import LeadInternalNotesPanel from "@/crm/components/LeadInternalNotesPanel";
@@ -44,8 +45,9 @@ import LeadMessageThread from "@/crm/components/LeadMessageThread";
 import ActivityFeed from "@/crm/components/ActivityFeed";
 import LeadTags from "@/crm/components/LeadTags";
 import LeadWorkflowASend from "@/crm/components/LeadWorkflowASend";
-import EmbeddedLeadProfile from "@/crm/components/EmbeddedLeadProfile";
 import SurveyTypeSelect from "@/crm/components/SurveyTypeSelect";
+import EmbeddedLeadProfile from "@/crm/components/EmbeddedLeadProfile";
+import EditLeadDetailsModal from "@/crm/components/EditLeadDetailsModal";
 import { useCrmTopBar } from "@/crm/lib/crmTopBarContext";
 import { filterLeadThreadActivities } from "@/crm/lib/threadActivities";
 import { getCachedCurrentUser } from "@/crm/lib/currentUserCache";
@@ -125,21 +127,25 @@ export default function LeadDetail({
   embedded = false,
   onClose,
   onDeleted,
+  onUpdated,
+  initialPane,
 }: {
   id: string;
   embedded?: boolean;
   onClose?: () => void;
   onDeleted?: () => void;
+  onUpdated?: () => void;
+  initialPane?: ThreadPane;
 }) {
   const router = useRouter();
   const { setLeft: setTopBar } = useCrmTopBar();
   const [lead, setLead] = useState<LeadDetailType | null>(() => getCachedLead(id));
   const [loading, setLoading] = useState(() => !getCachedLead(id));
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState<ThreadPane>("messages");
+  const [activeTab, setActiveTab] = useState<ThreadPane>(initialPane ?? "messages");
   const [noteTargetMessage, setNoteTargetMessage] = useState<Message | null>(null);
-  const [notesMounted, setNotesMounted] = useState(false);
-  const [activityMounted, setActivityMounted] = useState(false);
+  const [notesMounted, setNotesMounted] = useState(initialPane === "internal");
+  const [activityMounted, setActivityMounted] = useState(initialPane === "activity");
   const [messagesMaximized, setMessagesMaximized] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
@@ -167,16 +173,18 @@ export default function LeadDetail({
   const [advancingWorkflow, setAdvancingWorkflow] = useState(false);
   const [advanceWorkflowError, setAdvanceWorkflowError] = useState<string | null>(null);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [editDetailsOpen, setEditDetailsOpen] = useState(false);
   const [teamMembers, setTeamMembers] = useState<Array<{ id: string; fullName: string }>>([]);
 
   function reload(options?: { silent?: boolean }) {
     if (!options?.silent) setLoading(true);
     void prefetchLeadThreadWithActivities(id);
-    api
+    return api
       .getLead(id)
       .then((l) => {
         setCachedLead(id, l);
         setLead(l);
+        return l;
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => {
@@ -563,6 +571,7 @@ export default function LeadDetail({
           onClose={onClose}
           onSent={() => reload({ silent: true })}
           onCreateTask={() => setCreateTaskOpen(true)}
+          onEditDetails={() => setEditDetailsOpen(true)}
           onStopAutomation={() => void stopAutomation()}
           stoppingAutomation={stoppingAutomation}
           canStopAutomation={Boolean(canStopAutomation)}
@@ -625,6 +634,7 @@ export default function LeadDetail({
                     <h1 className="text-lg font-medium tracking-tight break-words text-ink">
                       {customer ? `${customer.firstName} ${customer.lastName}` : "Lead"}
                     </h1>
+                    <EditValueButton onClick={() => setEditDetailsOpen(true)} label="Edit lead details" />
                     <StatusPill
                       variant={leadStageToPillVariant(lead.stage)}
                       label={LEAD_STAGE_LABELS[lead.stage] ?? lead.stage}
@@ -655,29 +665,30 @@ export default function LeadDetail({
             </div>
 
             <div className="mt-4 grid gap-x-6 gap-y-3 border-t border-line pt-4 sm:grid-cols-2">
-              {customer?.email && (
-                <div className="min-w-0 sm:col-span-2">
-                  <p className="text-xs text-ink-muted">Email</p>
-                  <CopyValue
-                    value={customer.email}
-                    className="text-sm font-medium break-all text-ink"
-                  />
-                </div>
-              )}
-              {customer?.phone && (
-                <div className="min-w-0">
-                  <p className="text-xs text-ink-muted">Phone</p>
-                  <CopyValue
-                    value={customer.phone}
-                    className="text-sm font-medium text-ink"
-                  />
-                </div>
-              )}
+              <div className="min-w-0 sm:col-span-2">
+                <p className="text-xs text-ink-muted">Email</p>
+                <CopyValue
+                  value={customer?.email ?? ""}
+                  className="text-sm font-medium break-all text-ink"
+                  onEdit={() => setEditDetailsOpen(true)}
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-ink-muted">Phone</p>
+                <CopyValue
+                  value={customer?.phone ?? ""}
+                  className="text-sm font-medium text-ink"
+                  onEdit={() => setEditDetailsOpen(true)}
+                />
+              </div>
               <div className="min-w-0 sm:col-span-2">
                 <p className="text-xs text-ink-muted">Property</p>
-                <p className="mt-0.5 text-sm font-medium break-words text-ink">
-                  {lead.propertyAddress}, {lead.propertyPostcode}
-                </p>
+                <span className="mt-0.5 inline-flex min-w-0 items-center gap-1.5">
+                  <span className="text-sm font-medium break-words text-ink">
+                    {lead.propertyAddress}, {lead.propertyPostcode}
+                  </span>
+                  <EditValueButton onClick={() => setEditDetailsOpen(true)} label="Edit address" />
+                </span>
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-ink-muted">Bedrooms</p>
@@ -1328,6 +1339,14 @@ export default function LeadDetail({
           reload({ silent: true });
         }}
       />
+      <EditLeadDetailsModal
+        isOpen={editDetailsOpen}
+        lead={lead}
+        onClose={() => setEditDetailsOpen(false)}
+        onSaved={() => {
+          void reload({ silent: true }).then(() => onUpdated?.());
+        }}
+      />
     </>
   );
 
@@ -1336,33 +1355,6 @@ export default function LeadDetail({
   }
 
   return <CrmPageContent className="!pt-3 sm:!pt-4 lg:!pt-4">{detailBody}</CrmPageContent>;
-}
-
-function CopyValue({ value, className }: { value: string; className?: string }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    await navigator.clipboard.writeText(value);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
-  }
-
-  return (
-    <span className="mt-0.5 inline-flex min-w-0 items-center gap-1.5">
-      <span className={className} title={value}>
-        {value}
-      </span>
-      <button
-        type="button"
-        onClick={copy}
-        className="shrink-0 rounded-md p-1 text-ink-muted hover:bg-sidebar hover:text-ink"
-        aria-label={`Copy ${value}`}
-        title="Copy"
-      >
-        {copied ? <Check className="size-3.5 text-brand" /> : <Copy className="size-3.5" />}
-      </button>
-    </span>
-  );
 }
 
 function Row({ label, value }: { label: string; value: string }) {

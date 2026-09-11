@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/crm/lib/api";
+import { conversationOpenPath } from "@/crm/lib/conversationOpenPath";
 import { registerPushNotifications } from "@/crm/lib/pushNotifications";
 import {
   getCachedConversationList,
@@ -25,6 +26,7 @@ export default function ConversationsView({
 }: {
   initialThreads?: InternalConversationSummary[] | null;
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialConversationId = searchParams.get("conversationId");
   const highlightMessageId = searchParams.get("messageId");
@@ -117,24 +119,16 @@ export default function ConversationsView({
       if (seeded) {
         skipInitialFetch.current = false;
         setLoading(false);
-        if (initialConversationId) {
-          const match = (initialThreads ?? []).find((t) => t.id === initialConversationId);
-          if (match) openThread(match);
-        }
       } else if (!getCachedConversationList()) {
         setLoading(true);
       }
 
       try {
-        const [items, me] = await Promise.all([loadThreads(), api.getMe()]);
+        const [, me] = await Promise.all([loadThreads(), api.getMe()]);
         if (cancelled) return;
         const user = { id: me.id, fullName: me.fullName };
         setCurrentUser(user);
         setCachedCurrentUser(user);
-        if (initialConversationId) {
-          const match = items.find((t) => t.id === initialConversationId);
-          if (match) openThread(match);
-        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -143,7 +137,28 @@ export default function ConversationsView({
     return () => {
       cancelled = true;
     };
-  }, [initialConversationId, loadThreads, openThread, initialThreads]);
+  }, [loadThreads, initialThreads]);
+
+  useEffect(() => {
+    if (!initialConversationId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const conv = await api.getConversation(initialConversationId);
+        if (cancelled) return;
+        if (conv.kind === "RECORD_THREAD" && conv.leadId) {
+          router.replace(conversationOpenPath(conv));
+          return;
+        }
+        openThread(conv);
+      } catch {
+        // Missing, deleted, or the viewer is not a participant.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialConversationId, openThread, router]);
 
   useCollaborationRealtime(
     useCallback(

@@ -524,6 +524,11 @@ export default function LeadInternalNotesPanel({
   }, [isActive, leadId]);
 
   useEffect(() => {
+    if (!isActive || !conversationId) return;
+    void api.markConversationRead(conversationId).catch(() => {});
+  }, [isActive, conversationId]);
+
+  useEffect(() => {
     if (referencedMessage) {
       requestAnimationFrame(() => composeRef.current?.focus());
     }

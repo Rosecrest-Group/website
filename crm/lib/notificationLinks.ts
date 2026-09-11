@@ -1,12 +1,14 @@
 import { CRM_BASE_PATH } from "@/crm/lib/constants";
+import { conversationOpenPath } from "@/crm/lib/conversationOpenPath";
 import type { UserNotificationItem } from "@/crm/types";
 
 export function notificationHref(n: UserNotificationItem) {
   if (n.conversationId) {
-    const qs = n.messageId
-      ? `?conversationId=${n.conversationId}&messageId=${n.messageId}`
-      : `?conversationId=${n.conversationId}`;
-    return `${CRM_BASE_PATH}/conversations${qs}`;
+    return conversationOpenPath({
+      id: n.conversationId,
+      leadId: n.leadId,
+      messageId: n.messageId,
+    });
   }
   // A MESSAGE with a lead but no conversation is an inbound client email/SMS/WhatsApp,
   // which lives in the shared inbox rather than on the lead record.

@@ -26,6 +26,12 @@ export const FINANCE_DASHBOARD_ROLES: UserRole[] = [
 
 export const ADMIN_SETTINGS_ROLES: UserRole[] = ["ADMIN", "SUPER_ADMIN"];
 
+/** B2B prospecting queue — sales (OPS) plus management. */
+export const PROSPECTING_ROLES: UserRole[] = ["OPS", "ADMIN", "SUPER_ADMIN"];
+
+/** Prospecting admin config (services, coverage, weights, schedules). */
+export const PROSPECTING_ADMIN_ROLES: UserRole[] = ["ADMIN", "SUPER_ADMIN"];
+
 export const TASKS_ROLES: UserRole[] = [
   "SUPER_ADMIN",
   "ADMIN",
@@ -67,6 +73,14 @@ export function canAccessCustomerDirectory(role: UserRole): boolean {
 
 export function canAccessAdminSettings(role: UserRole): boolean {
   return hasExactRole(role, ADMIN_SETTINGS_ROLES);
+}
+
+export function canAccessProspecting(role: UserRole): boolean {
+  return hasExactRole(role, PROSPECTING_ROLES);
+}
+
+export function canAccessProspectingAdmin(role: UserRole): boolean {
+  return hasExactRole(role, PROSPECTING_ADMIN_ROLES);
 }
 
 export function canSkipWorkflowWait(role: UserRole): boolean {
@@ -140,6 +154,12 @@ function pathAllowed(role: UserRole, pathname: string): boolean {
   }
   if (pathname.startsWith(`${CRM_BASE_PATH}/customers`)) {
     return canAccessCustomerDirectory(role);
+  }
+  if (pathname.startsWith(`${CRM_BASE_PATH}/prospecting/admin`)) {
+    return hasExactRole(role, PROSPECTING_ADMIN_ROLES);
+  }
+  if (pathname.startsWith(`${CRM_BASE_PATH}/prospecting`)) {
+    return hasExactRole(role, PROSPECTING_ROLES);
   }
   if (pathname.startsWith(`${CRM_BASE_PATH}/jobs`) || pathname.startsWith(`${CRM_BASE_PATH}/tasks`)) {
     if (pathname.startsWith(`${CRM_BASE_PATH}/tasks`)) {

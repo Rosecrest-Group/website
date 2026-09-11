@@ -4,26 +4,40 @@ import {
   Columns2,
   BarChart3,
   BookOpen,
+  Building2,
   CalendarDays,
   CheckSquare,
+  ChevronDown,
   ChevronLeft,
   ChevronUp,
+  ClipboardCheck,
   Clock,
+  Eye,
+  FileSignature,
   FileText,
   Files,
+  Funnel,
   GitBranch,
   Inbox,
+  Layers,
   LayoutDashboard,
+  LineChart,
   Phone,
   LogOut,
   MessagesSquare,
   PoundSterling,
+  Radio,
   ScrollText,
+  Search,
   Settings,
+  Share2,
+  Shield,
+  SlidersHorizontal,
   Target,
   User,
   UserCog,
   UserPlus,
+  UserRound,
   Users,
   X,
   type LucideIcon,
@@ -31,7 +45,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,6 +89,19 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   "legacy-contacts": Users,
   "legacy-opportunities": Target,
   "legacy-inbox": Inbox,
+  "find-firms": Search,
+  "prospect-review": ClipboardCheck,
+  "need-signals": Radio,
+  "live-contracts": FileSignature,
+  frameworks: Layers,
+  networks: Share2,
+  standing: Shield,
+  buyers: UserRound,
+  monitored: Eye,
+  funnels: Funnel,
+  results: LineChart,
+  "prospect-admin": SlidersHorizontal,
+  prospecting: Building2,
 };
 
 const HREF_ICON: Record<string, string> = {
@@ -100,10 +127,25 @@ const HREF_ICON: Record<string, string> = {
   [`${CRM_LEGACY_PATH}/contacts`]: "legacy-contacts",
   [`${CRM_LEGACY_PATH}/opportunities`]: "legacy-opportunities",
   [`${CRM_LEGACY_PATH}/inbox`]: "legacy-inbox",
+  [`${CRM_BASE_PATH}/prospecting/find-firms`]: "find-firms",
+  [`${CRM_BASE_PATH}/prospecting/review`]: "prospect-review",
+  [`${CRM_BASE_PATH}/prospecting/signals`]: "need-signals",
+  [`${CRM_BASE_PATH}/prospecting/live-contracts`]: "live-contracts",
+  [`${CRM_BASE_PATH}/prospecting/frameworks`]: "frameworks",
+  [`${CRM_BASE_PATH}/prospecting/networks`]: "networks",
+  [`${CRM_BASE_PATH}/prospecting/standing`]: "standing",
+  [`${CRM_BASE_PATH}/prospecting/contacts`]: "buyers",
+  [`${CRM_BASE_PATH}/prospecting/monitored`]: "monitored",
+  [`${CRM_BASE_PATH}/prospecting/funnels`]: "funnels",
+  [`${CRM_BASE_PATH}/prospecting/results`]: "results",
+  [`${CRM_BASE_PATH}/prospecting/admin`]: "prospect-admin",
 };
 
 const SIDEBAR_COLLAPSED_KEY = "crm.sidebar.collapsed";
+const SIDEBAR_SECTIONS_KEY = "crm.sidebar.sections.collapsed";
+const SIDEBAR_SECTIONS_EVENT = "crm-sidebar-sections";
 const SIDEBAR_COLLAPSE_EASE = "duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]";
+const SECTION_COLLAPSE_EASE = "duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]";
 
 function isActive(pathname: string, href: string) {
   if (href === CRM_BASE_PATH) return pathname === CRM_BASE_PATH;
@@ -121,6 +163,64 @@ function readSidebarCollapsed() {
 function writeSidebarCollapsed(collapsed: boolean) {
   try {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch {
+    /* private mode / quota */
+  }
+}
+
+function sectionDomId(title: string) {
+  return `crm-nav-${title.toLowerCase().replace(/\s+/g, "-")}`;
+}
+
+const EMPTY_SECTIONS: string[] = [];
+let collapsedSectionsRaw: string | null = null;
+let collapsedSectionsCache: string[] = EMPTY_SECTIONS;
+
+function parseCollapsedSections(raw: string | null): string[] {
+  if (!raw) return EMPTY_SECTIONS;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return EMPTY_SECTIONS;
+    const titles = parsed.filter((value): value is string => typeof value === "string");
+    return titles.length === 0 ? EMPTY_SECTIONS : titles;
+  } catch {
+    return EMPTY_SECTIONS;
+  }
+}
+
+function getCollapsedSectionsSnapshot(): string[] {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(SIDEBAR_SECTIONS_KEY);
+  } catch {
+    return EMPTY_SECTIONS;
+  }
+  if (raw === collapsedSectionsRaw) return collapsedSectionsCache;
+  collapsedSectionsRaw = raw;
+  collapsedSectionsCache = parseCollapsedSections(raw);
+  return collapsedSectionsCache;
+}
+
+function getCollapsedSectionsServerSnapshot(): string[] {
+  return EMPTY_SECTIONS;
+}
+
+function subscribeCollapsedSections(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(SIDEBAR_SECTIONS_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(SIDEBAR_SECTIONS_EVENT, onStoreChange);
+  };
+}
+
+function writeCollapsedSections(titles: string[]) {
+  try {
+    const raw = JSON.stringify(titles);
+    localStorage.setItem(SIDEBAR_SECTIONS_KEY, raw);
+    collapsedSectionsRaw = raw;
+    collapsedSectionsCache = titles.length === 0 ? EMPTY_SECTIONS : titles;
+    window.dispatchEvent(new Event(SIDEBAR_SECTIONS_EVENT));
   } catch {
     /* private mode / quota */
   }
@@ -144,12 +244,19 @@ export default function CrmSidebar({
   initialUser?: ApiUser | null;
 }) {
   const pathname = usePathname();
+  const navId = useId();
   const teamChatUnread = useTeamChatUnreadCount();
   const teamChatHref = `${CRM_BASE_PATH}/conversations`;
   const inboxUnread = useInboxUnreadCount();
   const inboxHref = `${CRM_BASE_PATH}/inbox`;
   const [collapsed, setCollapsed] = useState(false);
   const [collapseReady, setCollapseReady] = useState(false);
+  const collapsedSections = useSyncExternalStore(
+    subscribeCollapsedSections,
+    getCollapsedSectionsSnapshot,
+    getCollapsedSectionsServerSnapshot,
+  );
+  const [sectionAnimReady, setSectionAnimReady] = useState(false);
   const [user, setUser] = useState<ApiUser | null>(
     () => initialUser ?? getCachedApiUser(),
   );
@@ -173,6 +280,11 @@ export default function CrmSidebar({
     return () => cancelAnimationFrame(id);
   }, [collapsible]);
 
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setSectionAnimReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
   const railCollapsed = collapsible && collapsed;
   const navSections = navSectionsForRole(user?.role);
 
@@ -182,6 +294,13 @@ export default function CrmSidebar({
       writeSidebarCollapsed(next);
       return next;
     });
+  };
+
+  const toggleSection = (title: string) => {
+    const next = collapsedSections.includes(title)
+      ? collapsedSections.filter((value) => value !== title)
+      : [...collapsedSections, title];
+    writeCollapsedSections(next);
   };
 
   const inner = (
@@ -228,89 +347,132 @@ export default function CrmSidebar({
 
       <ScrollArea className="min-h-0 flex-1">
         <nav className="flex flex-col gap-5 pb-2">
-          {navSections.map((section) => (
-            <div key={section.title}>
-              <p
-                aria-hidden={railCollapsed}
-                className={cn(
-                  "overflow-hidden px-2.5 text-[11px] font-medium uppercase tracking-wide whitespace-nowrap text-ink-faint transition-[max-height,margin,opacity] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
-                  railCollapsed ? "mb-0 max-h-0 opacity-0" : "mb-1.5 max-h-6 opacity-100",
-                )}
-              >
-                {section.title}
-              </p>
-              <div className="flex flex-col">
-                {section.items.map((item) => {
-                  const active = isActive(pathname, item.href);
-                  const iconName = HREF_ICON[item.href] ?? "dashboard";
-                  const Icon = NAV_ICONS[iconName] ?? LayoutDashboard;
-                  const liveUnread =
-                    item.href === teamChatHref
-                      ? teamChatUnread
-                      : item.href === inboxHref
-                        ? inboxUnread
-                        : 0;
-                  const badge = liveUnread > 0 ? liveUnread : item.badge;
+          {navSections.map((section) => {
+            const sectionCollapsed = collapsedSections.includes(section.title);
+            const itemsOpen = railCollapsed || !sectionCollapsed;
+            const sectionId = `${navId}-${sectionDomId(section.title)}`;
 
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={onNavigate}
-                      onMouseEnter={() => {
-                        if (item.href === `${CRM_BASE_PATH}/pipeline`) void prefetchLeadBoard();
-                      }}
-                      title={railCollapsed ? item.label : undefined}
+            return (
+              <div key={section.title}>
+                <button
+                  type="button"
+                  id={`${sectionId}-trigger`}
+                  aria-expanded={itemsOpen}
+                  aria-controls={sectionId}
+                  aria-hidden={railCollapsed}
+                  tabIndex={railCollapsed ? -1 : 0}
+                  disabled={railCollapsed}
+                  onClick={() => toggleSection(section.title)}
+                  className={cn(
+                    "flex w-full cursor-pointer items-center gap-1 overflow-hidden rounded-md px-2.5 text-[11px] font-medium uppercase tracking-wide whitespace-nowrap text-ink-faint outline-none transition-[max-height,margin,opacity,color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                    railCollapsed
+                      ? "pointer-events-none mb-0 max-h-0 opacity-0"
+                      : "mb-1.5 max-h-6 opacity-100 hover:text-ink-muted",
+                  )}
+                >
+                  <span className="min-w-0 flex-1 truncate text-left">{section.title}</span>
+                  <ChevronDown
+                    className={cn(
+                      `size-3 shrink-0 transition-transform ${SECTION_COLLAPSE_EASE}`,
+                      sectionCollapsed && "-rotate-90",
+                    )}
+                    strokeWidth={2}
+                  />
+                </button>
+                <div
+                  id={sectionId}
+                  role="region"
+                  aria-labelledby={`${sectionId}-trigger`}
+                  className={cn(
+                    "grid",
+                    sectionAnimReady && `transition-[grid-template-rows] ${SECTION_COLLAPSE_EASE}`,
+                    itemsOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                  )}
+                >
+                  <div className="min-h-0 overflow-hidden">
+                    <div
                       className={cn(
-                        "group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors duration-200",
-                        active
-                          ? "bg-white font-medium text-ink shadow-[0_0_0_1px_var(--color-line)]"
-                          : "font-normal text-ink-muted hover:bg-black/4 hover:text-ink",
+                        "flex flex-col",
+                        sectionAnimReady && `transition-[opacity,transform] ${SECTION_COLLAPSE_EASE}`,
+                        itemsOpen
+                          ? "translate-y-0 opacity-100"
+                          : "pointer-events-none -translate-y-1 opacity-0",
                       )}
                     >
-                      <span
-                        className={cn(
-                          "relative flex size-6 shrink-0 items-center justify-center rounded-md transition-colors duration-200",
-                          active
-                            ? "bg-brand-muted text-brand"
-                            : "text-ink-subtle group-hover:bg-white/60 group-hover:text-ink",
-                        )}
-                      >
-                        <Icon className="size-[14px]" strokeWidth={1.75} />
-                        {badge !== undefined && badge > 0 ? (
-                          <span
+                      {section.items.map((item) => {
+                        const active = isActive(pathname, item.href);
+                        const iconName = HREF_ICON[item.href] ?? "dashboard";
+                        const Icon = NAV_ICONS[iconName] ?? LayoutDashboard;
+                        const liveUnread =
+                          item.href === teamChatHref
+                            ? teamChatUnread
+                            : item.href === inboxHref
+                              ? inboxUnread
+                              : 0;
+                        const badge = liveUnread > 0 ? liveUnread : item.badge;
+
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={onNavigate}
+                            onMouseEnter={() => {
+                              if (item.href === `${CRM_BASE_PATH}/pipeline`) void prefetchLeadBoard();
+                            }}
+                            title={railCollapsed ? item.label : undefined}
                             className={cn(
-                              "absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-brand transition-opacity duration-200",
-                              railCollapsed ? "opacity-100" : "opacity-0",
+                              "group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors duration-200",
+                              active
+                                ? "bg-white font-medium text-ink shadow-[0_0_0_1px_var(--color-line)]"
+                                : "font-normal text-ink-muted hover:bg-black/4 hover:text-ink",
                             )}
-                          />
-                        ) : null}
-                      </span>
-                      <span
-                        className={cn(
-                          "min-w-0 flex-1 truncate whitespace-nowrap transition-opacity duration-200",
-                          railCollapsed && "opacity-0",
-                        )}
-                      >
-                        {item.label}
-                      </span>
-                      {badge !== undefined && badge > 0 ? (
-                        <span
-                          className={cn(
-                            "rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none whitespace-nowrap text-white transition-opacity duration-200",
-                            active ? "bg-brand" : "bg-ink",
-                            railCollapsed && "opacity-0",
-                          )}
-                        >
-                          {badge > 99 ? "99+" : badge}
-                        </span>
-                      ) : null}
-                    </Link>
-                  );
-                })}
+                          >
+                            <span
+                              className={cn(
+                                "relative flex size-6 shrink-0 items-center justify-center rounded-md transition-colors duration-200",
+                                active
+                                  ? "bg-brand-muted text-brand"
+                                  : "text-ink-subtle group-hover:bg-white/60 group-hover:text-ink",
+                              )}
+                            >
+                              <Icon className="size-[14px]" strokeWidth={1.75} />
+                              {badge !== undefined && badge > 0 ? (
+                                <span
+                                  className={cn(
+                                    "absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-brand transition-opacity duration-200",
+                                    railCollapsed ? "opacity-100" : "opacity-0",
+                                  )}
+                                />
+                              ) : null}
+                            </span>
+                            <span
+                              className={cn(
+                                "min-w-0 flex-1 truncate whitespace-nowrap transition-opacity duration-200",
+                                railCollapsed && "opacity-0",
+                              )}
+                            >
+                              {item.label}
+                            </span>
+                            {badge !== undefined && badge > 0 ? (
+                              <span
+                                className={cn(
+                                  "rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none whitespace-nowrap text-white transition-opacity duration-200",
+                                  active ? "bg-brand" : "bg-ink",
+                                  railCollapsed && "opacity-0",
+                                )}
+                              >
+                                {badge > 99 ? "99+" : badge}
+                              </span>
+                            ) : null}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
       </ScrollArea>
 

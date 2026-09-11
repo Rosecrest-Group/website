@@ -929,6 +929,12 @@ export default function InboxView({
         if (selected?.leadId === deletedId) setSelected(null);
         void loadThreads({ cursor: null, query: activeQuery, append: false });
       }}
+      onUpdated={() => {
+        const leadId = leadPanel?.leadId;
+        if (!leadId) return;
+        const cached = getCachedLead(leadId);
+        if (cached) setActivityLead(cached);
+      }}
     />
 
     {selected?.leadId ? (

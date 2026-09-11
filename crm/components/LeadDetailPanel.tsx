@@ -10,6 +10,7 @@ export interface LeadDetailPanelProps {
   title?: string;
   hideHeading?: boolean;
   onDeleted?: () => void;
+  onUpdated?: () => void;
 }
 
 export default function LeadDetailPanel({
@@ -19,6 +20,7 @@ export default function LeadDetailPanel({
   title = "Lead details",
   hideHeading = false,
   onDeleted,
+  onUpdated,
 }: LeadDetailPanelProps) {
   function handleDeleted() {
     onDeleted?.();
@@ -39,6 +41,7 @@ export default function LeadDetailPanel({
           embedded
           onClose={hideHeading ? onClose : undefined}
           onDeleted={handleDeleted}
+          onUpdated={onUpdated}
         />
       )}
     </CrmSlidePanel>

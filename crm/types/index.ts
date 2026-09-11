@@ -1218,3 +1218,20 @@ export interface CreateLeadPayload {
     ipAddress?: string;
   };
 }
+
+export type {
+  ProspectingRunKind,
+  ProspectingRunStatus,
+  ProspectingRunSummary,
+  ProspectingStatus,
+  ProspectOpportunityRow,
+  ProspectAccountRow,
+  ProspectContactRow,
+  ProspectSignalRow,
+  ProspectProcurementRow,
+  ProspectNetworkRow,
+  ProspectResultRow,
+  ProspectCard,
+  ProspectingAdminConfig,
+} from "./prospecting";
+

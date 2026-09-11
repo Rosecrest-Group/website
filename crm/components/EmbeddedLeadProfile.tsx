@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { Check, Copy, X } from "lucide-react";
+import { type ReactNode } from "react";
+import { X } from "lucide-react";
 import type { LeadDetail as LeadDetailType, SurveyType } from "@/crm/types";
 import {
   BEDROOM_BAND_LABELS,
@@ -19,6 +19,7 @@ import CurvedContainer from "@/crm/components/ui/CurvedContainer";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import StatusPill, { leadStageToPillVariant } from "@/crm/components/ui/StatusPill";
+import CopyValue, { EditValueButton } from "@/crm/components/ui/CopyValue";
 import LeadTags from "@/crm/components/LeadTags";
 import LeadWorkflowASend from "@/crm/components/LeadWorkflowASend";
 
@@ -65,33 +66,6 @@ function formatSchedule(iso: string): string {
   return `${rel} · ${d.toLocaleString()}`;
 }
 
-function CopyValue({ value, className }: { value: string; className?: string }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    await navigator.clipboard.writeText(value);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
-  }
-
-  return (
-    <span className="mt-0.5 inline-flex min-w-0 items-center gap-1.5">
-      <span className={className} title={value}>
-        {value}
-      </span>
-      <button
-        type="button"
-        onClick={copy}
-        className="shrink-0 rounded-md p-1 text-ink-muted hover:bg-sidebar hover:text-ink"
-        aria-label={`Copy ${value}`}
-        title="Copy"
-      >
-        {copied ? <Check className="size-3.5 text-brand" /> : <Copy className="size-3.5" />}
-      </button>
-    </span>
-  );
-}
-
 function Field({
   label,
   children,
@@ -116,6 +90,7 @@ export default function EmbeddedLeadProfile({
   onClose,
   onSent,
   onCreateTask,
+  onEditDetails,
   onStopAutomation,
   stoppingAutomation,
   canStopAutomation,
@@ -140,6 +115,7 @@ export default function EmbeddedLeadProfile({
   onClose?: () => void;
   onSent: () => void;
   onCreateTask: () => void;
+  onEditDetails: () => void;
   onStopAutomation: () => void;
   stoppingAutomation: boolean;
   canStopAutomation: boolean;
@@ -201,6 +177,7 @@ export default function EmbeddedLeadProfile({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-lg font-medium tracking-tight text-ink">{name}</h1>
+                <EditValueButton onClick={onEditDetails} label="Edit lead details" />
                 <StatusPill
                   variant={leadStageToPillVariant(lead.stage)}
                   label={LEAD_STAGE_LABELS[lead.stage] ?? lead.stage}
@@ -241,24 +218,20 @@ export default function EmbeddedLeadProfile({
               Contact & property
             </p>
             <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-3">
-              {customer?.email ? (
-                <Field label="Email">
-                  <CopyValue
-                    value={customer.email}
-                    className="text-sm font-medium break-all text-ink"
-                  />
-                </Field>
-              ) : null}
-              {customer?.phone ? (
-                <Field label="Phone">
-                  <CopyValue
-                    value={customer.phone}
-                    className="text-sm font-medium text-ink"
-                  />
-                </Field>
-              ) : (
-                <Field label="Phone">—</Field>
-              )}
+              <Field label="Email" className="col-span-2">
+                <CopyValue
+                  value={customer?.email ?? ""}
+                  className="text-sm font-medium break-all text-ink"
+                  onEdit={onEditDetails}
+                />
+              </Field>
+              <Field label="Phone">
+                <CopyValue
+                  value={customer?.phone ?? ""}
+                  className="text-sm font-medium text-ink"
+                  onEdit={onEditDetails}
+                />
+              </Field>
               <Field label="Bedrooms">
                 {lead.bedroomBand
                   ? BEDROOM_BAND_LABELS[lead.bedroomBand] ?? lead.bedroomBand
@@ -268,8 +241,11 @@ export default function EmbeddedLeadProfile({
                 {formatPropertyValueLabel(lead)}
               </Field>
               <Field label="Property" className="col-span-2">
-                <span className="break-words">
-                  {lead.propertyAddress}, {lead.propertyPostcode}
+                <span className="inline-flex min-w-0 items-center gap-1.5">
+                  <span className="break-words">
+                    {lead.propertyAddress}, {lead.propertyPostcode}
+                  </span>
+                  <EditValueButton onClick={onEditDetails} label="Edit address" />
                 </span>
               </Field>
               {lead.intakeMessage || (lead.intakeDocuments?.length ?? 0) > 0 ? (

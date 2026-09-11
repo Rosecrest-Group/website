@@ -96,10 +96,6 @@ export const CRM_NAV_SECTIONS: CrmNavSection[] = [
     ],
   },
   {
-    title: "Collaboration",
-    items: [{ label: "Team Chat", href: `${CRM_BASE_PATH}/conversations` }],
-  },
-  {
     title: "Operations",
     items: [
       { label: "Leads", href: `${CRM_BASE_PATH}/leads` },
@@ -107,6 +103,27 @@ export const CRM_NAV_SECTIONS: CrmNavSection[] = [
       { label: "Tasks", href: `${CRM_BASE_PATH}/tasks` },
       { label: "Schedule", href: `${CRM_BASE_PATH}/schedule` },
     ],
+  },
+  {
+    title: "Prospecting",
+    items: [
+      { label: "Find Firms", href: `${CRM_BASE_PATH}/prospecting/find-firms` },
+      { label: "Prospect Review", href: `${CRM_BASE_PATH}/prospecting/review` },
+      { label: "Need Signals", href: `${CRM_BASE_PATH}/prospecting/signals` },
+      { label: "Live Contracts", href: `${CRM_BASE_PATH}/prospecting/live-contracts` },
+      { label: "Frameworks", href: `${CRM_BASE_PATH}/prospecting/frameworks` },
+      { label: "Networks & Groups", href: `${CRM_BASE_PATH}/prospecting/networks` },
+      { label: "Public Standing", href: `${CRM_BASE_PATH}/prospecting/standing` },
+      { label: "Buyers", href: `${CRM_BASE_PATH}/prospecting/contacts` },
+      { label: "Monitored", href: `${CRM_BASE_PATH}/prospecting/monitored` },
+      { label: "Sales Funnels", href: `${CRM_BASE_PATH}/prospecting/funnels` },
+      { label: "Results", href: `${CRM_BASE_PATH}/prospecting/results` },
+      { label: "Administration", href: `${CRM_BASE_PATH}/prospecting/admin` },
+    ],
+  },
+  {
+    title: "Collaboration",
+    items: [{ label: "Team Chat", href: `${CRM_BASE_PATH}/conversations` }],
   },
   {
     title: "Insights",

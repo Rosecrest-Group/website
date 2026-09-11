@@ -108,6 +108,8 @@ type TimelineEvent = {
   sourceIcon?: LucideIcon;
   timestamp: Date;
   preview?: string;
+  /** Untruncated lines under the title (e.g. field old → new). */
+  detailLines?: string[];
   children?: TimelineChild[];
   callRecordingUrl?: string;
   callTranscript?: string;
@@ -326,6 +328,31 @@ function parseActorAction(
     };
   }
 
+  if (activity.type === "lead.details_updated") {
+    const changes = Array.isArray(activity.metadata?.changes)
+      ? (activity.metadata.changes as Array<{ label?: string; from?: string; to?: string }>)
+      : [];
+    const preview = changes
+      .map((change) => {
+        const label = typeof change.label === "string" ? change.label : "field";
+        const from = typeof change.from === "string" ? change.from : "none";
+        const to = typeof change.to === "string" ? change.to : "none";
+        return `${label}: ${from} → ${to}`;
+      })
+      .join(" · ");
+    const action =
+      changes.length === 1 && typeof changes[0]?.label === "string"
+        ? `updated ${changes[0].label}`
+        : changes.length > 1
+          ? `updated ${changes.length} fields`
+          : desc.replace(/^.*?\s+updated\s+/i, "updated ").trim() || "updated lead details";
+    return {
+      actor: displayActor(activity.author, currentUserId),
+      action,
+      preview: preview || undefined,
+    };
+  }
+
   if (activity.type === "lead.duplicate_intake") {
     return { actor: "Duplicate intake", action: desc.replace(/^Duplicate intake\s+/i, "").trim() || desc };
   }
@@ -536,6 +563,10 @@ function activitiesToEvents(
       callMeta && typeof callMeta.recordingUrl === "string" ? callMeta.recordingUrl : undefined;
     const callTranscript =
       callMeta && typeof callMeta.transcript === "string" ? callMeta.transcript : undefined;
+    const detailLines =
+      primary.type === "lead.details_updated" && preview
+        ? preview.split(" · ")
+        : undefined;
 
     return {
       id: primary.id,
@@ -545,7 +576,8 @@ function activitiesToEvents(
       avatar: useGlobe ? undefined : authorName ? initials(authorName) : undefined,
       sourceIcon: useGlobe ? Globe : undefined,
       timestamp,
-      preview,
+      preview: detailLines ? undefined : preview,
+      detailLines,
       callRecordingUrl,
       callTranscript,
       taskId: taskId ?? undefined,
@@ -716,6 +748,14 @@ function Event({
               {timeAgo(event.timestamp)}
             </span>
           </div>
+
+          {event.detailLines && event.detailLines.length > 0 ? (
+            <ul className="mt-1 space-y-0.5 text-[13px] text-neutral-500 dark:text-neutral-400">
+              {event.detailLines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          ) : null}
 
           {event.children && (
             <NoteCollapse open={expanded}>
