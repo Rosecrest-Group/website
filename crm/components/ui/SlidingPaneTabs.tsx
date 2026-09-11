@@ -101,7 +101,7 @@ export function SlidingPane<T extends string>({
       inert={!isActive}
       aria-hidden={!isActive}
     >
-      {children}
+      <div className="contents">{children}</div>
     </motion.div>
   );
 }

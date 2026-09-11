@@ -82,7 +82,7 @@ function AssignedSurveyorCell({
 export default function CrmJobsList({
   initialData = null,
 }: {
-  initialData?: { items: Job[] } | null;
+  initialData?: JobsListCache | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
