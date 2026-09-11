@@ -106,6 +106,8 @@ export default function CrmJobsList({
     assignedToId: string;
   } | null>(null);
   const [assignError, setAssignError] = useState<string | null>(null);
+  const [pendingComplete, setPendingComplete] = useState<Job | null>(null);
+  const [completeError, setCompleteError] = useState<string | null>(null);
 
   useEffect(() => {
     api.getMe().then((me) => setRole(me.role)).catch(() => setRole(null));
@@ -230,10 +232,17 @@ export default function CrmJobsList({
     }
   }
 
-  async function moveToCompleted(job: Job) {
+  function requestMoveToCompleted(job: Job) {
     if (isCompletedJobsListStage(job.stage, job.jobType) || savingJobId === job.id) return;
+    setCompleteError(null);
+    setPendingComplete(job);
+  }
 
+  async function confirmMoveToCompleted() {
+    if (!pendingComplete || savingJobId) return;
+    const job = pendingComplete;
     const previous = job;
+
     setSavingJobId(job.id);
     setJobs((list) => list.filter((j) => j.id !== job.id));
     setCompletedJobs((list) => [{ ...job, stage: "INSPECTION_COMPLETE" }, ...list]);
@@ -243,10 +252,15 @@ export default function CrmJobsList({
         skipTrigger: true,
       });
       setCompletedJobs((list) => list.map((j) => (j.id === job.id ? updated : j)));
+      toast.success(`Moved ${job.jobNumber} to completed`);
+      setPendingComplete(null);
+      setCompleteError(null);
     } catch (e) {
       setCompletedJobs((list) => list.filter((j) => j.id !== job.id));
       setJobs((list) => [previous, ...list]);
-      toast.error(e instanceof Error ? e.message : "Could not move job");
+      const msg = e instanceof Error ? e.message : "Could not move job";
+      setCompleteError(msg);
+      toast.error(msg);
     } finally {
       setSavingJobId(null);
     }
@@ -345,7 +359,7 @@ export default function CrmJobsList({
                       },
                     ]}
                     onActionClick={(actionId) => {
-                      if (actionId === "move-completed") void moveToCompleted(row);
+                      if (actionId === "move-completed") requestMoveToCompleted(row);
                     }}
                   />
                 </div>
@@ -438,6 +452,21 @@ export default function CrmJobsList({
           if (savingJobId) return;
           setPendingAssign(null);
           setAssignError(null);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={pendingComplete !== null}
+        title="Move to completed?"
+        description={`This sets ${pendingComplete?.jobNumber ?? "the job"} to Inspection Completed and moves it into Completed. No email is sent.`}
+        confirmLabel="Move to completed"
+        loading={savingJobId === pendingComplete?.id}
+        error={completeError ?? undefined}
+        onConfirm={() => void confirmMoveToCompleted()}
+        onCancel={() => {
+          if (savingJobId) return;
+          setPendingComplete(null);
+          setCompleteError(null);
         }}
       />
     </CrmPageContent>
