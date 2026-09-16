@@ -260,7 +260,6 @@ export default function NewLeadForm() {
               required
             />
             <SurveyTypeSelect
-              label="Survey level"
               name="surveyLevel"
               value={surveyLevel}
               onChange={(slug) => setSurveyLevel(slug)}

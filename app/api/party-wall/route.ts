@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       propertyAddress: primaryAddress,
       postcode: extractUkPostcode(primaryAddress),
       message,
-      marketingOptIn: false,
+      marketingOptIn: true,
       consent: {
         timestamp: new Date().toISOString(),
         source: "party_wall_tool",

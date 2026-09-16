@@ -52,7 +52,7 @@ import { useCrmTopBar } from "@/crm/lib/crmTopBarContext";
 import { filterLeadThreadActivities } from "@/crm/lib/threadActivities";
 import { getCachedCurrentUser } from "@/crm/lib/currentUserCache";
 import { storedListFiltersHref } from "@/crm/lib/listFilters";
-import { canSkipWorkflowWait } from "@/crm/lib/rbac";
+import { canMutateLeads, canSkipWorkflowWait } from "@/crm/lib/rbac";
 import { doneTopProgress, startTopProgress } from "@/crm/lib/topProgress";
 import { prefetchLeadThreadWithActivities } from "@/crm/lib/loadLeadThread";
 import { leadToTaskLabel } from "@/crm/lib/taskForm";
@@ -165,6 +165,14 @@ export default function LeadDetail({
   const [markingWon, setMarkingWon] = useState(false);
   const [markWonError, setMarkWonError] = useState<string | null>(null);
   const [markWonAmount, setMarkWonAmount] = useState("");
+  const [markWonSurveyLevel, setMarkWonSurveyLevel] = useState<SurveyLevel>("LEVEL_2");
+  const [pendingSurveyType, setPendingSurveyType] = useState<string | null>(null);
+  const [savingSurveyType, setSavingSurveyType] = useState(false);
+  const [surveyTypeError, setSurveyTypeError] = useState<string | null>(null);
+  const [canChangeSurveyType, setCanChangeSurveyType] = useState(() => {
+    const role = getCachedCurrentUser()?.role;
+    return role ? canMutateLeads(role) : false;
+  });
   const [canAdvanceWorkflow, setCanAdvanceWorkflow] = useState(() => {
     const role = getCachedCurrentUser()?.role;
     return role ? canSkipWorkflowWait(role) : false;
@@ -235,8 +243,14 @@ export default function LeadDetail({
   useEffect(() => {
     api
       .getMe()
-      .then((me) => setCanAdvanceWorkflow(canSkipWorkflowWait(me.role)))
-      .catch(() => setCanAdvanceWorkflow(false));
+      .then((me) => {
+        setCanAdvanceWorkflow(canSkipWorkflowWait(me.role));
+        setCanChangeSurveyType(canMutateLeads(me.role));
+      })
+      .catch(() => {
+        setCanAdvanceWorkflow(false);
+        setCanChangeSurveyType(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -302,16 +316,62 @@ export default function LeadDetail({
       setMarkWonError("Enter a valid amount greater than 0.");
       return;
     }
+    if (!markWonSurveyLevel) {
+      setMarkWonError("Select a survey type.");
+      return;
+    }
     setMarkingWon(true);
     setMarkWonError(null);
     try {
-      await api.markLeadWon(id, amount);
+      await api.markLeadWon(id, amount, { surveyLevel: markWonSurveyLevel });
       setMarkWonConfirmOpen(false);
       reload({ silent: true });
     } catch (e) {
       setMarkWonError(e instanceof Error ? e.message : "Failed to mark as won");
     } finally {
       setMarkingWon(false);
+    }
+  }
+
+  function openMarkWon() {
+    if (!lead) return;
+    setMarkWonError(null);
+    setMarkWonAmount(
+      lead.quotedAmount != null && lead.quotedAmount > 0 ? String(lead.quotedAmount) : ""
+    );
+    setMarkWonSurveyLevel(lead.surveyLevel ?? "LEVEL_2");
+    setMarkWonConfirmOpen(true);
+  }
+
+  function openMoveToPaid() {
+    if (!lead) return;
+    setMoveToPaidError(null);
+    setMoveToPaidAmount(
+      lead.quotedAmount != null && lead.quotedAmount > 0 ? String(lead.quotedAmount) : ""
+    );
+    setMoveToPaidSurveyLevel(lead.surveyLevel ?? "LEVEL_2");
+    setMoveToPaidConfirmOpen(true);
+  }
+
+  function requestSurveyTypeChange(slug: string) {
+    if (!lead || slug === (lead.surveyLevel ?? "") || savingSurveyType) return;
+    setSurveyTypeError(null);
+    setPendingSurveyType(slug);
+  }
+
+  async function confirmSurveyTypeChange() {
+    if (!lead || !pendingSurveyType || savingSurveyType) return;
+    setSavingSurveyType(true);
+    setSurveyTypeError(null);
+    try {
+      await api.updateLead(id, { surveyLevel: pendingSurveyType });
+      setLead({ ...lead, surveyLevel: pendingSurveyType });
+      setPendingSurveyType(null);
+      reload({ silent: true });
+    } catch (e) {
+      setSurveyTypeError(e instanceof Error ? e.message : "Could not change survey type");
+    } finally {
+      setSavingSurveyType(false);
     }
   }
 
@@ -348,7 +408,7 @@ export default function LeadDetail({
       return;
     }
     if (!moveToPaidSurveyLevel) {
-      setMoveToPaidError("Select a survey level.");
+      setMoveToPaidError("Select a survey type.");
       return;
     }
     setMovingToPaid(true);
@@ -580,25 +640,8 @@ export default function LeadDetail({
           canMoveToPaid={canMoveToPaid}
           markingWon={markingWon}
           movingToPaid={movingToPaid}
-          onOpenMarkWon={() => {
-            setMarkWonError(null);
-            setMarkWonAmount(
-              lead.quotedAmount != null && lead.quotedAmount > 0
-                ? String(lead.quotedAmount)
-                : ""
-            );
-            setMarkWonConfirmOpen(true);
-          }}
-          onOpenMoveToPaid={() => {
-            setMoveToPaidError(null);
-            setMoveToPaidAmount(
-              lead.quotedAmount != null && lead.quotedAmount > 0
-                ? String(lead.quotedAmount)
-                : ""
-            );
-            setMoveToPaidSurveyLevel(lead.surveyLevel ?? "LEVEL_2");
-            setMoveToPaidConfirmOpen(true);
-          }}
+          onOpenMarkWon={openMarkWon}
+          onOpenMoveToPaid={openMoveToPaid}
           onOpenMarkLost={() => {
             setLostReason(LOST_REASON_OPTIONS[0]?.value ?? "OTHER");
             setLostReasonNote("");
@@ -741,15 +784,7 @@ export default function LeadDetail({
                     type="button"
                     className="!h-auto w-full !px-4 !py-1.5"
                     disabled={markingWon || movingToPaid}
-                    onClick={() => {
-                      setMarkWonError(null);
-                      setMarkWonAmount(
-                        lead.quotedAmount != null && lead.quotedAmount > 0
-                          ? String(lead.quotedAmount)
-                          : ""
-                      );
-                      setMarkWonConfirmOpen(true);
-                    }}
+                    onClick={openMarkWon}
                   >
                     {markingWon ? "Saving…" : "Mark as won"}
                   </SecondaryButton>
@@ -759,16 +794,7 @@ export default function LeadDetail({
                     type="button"
                     className="!h-auto w-full !px-4 !py-1.5"
                     disabled={movingToPaid || markingWon}
-                    onClick={() => {
-                      setMoveToPaidError(null);
-                      setMoveToPaidAmount(
-                        lead.quotedAmount != null && lead.quotedAmount > 0
-                          ? String(lead.quotedAmount)
-                          : ""
-                      );
-                      setMoveToPaidSurveyLevel(lead.surveyLevel ?? "LEVEL_2");
-                      setMoveToPaidConfirmOpen(true);
-                    }}
+                    onClick={openMoveToPaid}
                   >
                     {movingToPaid ? "Moving…" : "Move to paid"}
                   </PrimaryButton>
@@ -780,14 +806,32 @@ export default function LeadDetail({
           <div
             className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-(--color-tc-20) bg-(--color-tc-20)"
           >
+            <div className="bg-white px-4 py-4">
+              <p className="text-xs text-(--color-tc-30)">Survey type</p>
+              {canChangeSurveyType ? (
+                <div className="mt-1">
+                  <SurveyTypeSelect
+                    label=""
+                    name="leadSurveyType"
+                    value={pendingSurveyType ?? lead.surveyLevel ?? ""}
+                    disabled={savingSurveyType}
+                    variant="new-lead"
+                    allowCreate
+                    allowManage={false}
+                    onCatalogChange={setSurveyTypes}
+                    onChange={requestSurveyTypeChange}
+                  />
+                </div>
+              ) : (
+                <p className="mt-1 font-semibold text-(--color-tc-40)">
+                  {lead.surveyLevel ? surveyLevelLabel(lead.surveyLevel, surveyTypes) : "—"}
+                </p>
+              )}
+              {lead.quotedAmount ? (
+                <p className="mt-0.5 text-xs text-(--color-tc-30)">£{lead.quotedAmount} quoted</p>
+              ) : null}
+            </div>
             {[
-              {
-                label: "Survey level",
-                value: lead.surveyLevel
-                  ? `${surveyLevelLabel(lead.surveyLevel, surveyTypes)} · Homebuyer`
-                  : "—",
-                sub: lead.quotedAmount ? `£${lead.quotedAmount} quoted` : "",
-              },
               {
                 label: "Payment status",
                 value: isLeadPaid(lead) ? "Paid" : lead.stage === "CONVERTED" ? "Won" : "Unpaid",
@@ -854,9 +898,12 @@ export default function LeadDetail({
 
           <LeadWorkflowASend
             leadId={lead.id}
+            jobId={lead.job?.id ?? lead.convertedToJobId}
             quotedAmount={lead.quotedAmount}
             customerEmail={customer?.email}
             customerPhone={customer?.phone}
+            agentEmail={lead.job?.agentEmail ?? lead.job?.vendorEmail}
+            surveyorEmail={lead.job?.assignedTo?.email}
             onSent={() => reload({ silent: true })}
           />
 
@@ -1183,6 +1230,29 @@ export default function LeadDetail({
       </ConfirmModal>
 
       <ConfirmModal
+        isOpen={Boolean(pendingSurveyType)}
+        title="Change survey type?"
+        description={
+          lead
+            ? pendingSurveyType && lead.surveyLevel
+              ? `Change from ${surveyLevelLabel(lead.surveyLevel, surveyTypes)} to ${surveyLevelLabel(pendingSurveyType, surveyTypes)}?`
+              : pendingSurveyType
+                ? `Set survey type to ${surveyLevelLabel(pendingSurveyType, surveyTypes)}?`
+                : undefined
+            : undefined
+        }
+        confirmLabel="Change type"
+        loading={savingSurveyType}
+        error={surveyTypeError ?? undefined}
+        onConfirm={() => void confirmSurveyTypeChange()}
+        onCancel={() => {
+          if (savingSurveyType) return;
+          setPendingSurveyType(null);
+          setSurveyTypeError(null);
+        }}
+      />
+
+      <ConfirmModal
         isOpen={markWonConfirmOpen}
         title="Mark as won?"
         description={
@@ -1205,31 +1275,47 @@ export default function LeadDetail({
         <p className="mb-4 text-sm text-ink-muted">
           This records the quote as revenue and stops nurture. No email or SMS is sent, and no job is created.
         </p>
-        <TextField
-          label="Quote (£)"
-          type="text"
-          inputMode="decimal"
-          value={markWonAmount}
-          disabled={markingWon}
-          autoFocus
-          placeholder={lead?.quotedAmount != null ? String(lead.quotedAmount) : "0.00"}
-          onChange={(e) => {
-            const next = e.target.value.replace(/[^0-9.]/g, "");
-            setMarkWonAmount(next);
-            if (markWonError) setMarkWonError(null);
-          }}
-        />
-        {lead?.quotedAmount != null && lead.quotedAmount > 0 ? (
-          <p className="mt-1.5 text-xs text-ink-muted">
-            Original quote: £{lead.quotedAmount}
-            {lead.surveyLevel
-              ? ` · ${surveyLevelLabel(lead.surveyLevel, surveyTypes)}`
-              : ""}
-            . Change it above if the won amount is different.
-          </p>
-        ) : (
-          <p className="mt-1.5 text-xs text-ink-muted">Enter the amount to record as won revenue.</p>
-        )}
+        <div className="space-y-3">
+          <SurveyTypeSelect
+            value={markWonSurveyLevel}
+            disabled={markingWon}
+            variant="new-lead"
+            allowCreate
+            allowManage={false}
+            onCatalogChange={setSurveyTypes}
+            onChange={(slug) => {
+              setMarkWonSurveyLevel(slug);
+              if (markWonError) setMarkWonError(null);
+            }}
+          />
+          <div>
+            <TextField
+              label="Quote (£)"
+              type="text"
+              inputMode="decimal"
+              value={markWonAmount}
+              disabled={markingWon}
+              autoFocus
+              placeholder={lead?.quotedAmount != null ? String(lead.quotedAmount) : "0.00"}
+              onChange={(e) => {
+                const next = e.target.value.replace(/[^0-9.]/g, "");
+                setMarkWonAmount(next);
+                if (markWonError) setMarkWonError(null);
+              }}
+            />
+            {lead?.quotedAmount != null && lead.quotedAmount > 0 ? (
+              <p className="mt-1.5 text-xs text-ink-muted">
+                Original quote: £{lead.quotedAmount}
+                {lead.surveyLevel
+                  ? ` · ${surveyLevelLabel(lead.surveyLevel, surveyTypes)}`
+                  : ""}
+                . Change it above if the won amount is different.
+              </p>
+            ) : (
+              <p className="mt-1.5 text-xs text-ink-muted">Enter the amount to record as won revenue.</p>
+            )}
+          </div>
+        </div>
       </ConfirmModal>
 
       <ConfirmModal
@@ -1257,11 +1343,10 @@ export default function LeadDetail({
         </p>
         <div className="space-y-3">
           <SurveyTypeSelect
-            label="Survey level"
             value={moveToPaidSurveyLevel}
             disabled={movingToPaid}
-            variant="all-active"
-            allowCreate={false}
+            variant="new-lead"
+            allowCreate
             allowManage={false}
             onCatalogChange={setSurveyTypes}
             onChange={(slug) => {

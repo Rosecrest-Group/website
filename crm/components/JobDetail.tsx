@@ -30,6 +30,7 @@ import {
   canonicalSurveyStage,
   formatJobStageLabel,
   stageMoveEmailWarning,
+  stageMoveSilentDescription,
   SURVEY_JOB_STAGES,
   surveyorMaySetSurveyStage,
 } from "@/crm/lib/jobStages";
@@ -245,6 +246,14 @@ function paymentStatusVariant(status: string): "completed" | "pending" | "in-rev
 
 const SURVEY_STAGES = SURVEY_JOB_STAGES;
 
+const TRADE_STAGES = [
+  "WORK_SCHEDULED",
+  "WORK_IN_PROGRESS",
+  "WORK_COMPLETE",
+  "SNAGGING",
+  "COMPLETED",
+] as const;
+
 const INSPECTION_WINDOWS = ["8am–1pm", "2pm–5pm"] as const;
 
 function normalizeInspectionWindow(value: string): string {
@@ -340,6 +349,7 @@ export default function JobDetail({ id }: { id: string }) {
   const [savingAccess, setSavingAccess] = useState(false);
   const [confirmingAccess, setConfirmingAccess] = useState(false);
   const [pendingStage, setPendingStage] = useState<string | null>(null);
+  const [pendingStageSilent, setPendingStageSilent] = useState(false);
   const [stageSaving, setStageSaving] = useState(false);
   const [justMovedStage, setJustMovedStage] = useState<string | null>(null);
   const [pendingSurveyorId, setPendingSurveyorId] = useState<string | null>(null);
@@ -478,19 +488,12 @@ export default function JobDetail({ id }: { id: string }) {
     borderColor: "var(--color-primary)",
     color: "#ffffff",
   };
-  const TRADE_STAGES = [
-    "WORK_SCHEDULED",
-    "WORK_IN_PROGRESS",
-    "WORK_COMPLETE",
-    "SNAGGING",
-    "COMPLETED",
-  ] as const;
-
   async function requestStageMove(stage: string) {
     if (!job) return;
     if (job.jobType === "TRADE_WORK") {
       if (job.stage === stage) return;
       setStageError(null);
+      setPendingStageSilent(false);
       setPendingStage(stage);
       return;
     }
@@ -504,19 +507,46 @@ export default function JobDetail({ id }: { id: string }) {
       setStageError(QC_INCOMPLETE_MESSAGE);
       return;
     }
+    setPendingStageSilent(false);
+    setPendingStage(stage);
+  }
+
+  function requestSilentStageMove(stage: string) {
+    if (!job || !canManageAccess) return;
+    const current = isTrade ? job.stage : canonicalSurveyStage(job.stage);
+    if (current === stage) return;
+    setStageError(null);
+    if (stage === "ACCESS_CONFIRMED" && !job.assignedTo) {
+      const msg = "Assign a surveyor before jumping to Surveyor Assigned";
+      setStageError(msg);
+      toast.error(msg);
+      return;
+    }
+    if (stage === "REPORT_DELIVERED" && !isTrade && !bypassQc && !isJobQcComplete(job)) {
+      setStageError(QC_INCOMPLETE_MESSAGE);
+      toast.error(QC_INCOMPLETE_MESSAGE);
+      return;
+    }
+    setPendingStageSilent(true);
     setPendingStage(stage);
   }
 
   async function confirmStageMove() {
     if (!pendingStage || stageSaving) return;
     const stage = pendingStage;
+    const silent = pendingStageSilent;
     setStageSaving(true);
     startTopProgress();
     try {
-      await api.updateJobStage(id, stage);
+      await api.updateJobStage(id, stage, silent ? { skipTrigger: true } : undefined);
       setPendingStage(null);
+      setPendingStageSilent(false);
       setJustMovedStage(stage);
-      toast.success(`Moved to ${formatJobStageLabel(stage, job?.jobType)}`);
+      toast.success(
+        silent
+          ? `Jumped to ${formatJobStageLabel(stage, job?.jobType)} (no emails)`
+          : `Moved to ${formatJobStageLabel(stage, job?.jobType)}`
+      );
       window.setTimeout(() => setJustMovedStage(null), 1400);
       await reload();
     } catch (e) {
@@ -782,7 +812,7 @@ export default function JobDetail({ id }: { id: string }) {
             </p>
           )}
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
           {job.customer?.phone && (
             <PhoneButton
               number={job.customer.phone}
@@ -795,6 +825,29 @@ export default function JobDetail({ id }: { id: string }) {
           )}
           {showMoney && (
             <StatusPill variant={paymentStatusVariant(job.paymentStatus)} label={job.paymentStatus} />
+          )}
+          {canManageAccess && (
+            <SelectField
+              id="silent-stage-jump"
+              aria-label="Jump stage without emails"
+              title="Jump stage — no emails"
+              className="min-w-0 w-auto py-1 pr-8 pl-3"
+              value={pendingStageSilent && pendingStage ? pendingStage : ""}
+              disabled={stageSaving}
+              onChange={(e) => {
+                const stage = e.target.value;
+                if (stage) requestSilentStageMove(stage);
+              }}
+            >
+              <option value="">Jump stage</option>
+              {(isTrade ? TRADE_STAGES : SURVEY_STAGES)
+                .filter((s) => (isTrade ? job.stage !== s : canonicalSurveyStage(job.stage) !== s))
+                .map((s) => (
+                  <option key={s} value={s}>
+                    {formatJobStageLabel(s, job.jobType)}
+                  </option>
+                ))}
+            </SelectField>
           )}
         </div>
       </div>
@@ -1783,24 +1836,31 @@ export default function JobDetail({ id }: { id: string }) {
 
       <ConfirmModal
         isOpen={Boolean(pendingStage)}
-        title={pendingStage ? `Move to ${formatJobStageLabel(pendingStage, job?.jobType)}?` : "Move stage?"}
+        title={
+          pendingStage
+            ? `${pendingStageSilent ? "Jump" : "Move"} to ${formatJobStageLabel(pendingStage, job?.jobType)}?`
+            : "Move stage?"
+        }
         description={
           pendingStage
-            ? [
-                `This moves the job to ${formatJobStageLabel(pendingStage, job?.jobType)}.`,
-                stageMoveEmailWarning(pendingStage),
-              ]
-                .filter(Boolean)
-                .join(" ")
+            ? pendingStageSilent
+              ? stageMoveSilentDescription(pendingStage, job?.jobType)
+              : [
+                  `This moves the job to ${formatJobStageLabel(pendingStage, job?.jobType)}.`,
+                  stageMoveEmailWarning(pendingStage),
+                ]
+                  .filter(Boolean)
+                  .join(" ")
             : undefined
         }
-        confirmLabel="Move stage"
+        confirmLabel={pendingStageSilent ? "Jump stage" : "Move stage"}
         loading={stageSaving}
         error={stageError ?? undefined}
         onConfirm={() => void confirmStageMove()}
         onCancel={() => {
           if (stageSaving) return;
           setPendingStage(null);
+          setPendingStageSilent(false);
         }}
       />
 

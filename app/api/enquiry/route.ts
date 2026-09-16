@@ -16,7 +16,7 @@ export async function POST(req: Request) {
       email: body.email,
       phone: body.phone || undefined,
       message: body.message,
-      marketingOptIn: false,
+      marketingOptIn: true,
     };
 
     console.log("📩 Contact form → CRM payload:", JSON.stringify(payload, null, 2));

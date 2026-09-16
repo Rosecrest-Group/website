@@ -383,9 +383,12 @@ export default function EmbeddedLeadProfile({
 
           <LeadWorkflowASend
             leadId={lead.id}
+            jobId={lead.job?.id ?? lead.convertedToJobId}
             quotedAmount={lead.quotedAmount}
             customerEmail={customer?.email}
             customerPhone={customer?.phone}
+            agentEmail={lead.job?.agentEmail ?? lead.job?.vendorEmail}
+            surveyorEmail={lead.job?.assignedTo?.email}
             onSent={onSent}
           />
 

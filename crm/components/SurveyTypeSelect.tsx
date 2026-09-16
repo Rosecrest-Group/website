@@ -9,7 +9,6 @@ import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import CrmModal from "@/crm/components/ui/CrmModal";
 
-const NEW_LEAD_BUILTINS = new Set(["LEVEL_1", "LEVEL_2", "LEVEL_3"]);
 const ADD_VALUE = "__add_survey_type__";
 
 const BUILTIN_SEED: SurveyType[] = [
@@ -25,15 +24,15 @@ export interface SurveyTypeSelectProps {
   value: string;
   onChange: (slug: string) => void;
   disabled?: boolean;
-  /** New lead: Level 1–3 + custom. Convert: every active catalog type. */
+  /** Defaults Add new / Manage to on for new-lead, off for convert-style pickers. */
   variant?: "new-lead" | "all-active";
   allowCreate?: boolean;
   allowManage?: boolean;
   onCatalogChange?: (types: SurveyType[]) => void;
 }
 
-function sortForNewLead(types: SurveyType[]): SurveyType[] {
-  const order = ["LEVEL_1", "LEVEL_2", "LEVEL_3"];
+function sortSurveyTypes(types: SurveyType[]): SurveyType[] {
+  const order = ["LEVEL_1", "LEVEL_2", "LEVEL_3", "CPR_35"];
   return [...types].sort((a, b) => {
     const ai = order.indexOf(a.slug);
     const bi = order.indexOf(b.slug);
@@ -43,7 +42,7 @@ function sortForNewLead(types: SurveyType[]): SurveyType[] {
 }
 
 export default function SurveyTypeSelect({
-  label = "Survey level",
+  label = "Survey type",
   name = "surveyLevel",
   value,
   onChange,
@@ -88,13 +87,8 @@ export default function SurveyTypeSelect({
 
   const pickerTypes = useMemo(() => {
     const active = types.filter((t) => !t.archivedAt);
-    if (variant === "new-lead") {
-      return sortForNewLead(
-        active.filter((t) => !t.isBuiltIn || NEW_LEAD_BUILTINS.has(t.slug))
-      );
-    }
-    return active;
-  }, [types, variant]);
+    return sortSurveyTypes(active);
+  }, [types]);
 
   const selected = types.find((t) => t.slug === value);
   const options =

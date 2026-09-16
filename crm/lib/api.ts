@@ -870,10 +870,17 @@ export const api = {
 
     request<Lead>(`/leads/${id}/mark-lost`, { method: "POST", body: JSON.stringify({ lostReason, lostReasonNote }) }),
 
-  markLeadWon: (id: string, quotedAmount: number) =>
+  markLeadWon: (
+    id: string,
+    quotedAmount: number,
+    options?: { surveyLevel?: SurveyLevel }
+  ) =>
     request<Lead>(`/leads/${id}/mark-won`, {
       method: "POST",
-      body: JSON.stringify({ quotedAmount }),
+      body: JSON.stringify({
+        quotedAmount,
+        ...(options?.surveyLevel ? { surveyLevel: options.surveyLevel } : {}),
+      }),
     }),
 
   convertLead: (
@@ -996,6 +1003,9 @@ export const api = {
     return request<JobDocument>(`/jobs/${id}/documents/upload`, { method: "POST", body: form });
   },
 
+  listJobDocuments: (id: string) =>
+    request<{ items: JobDocument[] }>(`/jobs/${id}/documents`),
+
   updateSnagging: (id: string, items: SnaggingItem[]) =>
     request<Job>(`/jobs/${id}/snagging`, { method: "PATCH", body: JSON.stringify({ items }) }),
 
@@ -1083,6 +1093,10 @@ export const api = {
     jobId?: string;
 
     templateId?: string;
+
+    toAddress?: string;
+
+    ccAddresses?: string[];
 
     subject?: string;
 

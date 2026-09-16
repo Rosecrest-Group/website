@@ -84,3 +84,8 @@ export function stageMoveEmailWarning(stage: string): string | null {
   }
   return null;
 }
+
+export function stageMoveSilentDescription(stage: string, jobType?: string | null): string {
+  const label = formatJobStageLabel(stage, jobType);
+  return `This jumps to ${label} without sending emails or running that stage’s workflows. Use the stage bar later to trigger the next stage as normal.`;
+}

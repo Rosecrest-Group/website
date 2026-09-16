@@ -41,7 +41,7 @@ export default function CrmModal({
   return (
     <div
       className={cn(
-        "fixed inset-0 z-200 flex items-center justify-center bg-(--color-ink)/20 backdrop-blur-[1px]",
+        "fixed inset-0 z-[210] flex items-center justify-center bg-(--color-ink)/20 backdrop-blur-[1px]",
         fitScreen ? "p-3 sm:p-4" : "p-4"
       )}
       onClick={closeDisabled ? undefined : onClose}
