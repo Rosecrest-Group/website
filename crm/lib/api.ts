@@ -345,6 +345,25 @@ async function getMeCached(force = false): Promise<ApiUser> {
   return getOrFetchCurrentUser(() => request<ApiUser>("/auth/me"), force);
 }
 
+const MAX_JOB_DOCUMENT_BYTES = 50 * 1024 * 1024;
+
+async function uploadFileToSignedUrl(signedUrl: string, file: File): Promise<void> {
+  const body = new FormData();
+  body.append("cacheControl", "3600");
+  body.append("", file, file.name);
+  const res = await fetch(signedUrl, {
+    method: "PUT",
+    body,
+    headers: { "x-upsert": "false" },
+  });
+  if (res.ok) return;
+  const preview = (await res.text()).trim().slice(0, 180);
+  if (res.status === 413) {
+    throw new Error("File is too large. Maximum size is 50 MB.");
+  }
+  throw new Error(`Could not upload the file (${res.status})${preview ? `: ${preview}` : ""}`);
+}
+
 async function cacheMe(user: ApiUser): Promise<ApiUser> {
   const { setCachedCurrentUser } = await import("@/crm/lib/currentUserCache");
   setCachedCurrentUser(user);
@@ -996,12 +1015,42 @@ export const api = {
   addJobDocument: (id: string, doc: { type: string; filename: string; storageUrl: string; mimeType?: string; sizeBytes?: number }) =>
     request<JobDocument>(`/jobs/${id}/documents`, { method: "POST", body: JSON.stringify(doc) }),
 
-  uploadJobDocument: (id: string, file: File, type: string) => {
-    const form = new FormData();
-    form.append("file", file);
-    form.append("type", type);
-    return request<JobDocument>(`/jobs/${id}/documents/upload`, { method: "POST", body: form });
+  uploadJobDocument: async (id: string, file: File, type: string) => {
+    if (file.size > MAX_JOB_DOCUMENT_BYTES) {
+      throw new Error("File is too large. Maximum size is 50 MB.");
+    }
+    const intent = await request<{
+      documentId: string;
+      signedUrl: string;
+      filename: string;
+      mimeType: string;
+      type: string;
+    }>(`/jobs/${id}/documents/upload-url`, {
+      method: "POST",
+      body: JSON.stringify({
+        filename: file.name,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+        type,
+      }),
+    });
+    const uploadFile =
+      file.type === intent.mimeType ? file : new File([file], file.name, { type: intent.mimeType });
+    await uploadFileToSignedUrl(intent.signedUrl, uploadFile);
+    return request<JobDocument>(`/jobs/${id}/documents/upload-complete`, {
+      method: "POST",
+      body: JSON.stringify({
+        documentId: intent.documentId,
+        filename: intent.filename,
+        mimeType: intent.mimeType,
+        sizeBytes: file.size,
+        type: intent.type,
+      }),
+    });
   },
+
+  deleteJobDocument: (jobId: string, documentId: string) =>
+    request<{ deleted: true }>(`/jobs/${jobId}/documents/${documentId}`, { method: "DELETE" }),
 
   listJobDocuments: (id: string) =>
     request<{ items: JobDocument[] }>(`/jobs/${id}/documents`),

@@ -25,7 +25,7 @@ import TextField from "@/crm/components/ui/TextField";
 import SelectField from "@/crm/components/ui/SelectField";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import ConfirmModal from "@/crm/components/ui/ConfirmModal";
-import { ArrowLeft, Building2, CalendarDays, CheckSquare, ClipboardList, FileText, KeyRound, Loader2, Upload, UserRound, Wallet } from "lucide-react";
+import { ArrowLeft, Building2, CalendarDays, CheckSquare, ClipboardList, FileText, KeyRound, Loader2, Trash2, Upload, UserRound, Wallet } from "lucide-react";
 import {
   canonicalSurveyStage,
   formatJobStageLabel,
@@ -58,6 +58,7 @@ function JobDocumentsFields({
   onTypeChange,
   onFileChange,
   onUpload,
+  onDelete,
 }: {
   docType: string;
   docFile: File | null;
@@ -68,11 +69,24 @@ function JobDocumentsFields({
   onTypeChange: (type: string) => void;
   onFileChange: (file: File | null) => void;
   onUpload: () => void;
+  onDelete?: (doc: JobDocument) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const dragCount = useRef(0);
   const [dragOver, setDragOver] = useState(false);
   const reduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (!docFile && inputRef.current) inputRef.current.value = "";
+  }, [docFile]);
+
+  function clearSelectedFile(e: { preventDefault: () => void; stopPropagation: () => void }) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (uploadingDoc) return;
+    onFileChange(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }
 
   function isFileDrag(e: DragEvent) {
     return Array.from(e.dataTransfer.types).includes("Files");
@@ -127,8 +141,10 @@ function JobDocumentsFields({
             role="button"
             tabIndex={uploadingDoc ? -1 : 0}
             aria-disabled={uploadingDoc}
-            onClick={() => {
-              if (!uploadingDoc) inputRef.current?.click();
+            onClick={(e) => {
+              if (uploadingDoc) return;
+              if ((e.target as HTMLElement).closest("button")) return;
+              inputRef.current?.click();
             }}
             onKeyDown={(e) => {
               if (uploadingDoc) return;
@@ -176,7 +192,22 @@ function JobDocumentsFields({
                   <span className="block text-sm font-medium text-brand">Drop here</span>
                 ) : docFile ? (
                   <>
-                    <span className="block text-sm font-medium text-ink">{docFile.name}</span>
+                    <span className="flex items-center justify-center gap-1.5">
+                      <span className="max-w-[16rem] truncate text-sm font-medium text-ink" title={docFile.name}>
+                        {docFile.name}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Remove file"
+                        title="Remove file"
+                        disabled={uploadingDoc}
+                        onClick={clearSelectedFile}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        className="flex size-7 shrink-0 items-center justify-center rounded-lg text-ink-muted hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                      >
+                        <Trash2 className="size-3.5" aria-hidden />
+                      </button>
+                    </span>
                     <span className="block text-xs text-ink-muted">Click or drop another file to replace</span>
                   </>
                 ) : (
@@ -215,12 +246,12 @@ function JobDocumentsFields({
       {documents.length > 0 ? (
         <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
           {documents.map((d) => (
-            <li key={d.id}>
+            <li key={d.id} className="flex items-center">
               <a
                 href={d.storageUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-3 px-3 py-2.5 text-sm text-ink transition-colors hover:bg-sidebar hover:text-brand"
+                className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-sm text-ink transition-colors hover:bg-sidebar hover:text-brand"
               >
                 <FileText className="size-4 shrink-0 text-brand" aria-hidden />
                 <span className="min-w-0 flex-1 truncate">{d.filename}</span>
@@ -228,6 +259,17 @@ function JobDocumentsFields({
                   {DOC_TYPE_LABELS[d.type] ?? d.type}
                 </span>
               </a>
+              {onDelete && (
+                <button
+                  type="button"
+                  aria-label={`Delete ${d.filename}`}
+                  title="Delete"
+                  onClick={() => onDelete(d)}
+                  className="mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-muted hover:bg-red-50 hover:text-red-600"
+                >
+                  <Trash2 className="size-4" aria-hidden />
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -326,6 +368,9 @@ export default function JobDetail({ id }: { id: string }) {
   const [docFile, setDocFile] = useState<File | null>(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
+  const [pendingDeleteDoc, setPendingDeleteDoc] = useState<JobDocument | null>(null);
+  const [deletingDoc, setDeletingDoc] = useState(false);
+  const [deleteDocError, setDeleteDocError] = useState<string | null>(null);
   const [snagDesc, setSnagDesc] = useState("");
   const [workStart, setWorkStart] = useState("");
   const [workEnd, setWorkEnd] = useState("");
@@ -434,6 +479,21 @@ export default function JobDetail({ id }: { id: string }) {
       setDocError(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploadingDoc(false);
+    }
+  }
+
+  async function confirmDeleteDocument() {
+    if (!pendingDeleteDoc || deletingDoc) return;
+    setDeletingDoc(true);
+    setDeleteDocError(null);
+    try {
+      await api.deleteJobDocument(id, pendingDeleteDoc.id);
+      setPendingDeleteDoc(null);
+      await reload();
+    } catch (e) {
+      setDeleteDocError(e instanceof Error ? e.message : "Could not delete the document");
+    } finally {
+      setDeletingDoc(false);
     }
   }
 
@@ -973,15 +1033,28 @@ export default function JobDetail({ id }: { id: string }) {
             <CrmPanel title="Documents (RAMS)">
               <div className="space-y-3">
                 {documents.map((d) => (
-                  <a
-                    key={d.id}
-                    href={d.storageUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block text-sm text-(--color-primary) hover:underline"
-                  >
-                    {d.filename} ({d.type})
-                  </a>
+                  <div key={d.id} className="flex items-center gap-2">
+                    <a
+                      href={d.storageUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="min-w-0 flex-1 truncate text-sm text-(--color-primary) hover:underline"
+                    >
+                      {d.filename} ({d.type})
+                    </a>
+                    <button
+                      type="button"
+                      aria-label={`Delete ${d.filename}`}
+                      title="Delete"
+                      onClick={() => {
+                        setDeleteDocError(null);
+                        setPendingDeleteDoc(d);
+                      }}
+                      className="flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-muted hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                    </button>
+                  </div>
                 ))}
                 <div className="space-y-2 border-t border-(--color-tc-20) pt-3">
                   <input
@@ -1707,6 +1780,14 @@ export default function JobDetail({ id }: { id: string }) {
                         setDocFile(file);
                       }}
                       onUpload={uploadDocument}
+                      onDelete={
+                        job.reportDeliveredAt
+                          ? undefined
+                          : (doc) => {
+                              setDeleteDocError(null);
+                              setPendingDeleteDoc(doc);
+                            }
+                      }
                     />
                     {canManageAccess && !job.reportDeliveredAt && (
                       <div className="flex justify-end">
@@ -1861,6 +1942,26 @@ export default function JobDetail({ id }: { id: string }) {
           if (stageSaving) return;
           setPendingStage(null);
           setPendingStageSilent(false);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={pendingDeleteDoc !== null}
+        title="Delete this document?"
+        description={
+          pendingDeleteDoc
+            ? `This removes ${pendingDeleteDoc.filename} from the job. You can upload another file afterwards.`
+            : undefined
+        }
+        confirmLabel="Delete"
+        danger
+        loading={deletingDoc}
+        error={deleteDocError ?? undefined}
+        onConfirm={() => void confirmDeleteDocument()}
+        onCancel={() => {
+          if (deletingDoc) return;
+          setPendingDeleteDoc(null);
+          setDeleteDocError(null);
         }}
       />
 

@@ -7,6 +7,11 @@ const localModules = path.join(projectRoot, "node_modules");
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: projectRoot,
+  // Same-origin `/api/v1` rewrites buffer the body. Match the API's 50 MB document cap
+  // so a report is not rejected here before it reaches storage.
+  experimental: {
+    proxyClientMaxBodySize: "50mb",
+  },
   turbopack: {
     root: projectRoot,
     resolveAlias: {
