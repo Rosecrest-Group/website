@@ -33,7 +33,19 @@ import CrmModal from "@/crm/components/ui/CrmModal";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import TextField from "@/crm/components/ui/TextField";
+import EmailChipInput from "@/crm/components/ui/EmailChipInput";
+import EmailToField from "@/crm/components/ui/EmailToField";
+import {
+  buildEmailToOptions,
+  emailContactsFromLead,
+  emailSendFields,
+  matchEmailToKind,
+  mergeEmailContacts,
+  type EmailToKind,
+  type LeadEmailContacts,
+} from "@/crm/lib/emailCompose";
 import ChannelSelector, { type MessageChannel } from "@/crm/components/ui/ChannelSelector";
+import { getCachedLead, prefetchLead } from "@/crm/lib/leadDetailCache";
 import MessageRichCompose, {
   getEmailPayload,
   type MessageRichComposeHandle,
@@ -206,6 +218,8 @@ function suggestEmailSubject(messages: Message[], replyTarget?: Message | null):
   const subject = source.subject.trim();
   return /^re:/i.test(subject) ? subject : `Re: ${subject}`;
 }
+
+export type { LeadEmailContacts };
 
 /** ~2 lines of text-sm / leading-relaxed — preview height for long email bubbles. */
 const EMAIL_COLLAPSED_MAX_PX = 52;
@@ -1152,6 +1166,7 @@ export default function LeadMessageThread({
   leadId,
   customerName,
   customerPhone,
+  emailContacts: emailContactsProp,
   messages: initialMessages,
   threadActivities: initialThreadActivities = [],
   onSent,
@@ -1167,6 +1182,8 @@ export default function LeadMessageThread({
   leadId: string;
   customerName: string;
   customerPhone?: string | null;
+  /** Optional override; otherwise loaded from lead cache / prefetch. */
+  emailContacts?: LeadEmailContacts | null;
   messages: Message[];
   /** Calls + cadence-stop + payment system events, sorted into the chat by time */
   threadActivities?: Activity[];
@@ -1204,6 +1221,15 @@ export default function LeadMessageThread({
   const [targetMessage, setTargetMessage] = useState<Message | null>(null);
   const [channel, setChannel] = useState<Channel>("EMAIL");
   const [subject, setSubject] = useState("");
+  const [ccAddresses, setCcAddresses] = useState<string[]>([]);
+  const [toKind, setToKind] = useState<EmailToKind>("client");
+  const [otherToEmail, setOtherToEmail] = useState("");
+  const [emailContacts, setEmailContacts] = useState<LeadEmailContacts>(() =>
+    mergeEmailContacts(
+      emailContactsFromLead(getCachedLead(leadId)),
+      emailContactsProp
+    )
+  );
   const [plainBody, setPlainBody] = useState("");
   const [htmlBody, setHtmlBody] = useState("");
   const [error, setError] = useState("");
@@ -1226,6 +1252,52 @@ export default function LeadMessageThread({
       ),
     [messages]
   );
+
+  const emailToOptions = useMemo(
+    () => buildEmailToOptions(emailContacts, customerName),
+    [emailContacts, customerName]
+  );
+
+  useEffect(() => {
+    setEmailContacts(
+      mergeEmailContacts(emailContactsFromLead(getCachedLead(leadId)), emailContactsProp)
+    );
+    let cancelled = false;
+    void prefetchLead(leadId).then((lead) => {
+      if (cancelled || !lead) return;
+      setEmailContacts(mergeEmailContacts(emailContactsFromLead(lead), emailContactsProp));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    leadId,
+    emailContactsProp?.customerEmail,
+    emailContactsProp?.customerName,
+    emailContactsProp?.agentEmail,
+    emailContactsProp?.agentName,
+    emailContactsProp?.vendorEmail,
+    emailContactsProp?.vendorName,
+    emailContactsProp?.surveyorEmail,
+    emailContactsProp?.surveyorName,
+  ]);
+
+  useEffect(() => {
+    if (toKind === "client" || toKind === "other") {
+      if (toKind === "other" && otherToEmail.trim()) {
+        const matched = matchEmailToKind(
+          otherToEmail,
+          emailToOptions,
+          emailContacts.customerEmail
+        );
+        if (matched.kind !== "other") setToKind(matched.kind);
+      }
+      return;
+    }
+    if (!emailToOptions.some((option) => option.kind === toKind)) {
+      setToKind("client");
+    }
+  }, [emailToOptions, toKind, otherToEmail, emailContacts.customerEmail]);
 
   function applyMessagePage(
     result: { items: Message[]; page: number; limit: number; total: number; hasMore?: boolean },
@@ -1444,6 +1516,18 @@ export default function LeadMessageThread({
       setChannel(nextChannel);
       if (nextChannel === "EMAIL") {
         setSubject(suggestEmailSubject(sortedMessages, message));
+        const direction = message.direction?.toUpperCase();
+        if (direction !== "OUTBOUND") {
+          const matched = matchEmailToKind(
+            message.fromAddress,
+            emailToOptions,
+            emailContacts.customerEmail
+          );
+          setToKind(matched.kind);
+          if (matched.otherEmail) setOtherToEmail(matched.otherEmail);
+        } else {
+          setToKind("client");
+        }
       }
     }
   }
@@ -1567,8 +1651,16 @@ export default function LeadMessageThread({
     const hasContent = channel === "EMAIL" ? hasEmailContent : text.length > 0 || mediaUrls.length > 0;
     if (!hasContent) return;
 
-    if (channel === "EMAIL" && !subject.trim()) {
-      setError("Subject is required for email.");
+    const sendFields = emailSendFields({
+      channel,
+      subject,
+      toKind,
+      options: emailToOptions,
+      otherToEmail,
+      ccAddresses,
+    });
+    if (!sendFields.ok) {
+      setError(sendFields.error);
       return;
     }
 
@@ -1582,6 +1674,8 @@ export default function LeadMessageThread({
         htmlBody: channel === "EMAIL" ? emailPayload?.html : undefined,
         mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
         subject: channel === "EMAIL" ? subject.trim() : undefined,
+        ...(sendFields.toAddress ? { toAddress: sendFields.toAddress } : {}),
+        ...(sendFields.ccAddresses ? { ccAddresses: sendFields.ccAddresses } : {}),
         replyToMessageId: targetMessage?.id,
         teamConnectPhoneDocId:
           channel === "SMS" && teamConnectEnabled
@@ -1595,6 +1689,9 @@ export default function LeadMessageThread({
       clearComposeTarget();
       if (channel === "EMAIL") {
         setSubject(suggestEmailSubject(sortedMessages));
+        setCcAddresses([]);
+        setToKind("client");
+        setOtherToEmail("");
       }
       await refreshMessages();
       onSent?.();
@@ -1785,7 +1882,15 @@ export default function LeadMessageThread({
             ) : null}
 
             {channel === "EMAIL" && !composeExpanded && (
-              <div className="mb-3">
+              <div className="mb-3 space-y-2">
+                <EmailToField
+                  id="lead-message-to"
+                  options={emailToOptions}
+                  kind={toKind}
+                  otherEmail={otherToEmail}
+                  onKindChange={setToKind}
+                  onOtherEmailChange={setOtherToEmail}
+                />
                 <TextField
                   id="lead-message-subject"
                   label="Subject"
@@ -1793,6 +1898,12 @@ export default function LeadMessageThread({
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="Email subject"
+                />
+                <EmailChipInput
+                  id="lead-message-cc"
+                  label="Cc"
+                  value={ccAddresses}
+                  onChange={setCcAddresses}
                 />
               </div>
             )}
@@ -1871,14 +1982,30 @@ export default function LeadMessageThread({
       >
         <div className="flex h-full min-h-0 flex-1 flex-col gap-4">
           {channel === "EMAIL" && (
-            <TextField
-              id="lead-message-subject-expanded"
-              label="Subject"
-              inline
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="Email subject"
-            />
+            <div className="space-y-2">
+              <EmailToField
+                id="lead-message-to-expanded"
+                options={emailToOptions}
+                kind={toKind}
+                otherEmail={otherToEmail}
+                onKindChange={setToKind}
+                onOtherEmailChange={setOtherToEmail}
+              />
+              <TextField
+                id="lead-message-subject-expanded"
+                label="Subject"
+                inline
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="Email subject"
+              />
+              <EmailChipInput
+                id="lead-message-cc-expanded"
+                label="Cc"
+                value={ccAddresses}
+                onChange={setCcAddresses}
+              />
+            </div>
           )}
           {showSmsNumberSelector && (
             <SelectField

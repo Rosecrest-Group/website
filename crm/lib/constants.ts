@@ -10,6 +10,7 @@ export const CRM_PUBLIC_ROUTES = [
   `${CRM_BASE_PATH}/reset-password`,
   `${CRM_BASE_PATH}/accept-invite`,
   `${CRM_BASE_PATH}/documentation`,
+  `${CRM_BASE_PATH}/unsubscribe`,
 ] as const;
 
 /** @deprecated use CRM_PUBLIC_ROUTES */
@@ -93,15 +94,19 @@ export const CRM_NAV_SECTIONS: CrmNavSection[] = [
       { label: "Inbox", href: `${CRM_BASE_PATH}/inbox` },
       { label: "Calls", href: `${CRM_BASE_PATH}/calls` },
       { label: "Contacts", href: `${CRM_BASE_PATH}/customers` },
-    ],
-  },
-  {
-    title: "Operations",
-    items: [
       { label: "Leads", href: `${CRM_BASE_PATH}/leads` },
       { label: "Jobs", href: `${CRM_BASE_PATH}/jobs` },
       { label: "Tasks", href: `${CRM_BASE_PATH}/tasks` },
       { label: "Schedule", href: `${CRM_BASE_PATH}/schedule` },
+      { label: "Email campaigns", href: `${CRM_BASE_PATH}/email-campaigns` },
+    ],
+  },
+  {
+    title: "Insights",
+    items: [
+      { label: "Analytics", href: `${CRM_BASE_PATH}/analytics` },
+      { label: "Finance", href: `${CRM_BASE_PATH}/revenue` },
+      { label: "SLAs", href: `${CRM_BASE_PATH}/slas` },
     ],
   },
   {
@@ -124,14 +129,6 @@ export const CRM_NAV_SECTIONS: CrmNavSection[] = [
   {
     title: "Collaboration",
     items: [{ label: "Team Chat", href: `${CRM_BASE_PATH}/conversations` }],
-  },
-  {
-    title: "Insights",
-    items: [
-      { label: "Analytics", href: `${CRM_BASE_PATH}/analytics` },
-      { label: "Finance", href: `${CRM_BASE_PATH}/revenue` },
-      { label: "SLAs", href: `${CRM_BASE_PATH}/slas` },
-    ],
   },
   {
     title: "Automation",

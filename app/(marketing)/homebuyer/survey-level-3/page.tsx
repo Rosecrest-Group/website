@@ -6,6 +6,7 @@ import SurveyOverview from "@/fragments/homebuyer/SurveyOverview";
 import SurveysHaeder from "@/fragments/homebuyer/SurveysHaeder";
 import { sourceSans } from "@/lib/fonts";
 import { getPageMetadata } from "@/lib/page-metadata";
+import { surveyReportTiming } from "@/lib/surveyReportTiming";
 import { Home } from "lucide-react";
 
 
@@ -62,8 +63,8 @@ const Page = () => {
         note="A valuation is not included with this survey, but a separate, discounted valuation can be provided upon request."
       />
       <SurveyDetails
-        duration="2-3 hours"
-        deliveryTime="next-day"
+        heading={surveyReportTiming[3].heading}
+        paragraphs={[...surveyReportTiming[3].paragraphs]}
         features={[
           "Ideal for older, altered or non-standard buildings",
           "Perfect for heritage and listed properties",

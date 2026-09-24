@@ -146,6 +146,7 @@ function pathAllowed(role: UserRole, pathname: string): boolean {
 
   if (
     pathname.startsWith(`${CRM_BASE_PATH}/leads`) ||
+    pathname.startsWith(`${CRM_BASE_PATH}/email-campaigns`) ||
     pathname.startsWith(`${CRM_BASE_PATH}/pipeline`) ||
     pathname.startsWith(`${CRM_BASE_PATH}/inbox`) ||
     pathname.startsWith(`${CRM_BASE_PATH}/calls`)

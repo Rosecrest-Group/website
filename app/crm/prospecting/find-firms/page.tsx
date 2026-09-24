@@ -12,7 +12,7 @@ import SelectField from "@/crm/components/ui/SelectField";
 import StatusPill from "@/crm/components/ui/StatusPill";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import Table, { type Column } from "@/crm/components/ui/Table";
-import { standingVariant } from "@/crm/components/prospecting/ProspectingListClient";
+import { cameInColumn, describeProspectingRun, standingVariant } from "@/crm/components/prospecting/ProspectingListClient";
 
 const LANES = [
   { id: "", label: "Any lane" },
@@ -73,6 +73,7 @@ export default function FindFirmsPage() {
         <StatusPill variant={standingVariant(String(value ?? "unknown"))} label={String(value ?? "unknown")} />
       ),
     },
+    cameInColumn<ProspectAccountRow>("firstSeenAt"),
   ];
 
   return (
@@ -91,16 +92,14 @@ export default function FindFirmsPage() {
       {status ? (
         <CrmPanel title="Pipeline">
           <div className="flex flex-wrap items-center gap-3 text-sm text-ink">
-            <StatusPill variant={status.ready ? "completed" : "pending"} label={status.ready ? "Ready" : "Seeding"} />
+            <StatusPill variant={status.ready ? "completed" : "pending"} label={status.ready ? "Ready" : "Setting up"} />
             <span className="text-ink-muted">
-              {status.sources.length} source{status.sources.length === 1 ? "" : "s"} configured
+              {status.sources.length} public source{status.sources.length === 1 ? "" : "s"} in use
             </span>
             {status.latestRun ? (
-              <span className="text-ink-muted">
-                Last run {status.latestRun.kind} · {status.latestRun.status}
-              </span>
+              <span className="text-ink-muted">{describeProspectingRun(status.latestRun)}</span>
             ) : (
-              <span className="text-ink-muted">No runs yet</span>
+              <span className="text-ink-muted">Nothing has run yet</span>
             )}
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">

@@ -34,6 +34,9 @@ const STAGES: LeadStage[] = [
   "LOST",
 ];
 
+/** Matches GET /leads?stage=ALL. Every stage, including won and lost. */
+const ALL_LEADS_STAGE = "ALL";
+
 const PAGE_SIZE = 10;
 
 type LeadListFilters = { stage: string; source: string; page: string };
@@ -51,7 +54,7 @@ function pageToFilter(page: number): string {
 }
 
 const LEAD_LIST_FILTER_ALLOW = {
-  stage: STAGES,
+  stage: [...STAGES, ALL_LEADS_STAGE],
   source: LEAD_SOURCES.map((s) => s.value),
 };
 
@@ -303,6 +306,7 @@ export default function LeadsList({
                 onChange={(e) => handleStageChange(e.target.value)}
               >
                 <option value="">Active leads</option>
+                <option value={ALL_LEADS_STAGE}>All leads</option>
                 {STAGES.map((s) => (
                   <option key={s} value={s}>
                     {LEAD_STAGE_LABELS[s]}

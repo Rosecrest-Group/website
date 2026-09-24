@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { api } from "@/crm/lib/api";
 import type { ProspectOpportunityRow } from "@/crm/types/prospecting";
-import ProspectingListClient, { standingVariant } from "@/crm/components/prospecting/ProspectingListClient";
+import ProspectingListClient, { cameInColumn, standingVariant } from "@/crm/components/prospecting/ProspectingListClient";
 import StatusPill from "@/crm/components/ui/StatusPill";
 import type { Column } from "@/crm/components/ui/Table";
 
@@ -21,6 +21,7 @@ const columns: Column<ProspectOpportunityRow>[] = [
       <StatusPill variant={standingVariant(String(value ?? "unknown"))} label={String(value ?? "unknown")} />
     ),
   },
+  cameInColumn<ProspectOpportunityRow>("createdAt"),
 ];
 
 function newestFirst(items: ProspectOpportunityRow[]): ProspectOpportunityRow[] {

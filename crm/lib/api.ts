@@ -822,6 +822,14 @@ export const api = {
 
 
 
+  getLeadCounts: () =>
+    request<{
+      active: number;
+      all: number;
+      stages: Record<string, number>;
+      sources: Record<string, number>;
+    }>("/leads/counts"),
+
   listLeads: (params?: Record<string, string>) => {
 
     const qs = params ? `?${new URLSearchParams(params)}` : "";
@@ -1684,6 +1692,80 @@ export const api = {
 
   exportProspecting: (type: "accounts" | "opportunities" | "evidence" | "frameworks" | "contacts") =>
     request<{ type: string; rows: Record<string, unknown>[] }>(`/prospecting/export/${type}`),
+
+  listCampaigns: (
+    page = 1,
+    query?: {
+      search?: string;
+      sort?: string;
+      direction?: "asc" | "desc";
+      status?: "draft" | "scheduled" | "sent";
+      period?: DashboardPeriod;
+    },
+  ) => {
+    const params = new URLSearchParams({ page: String(page) });
+    if (query?.search) params.set("search", query.search);
+    if (query?.sort) params.set("sort", query.sort);
+    if (query?.direction) params.set("direction", query.direction);
+    if (query?.status) params.set("tab", query.status);
+    if (query?.period) params.set("period", query.period);
+    return request<import("@/crm/types").Paginated<import("@/crm/types/campaigns").CampaignListRow>>(
+      `/campaigns?${params.toString()}`,
+    );
+  },
+
+  campaignMetrics: (period?: DashboardPeriod) => {
+    const params = new URLSearchParams();
+    if (period) params.set("period", period);
+    const qs = params.toString();
+    return request<{ sent: number; delivered: number; openRate: number; clickRate: number }>(
+      `/campaigns/metrics${qs ? `?${qs}` : ""}`,
+    );
+  },
+
+  createCampaign: (name: string) =>
+    request<import("@/crm/types/campaigns").CampaignListRow>("/campaigns", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+
+  getCampaign: (id: string) =>
+    request<import("@/crm/types/campaigns").CampaignDetail>(`/campaigns/${id}`),
+
+  updateCampaign: (id: string, body: Partial<import("@/crm/types/campaigns").CampaignDetail>) =>
+    request<import("@/crm/types/campaigns").CampaignDetail>(`/campaigns/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  sendCampaign: (id: string) =>
+    request<import("@/crm/types/campaigns").CampaignDetail>(`/campaigns/${id}/send`, { method: "POST" }),
+
+  previewCampaignSendTimes: (
+    id: string,
+    body: {
+      audience: import("@/crm/types/campaigns").CampaignAudience;
+      sendDate: string;
+      fallbackTime: string;
+      quietStart?: string | null;
+      quietEnd?: string | null;
+    },
+  ) =>
+    request<{
+      hours: { hour: number; predicted: number; fallback: number }[];
+      predictedCount: number;
+      fallbackCount: number;
+      skippedCount: number;
+    }>(`/campaigns/${id}/send-times`, { method: "POST", body: JSON.stringify(body) }),
+
+  deleteCampaign: (id: string) =>
+    request<{ deleted: true; id: string }>(`/campaigns/${id}`, { method: "DELETE" }),
+
+  duplicateCampaign: (id: string) =>
+    request<import("@/crm/types/campaigns").CampaignListRow>(`/campaigns/${id}/duplicate`, { method: "POST" }),
+
+  cancelCampaign: (id: string) =>
+    request<import("@/crm/types/campaigns").CampaignListRow>(`/campaigns/${id}/cancel`, { method: "POST" }),
 
 };
 

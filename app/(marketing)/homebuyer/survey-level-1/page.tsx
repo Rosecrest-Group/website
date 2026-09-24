@@ -5,6 +5,7 @@ import SurveyDetails from "@/fragments/homebuyer/SurveyDetails";
 import SurveysHaeder from "@/fragments/homebuyer/SurveysHaeder";
 import { sourceSans } from "@/lib/fonts";
 import { getPageMetadata } from "@/lib/page-metadata";
+import { surveyReportTiming } from "@/lib/surveyReportTiming";
 import { Home } from "lucide-react";
 
 
@@ -41,8 +42,8 @@ const Page = () => {
       </SurveysHaeder>
       <WhatIsIncluded />
       <SurveyDetails
-        duration="1-2 hours"
-        deliveryTime="same-day"
+        heading={surveyReportTiming[1].heading}
+        paragraphs={[...surveyReportTiming[1].paragraphs]}
         features={[
           "Ideal for new builds and standardised properties built within the last 5-10 years",
           "Perfect for obtaining a brief insight of the property condition",

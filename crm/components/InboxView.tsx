@@ -847,6 +847,10 @@ export default function InboxView({
                     leadId={selected.leadId}
                     customerName={selected.customerName}
                     customerPhone={selected.customerPhone ?? customerPhone}
+                    emailContacts={{
+                      customerEmail: selected.customerEmail,
+                      customerName: selected.customerName,
+                    }}
                     messages={INBOX_THREAD_MESSAGES}
                     revalidateSeed
                     isActive={inboxPane === "messages"}

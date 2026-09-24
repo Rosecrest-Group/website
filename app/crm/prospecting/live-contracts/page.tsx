@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { api } from "@/crm/lib/api";
 import type { ProspectProcurementRow } from "@/crm/types/prospecting";
-import ProspectingListClient from "@/crm/components/prospecting/ProspectingListClient";
+import ProspectingListClient, { cameInColumn } from "@/crm/components/prospecting/ProspectingListClient";
 import type { Column } from "@/crm/components/ui/Table";
 
 const columns: Column<ProspectProcurementRow>[] = [
@@ -16,6 +16,7 @@ const columns: Column<ProspectProcurementRow>[] = [
   { key: "contactEmail", header: "Contact" },
   { key: "totalValueExVat", header: "Value ex VAT" },
   { key: "endsOn", header: "Ends" },
+  cameInColumn<ProspectProcurementRow>("createdAt"),
 ];
 
 export default function ProspectingLiveContractsPage() {

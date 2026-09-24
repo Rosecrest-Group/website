@@ -1043,6 +1043,18 @@ export default function LeadDetail({
                     customer ? `${customer.firstName} ${customer.lastName}` : "Customer"
                   }
                   customerPhone={customer?.phone}
+                  emailContacts={{
+                    customerEmail: customer?.email,
+                    customerName: customer
+                      ? `${customer.firstName} ${customer.lastName}`
+                      : undefined,
+                    agentEmail: lead.job?.agentEmail,
+                    agentName: lead.job?.agentName,
+                    vendorEmail: lead.job?.vendorEmail,
+                    vendorName: lead.job?.vendorName,
+                    surveyorEmail: lead.job?.assignedTo?.email,
+                    surveyorName: lead.job?.assignedTo?.fullName,
+                  }}
                   messages={lead.messages}
                   threadActivities={filterLeadThreadActivities(lead.activities)}
                   onSent={() => reload({ silent: true })}
@@ -1401,6 +1413,18 @@ export default function LeadDetail({
             customer ? `${customer.firstName} ${customer.lastName}` : "Customer"
           }
           customerPhone={customer?.phone}
+          emailContacts={{
+            customerEmail: customer?.email,
+            customerName: customer
+              ? `${customer.firstName} ${customer.lastName}`
+              : undefined,
+            agentEmail: lead.job?.agentEmail,
+            agentName: lead.job?.agentName,
+            vendorEmail: lead.job?.vendorEmail,
+            vendorName: lead.job?.vendorName,
+            surveyorEmail: lead.job?.assignedTo?.email,
+            surveyorName: lead.job?.assignedTo?.fullName,
+          }}
           messages={lead.messages}
           threadActivities={filterLeadThreadActivities(lead.activities)}
           onSent={() => reload({ silent: true })}

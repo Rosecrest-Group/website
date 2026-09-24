@@ -59,6 +59,7 @@ export type ProspectAccountRow = {
   standingGrade: string;
   status: string;
   suppressed: boolean;
+  firstSeenAt: string;
 };
 
 export type ProspectContactRow = {
@@ -70,6 +71,7 @@ export type ProspectContactRow = {
   email: string | null;
   confidence: string;
   sourceScope: string | null;
+  createdAt: string;
 };
 
 export type ProspectSignalRow = {
@@ -80,6 +82,7 @@ export type ProspectSignalRow = {
   urgency: string;
   confidence: string;
   occurredOn: string;
+  detectedAt: string;
   sourceUrl: string;
 };
 
@@ -97,6 +100,7 @@ export type ProspectProcurementRow = {
   supplierCount: number;
   contactEmail: string | null;
   opportunityId: string | null;
+  createdAt: string;
 };
 
 export type ProspectNetworkRow = {
@@ -115,6 +119,7 @@ export type ProspectResultRow = {
   jobNumber: string | null;
   paid: boolean;
   amount: number | null;
+  createdAt: string;
 };
 
 export type ProspectCard = {

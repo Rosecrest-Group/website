@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { sourceSans } from "@/lib/fonts";
 import PostcodeFieldHint from "@/components/homebuyer/PostcodeFieldHint";
+import { reportDeliveryStep } from "@/lib/surveyReportTiming";
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -657,7 +658,10 @@ const BookingModal = ({
                       "Receive your quote sent to your email instantly",
                       "Secure your booking - complete payment to confirm your slot",
                       "Inspection arranged - we coordinate access and confirm your date",
-                      "Receive your report - delivered within the stated timeframe",
+                      reportDeliveryStep(
+                        selectedSurveyType || defaultSurveyType,
+                        expressReportDelivery === "yes",
+                      ),
                     ].map((step, i) => (
                       <li key={i} className="flex items-start gap-3">
                         <div className="bg-[#262A6F] text-white rounded-full w-5 h-5 flex items-center justify-center shrink-0 text-xs font-semibold">

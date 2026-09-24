@@ -338,7 +338,7 @@ function surveyStagePanels(stage: string) {
 
   return {
     startAccessRequest: is("PAID"),
-    surveyor: is("ACCESS_REQUESTED"),
+    surveyor: is("ACCESS_REQUESTED", "ACCESS_CONFIRMED"),
     accessEditor: is("ACCESS_REQUESTED"),
     accessReadOnly: is("ACCESS_CONFIRMED"),
     accessNotesEditor: is("ACCESS_CONFIRMED"),
@@ -395,6 +395,9 @@ export default function JobDetail({ id }: { id: string }) {
   const [confirmingAccess, setConfirmingAccess] = useState(false);
   const [pendingStage, setPendingStage] = useState<string | null>(null);
   const [pendingStageSilent, setPendingStageSilent] = useState(false);
+  const [jumpSurveyorId, setJumpSurveyorId] = useState("");
+  const [jumpInspectionDate, setJumpInspectionDate] = useState("");
+  const [jumpInspectionWindow, setJumpInspectionWindow] = useState("");
   const [stageSaving, setStageSaving] = useState(false);
   const [justMovedStage, setJustMovedStage] = useState<string | null>(null);
   const [pendingSurveyorId, setPendingSurveyorId] = useState<string | null>(null);
@@ -543,6 +546,19 @@ export default function JobDetail({ id }: { id: string }) {
   const documents = (job.documents ?? []) as JobDocument[];
   const hasReportDocument = documents.some((d) => d.type === "REPORT");
   const panels = surveyStagePanels(job.stage);
+  const onSurveyorAssigned = !isTrade && canonicalSurveyStage(job.stage) === "ACCESS_CONFIRMED";
+  const hasAccessContact = Boolean(
+    job.agentName ||
+      job.agentEmail ||
+      job.agentPhone ||
+      job.vendorName ||
+      job.vendorEmail ||
+      job.vendorPhone
+  );
+  const showSurveyorCard = panels.surveyor && (canAssignSurveyor || !onSurveyorAssigned);
+  const showAccessEditor = panels.accessEditor && canManageAccess;
+  const showAccessReadOnlyCard =
+    !showAccessEditor && (panels.accessEditor || panels.accessReadOnly) && hasAccessContact;
   const activeStageStyle: CSSProperties = {
     backgroundColor: "var(--color-primary)",
     borderColor: "var(--color-primary)",
@@ -576,11 +592,10 @@ export default function JobDetail({ id }: { id: string }) {
     const current = isTrade ? job.stage : canonicalSurveyStage(job.stage);
     if (current === stage) return;
     setStageError(null);
-    if (stage === "ACCESS_CONFIRMED" && !job.assignedTo) {
-      const msg = "Assign a surveyor before jumping to Surveyor Assigned";
-      setStageError(msg);
-      toast.error(msg);
-      return;
+    if (!isTrade && stage === "ACCESS_CONFIRMED") {
+      setJumpSurveyorId(job.assignedTo?.id ?? "");
+      setJumpInspectionDate(inspectionDate);
+      setJumpInspectionWindow(inspectionWindow);
     }
     if (stage === "REPORT_DELIVERED" && !isTrade && !bypassQc && !isJobQcComplete(job)) {
       setStageError(QC_INCOMPLETE_MESSAGE);
@@ -592,12 +607,25 @@ export default function JobDetail({ id }: { id: string }) {
   }
 
   async function confirmStageMove() {
-    if (!pendingStage || stageSaving) return;
+    if (!pendingStage || stageSaving || !job) return;
     const stage = pendingStage;
     const silent = pendingStageSilent;
+    const bookingJump = silent && !isTrade && stage === "ACCESS_CONFIRMED";
+    if (bookingJump && (!jumpSurveyorId || !jumpInspectionDate.trim() || !jumpInspectionWindow.trim())) {
+      setStageError("Assign a surveyor and set the inspection date and arrival window");
+      return;
+    }
     setStageSaving(true);
     startTopProgress();
     try {
+      if (bookingJump) {
+        await api.updateJob(id, {
+          assignedToId: jumpSurveyorId,
+          skipAssignmentTrigger: true,
+          inspectionDate: new Date(`${jumpInspectionDate}T12:00:00.000Z`).toISOString(),
+          inspectionWindow: normalizeInspectionWindow(jumpInspectionWindow) || null,
+        });
+      }
       await api.updateJobStage(id, stage, silent ? { skipTrigger: true } : undefined);
       setPendingStage(null);
       setPendingStageSilent(false);
@@ -724,9 +752,17 @@ export default function JobDetail({ id }: { id: string }) {
   async function notifySurveyor() {
     setAccessError(null);
     setAccessSaved(false);
+    if (!inspectionDate.trim() || !inspectionWindow.trim()) {
+      setAccessError("Set the inspection date and arrival window before notifying the surveyor");
+      return;
+    }
     setNotifyingSurveyor(true);
     try {
-      await api.updateJob(id, accessDetailsPayload());
+      await api.updateJob(id, {
+        ...accessDetailsPayload(),
+        inspectionDate: new Date(`${inspectionDate}T12:00:00.000Z`).toISOString(),
+        inspectionWindow: normalizeInspectionWindow(inspectionWindow) || null,
+      });
       await api.notifyJobSurveyor(id, { accessNotes: accessForm.accessNotes });
       toast.success("Surveyor notified");
       await reload();
@@ -1190,15 +1226,15 @@ export default function JobDetail({ id }: { id: string }) {
                   </div>
                 )}
 
-                {(panels.surveyor || panels.accessEditor || panels.accessReadOnly) && (
+                {(showSurveyorCard || showAccessEditor || showAccessReadOnlyCard) && (
                 <div
                   className={`grid gap-6 ${
-                    panels.surveyor && (panels.accessEditor || panels.accessReadOnly)
+                    showSurveyorCard && (showAccessEditor || showAccessReadOnlyCard)
                       ? "lg:grid-cols-2"
                       : "lg:grid-cols-1"
                   }`}
                 >
-                  {panels.surveyor && (
+                  {showSurveyorCard && (
                     <section className="space-y-4 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
                       <div className="flex items-center gap-2.5">
                         <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
@@ -1206,7 +1242,11 @@ export default function JobDetail({ id }: { id: string }) {
                         </div>
                         <div>
                           <h3 className="text-sm font-medium text-ink">Surveyor</h3>
-                          <p className="text-xs text-ink-muted">Assign before requesting access — no email yet</p>
+                          <p className="text-xs text-ink-muted">
+                            {onSurveyorAssigned
+                              ? "Who attends the inspection. No email until you notify them."
+                              : "Assign before requesting access — no email yet"}
+                          </p>
                         </div>
                       </div>
                       {canAssignSurveyor ? (
@@ -1232,7 +1272,11 @@ export default function JobDetail({ id }: { id: string }) {
                             </p>
                           )}
                           {!job.assignedTo && pendingSurveyorId === null && (
-                            <p className="text-xs text-amber-700">Assign a surveyor before requesting access.</p>
+                            <p className="text-xs text-amber-700">
+                              {onSurveyorAssigned
+                                ? "Assign a surveyor for this visit."
+                                : "Assign a surveyor before requesting access."}
+                            </p>
                           )}
                           {job.assignedTo && !assigningSurveyor && (
                             <p className="text-xs text-ink-muted">
@@ -1351,36 +1395,77 @@ export default function JobDetail({ id }: { id: string }) {
                 )}
 
                 {panels.accessNotesEditor && (
-                <section className="space-y-2 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
-                  <h3 className="text-sm font-medium text-ink">Inspection</h3>
-                  <dl className="grid gap-3 text-sm sm:grid-cols-3">
-                    <div>
-                      <dt className="text-xs text-ink-muted">Surveyor</dt>
-                      <dd className="flex flex-wrap items-center gap-2 text-ink">
-                        <span>{job.assignedTo?.fullName ?? "Unassigned"}</span>
-                        {job.surveyorNotifiedAt ? (
-                          <StatusPill variant="completed" label="Surveyor notified" />
-                        ) : null}
-                      </dd>
+                <section className="space-y-4 rounded-xl border border-line bg-sidebar/40 p-4 sm:p-5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
+                      <CalendarDays className="size-4" aria-hidden />
                     </div>
                     <div>
-                      <dt className="text-xs text-ink-muted">Date</dt>
-                      <dd className="text-ink">
-                        {inspectionDate
-                          ? new Date(`${inspectionDate}T12:00:00`).toLocaleDateString("en-GB", {
-                              weekday: "long",
-                              day: "numeric",
-                              month: "long",
-                              year: "numeric",
-                            })
-                          : "Not set yet"}
-                      </dd>
+                      <h3 className="text-sm font-medium text-ink">Inspection</h3>
+                      <p className="text-xs text-ink-muted">
+                        {canSetInspectionDate
+                          ? "Date and arrival window for the site visit. Saved with the draft below."
+                          : "Booked date and arrival window for the site visit"}
+                      </p>
                     </div>
-                    <div>
-                      <dt className="text-xs text-ink-muted">Arrival window</dt>
-                      <dd className="text-ink">{inspectionWindow.trim() || "Not set yet"}</dd>
-                    </div>
-                  </dl>
+                  </div>
+                  {canSetInspectionDate ? (
+                    <>
+                      <TextField
+                        label="Date"
+                        id="inspection-date"
+                        type="date"
+                        value={inspectionDate}
+                        onChange={(e) => setInspectionDate(e.target.value)}
+                      />
+                      <SelectField
+                        label="Arrival window"
+                        id="inspection-window"
+                        value={inspectionWindow}
+                        onChange={(e) => setInspectionWindow(e.target.value)}
+                      >
+                        <option value="">Select window</option>
+                        {INSPECTION_WINDOWS.map((window) => (
+                          <option key={window} value={window}>
+                            {window}
+                          </option>
+                        ))}
+                        {inspectionWindow &&
+                          !(INSPECTION_WINDOWS as readonly string[]).includes(inspectionWindow) && (
+                            <option value={inspectionWindow}>{inspectionWindow}</option>
+                          )}
+                      </SelectField>
+                    </>
+                  ) : (
+                    <dl className="grid gap-3 text-sm sm:grid-cols-3">
+                      <div>
+                        <dt className="text-xs text-ink-muted">Surveyor</dt>
+                        <dd className="flex flex-wrap items-center gap-2 text-ink">
+                          <span>{job.assignedTo?.fullName ?? "Unassigned"}</span>
+                          {job.surveyorNotifiedAt ? (
+                            <StatusPill variant="completed" label="Surveyor notified" />
+                          ) : null}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-ink-muted">Date</dt>
+                        <dd className="text-ink">
+                          {inspectionDate
+                            ? new Date(`${inspectionDate}T12:00:00`).toLocaleDateString("en-GB", {
+                                weekday: "long",
+                                day: "numeric",
+                                month: "long",
+                                year: "numeric",
+                              })
+                            : "Not set yet"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-ink-muted">Arrival window</dt>
+                        <dd className="text-ink">{inspectionWindow.trim() || "Not set yet"}</dd>
+                      </div>
+                    </dl>
+                  )}
                 </section>
                 )}
 
@@ -1925,7 +2010,9 @@ export default function JobDetail({ id }: { id: string }) {
         description={
           pendingStage
             ? pendingStageSilent
-              ? stageMoveSilentDescription(pendingStage, job?.jobType)
+              ? pendingStage === "ACCESS_CONFIRMED" && !isTrade
+                ? `${stageMoveSilentDescription(pendingStage, job?.jobType)} Enter the surveyor, inspection date, and arrival window — they are saved on the job.`
+                : stageMoveSilentDescription(pendingStage, job?.jobType)
               : [
                   `This moves the job to ${formatJobStageLabel(pendingStage, job?.jobType)}.`,
                   stageMoveEmailWarning(pendingStage),
@@ -1934,6 +2021,62 @@ export default function JobDetail({ id }: { id: string }) {
                   .join(" ")
             : undefined
         }
+        children={pendingStageSilent && pendingStage === "ACCESS_CONFIRMED" && !isTrade ? (
+          <div className="space-y-3">
+            <SelectField
+              label="Assigned surveyor"
+              id="jump-surveyor"
+              value={jumpSurveyorId}
+              disabled={stageSaving}
+              onChange={(e) => {
+                setStageError(null);
+                setJumpSurveyorId(e.target.value);
+              }}
+            >
+              <option value="">Unassigned</option>
+              {surveyors.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.fullName}
+                </option>
+              ))}
+              {jumpSurveyorId && !surveyors.some((s) => s.id === jumpSurveyorId) ? (
+                <option value={jumpSurveyorId}>{job.assignedTo?.fullName ?? "Assigned surveyor"}</option>
+              ) : null}
+            </SelectField>
+            <TextField
+              label="Inspection date"
+              id="jump-inspection-date"
+              type="date"
+              value={jumpInspectionDate}
+              disabled={stageSaving}
+              onChange={(e) => {
+                setStageError(null);
+                setJumpInspectionDate(e.target.value);
+              }}
+            />
+            <SelectField
+              label="Arrival window"
+              id="jump-arrival-window"
+              value={jumpInspectionWindow}
+              disabled={stageSaving}
+              onChange={(e) => {
+                setStageError(null);
+                setJumpInspectionWindow(e.target.value);
+              }}
+            >
+              <option value="">Select window</option>
+              {INSPECTION_WINDOWS.map((window) => (
+                <option key={window} value={window}>
+                  {window}
+                </option>
+              ))}
+              {jumpInspectionWindow &&
+                !(INSPECTION_WINDOWS as readonly string[]).includes(jumpInspectionWindow) && (
+                  <option value={jumpInspectionWindow}>{jumpInspectionWindow}</option>
+                )}
+            </SelectField>
+          </div>
+        ) : null}
         confirmLabel={pendingStageSilent ? "Jump stage" : "Move stage"}
         loading={stageSaving}
         error={stageError ?? undefined}

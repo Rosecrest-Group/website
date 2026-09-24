@@ -75,7 +75,12 @@ export const faqs: Record<FAQCategoryId, FAQCategory> = {
       {
         question: "How long does a survey take?",
         answer:
-          "A Level 2 survey typically takes 2–3 hours on site; a Level 3 can take half a day or more depending on the size and complexity of the property.",
+          "A Level 1 survey typically takes 1–2 hours on site. A Level 2 survey typically takes 2–3 hours. A Level 3 can take half a day or more depending on the size and complexity of the property.",
+      },
+      {
+        question: "When will I receive my report?",
+        answer:
+          "A Level 1 Condition Report is delivered within 2 working days of the inspection. A Level 2 HomeBuyer Report is delivered within 5 working days of the inspection as standard, typically within 3–5 working days. A Level 3 Building Survey is delivered within 5–7 working days of the inspection. If you need the report sooner, choose the Express 48-Hour Report option when you check availability and get your fixed price.",
       },
       {
         question: "Will I receive photographs in my report?",

@@ -7,6 +7,7 @@ import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import Table, { type Column } from "@/crm/components/ui/Table";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import StatusPill from "@/crm/components/ui/StatusPill";
+import type { ProspectingRunKind, ProspectingRunStatus, ProspectingRunSummary } from "@/crm/types/prospecting";
 
 function standingVariant(grade: string): "completed" | "failed" | "in-review" | "pending" {
   if (grade === "green" || grade === "green_amber") return "completed";
@@ -92,6 +93,49 @@ export default function ProspectingListClient<T extends Record<string, unknown> 
       )}
     </CrmPageContent>
   );
+}
+
+export function formatCameIn(value: unknown): string {
+  if (value == null || value === "") return "—";
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function cameInColumn<T extends Record<string, unknown>>(key: keyof T & string): Column<T> {
+  return {
+    key,
+    header: "Came in",
+    render: (value) => formatCameIn(value),
+  };
+}
+
+const RUN_KIND_LABEL: Record<ProspectingRunKind, string> = {
+  weekly: "weekly search for firms",
+  daily_procurement: "daily look at live contracts",
+  refetch: "refresh of existing firms",
+  manual: "search you queued",
+};
+
+const RUN_STATUS_LABEL: Record<ProspectingRunStatus, string> = {
+  queued: "waiting to start",
+  running: "in progress",
+  paused: "paused",
+  completed: "finished",
+  failed: "failed",
+};
+
+export function describeProspectingRun(run: Pick<ProspectingRunSummary, "kind" | "status" | "finishedAt" | "startedAt" | "createdAt">): string {
+  const kind = RUN_KIND_LABEL[run.kind] ?? run.kind.replaceAll("_", " ");
+  const status = RUN_STATUS_LABEL[run.status] ?? run.status;
+  const when = formatCameIn(run.finishedAt ?? run.startedAt ?? run.createdAt);
+  return when === "—" ? `Last activity: ${kind} · ${status}` : `Last activity: ${kind} · ${status} ${when}`;
 }
 
 export { standingVariant };

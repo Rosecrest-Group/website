@@ -14,6 +14,8 @@ export type Column<T> = {
   headerClassName?: string;
   width?: string;
   align?: "left" | "right";
+  onSort?: () => void;
+  sortDirection?: "asc" | "desc" | null;
 };
 
 export type TableProps<T> = {
@@ -180,7 +182,23 @@ export default function Table<T extends Record<string, unknown>>({
                       col.headerClassName,
                     )}
                   >
-                    {col.header}
+                    {col.onSort ? (
+                      <button
+                        type="button"
+                        onClick={col.onSort}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-sm text-left motion-reduce:transition-none transition-colors duration-150 ease-out",
+                          col.sortDirection ? "text-ink" : "hover:text-ink",
+                        )}
+                      >
+                        {col.header}
+                        <span aria-hidden className="text-[10px]">
+                          {col.sortDirection === "asc" ? "↑" : col.sortDirection === "desc" ? "↓" : "↕"}
+                        </span>
+                      </button>
+                    ) : (
+                      col.header
+                    )}
                   </th>
                 ))}
                 {actions && actions.length > 0 && (

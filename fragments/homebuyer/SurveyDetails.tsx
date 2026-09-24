@@ -4,14 +4,14 @@ import Link from "next/link";
 import { sourceSans } from "@/lib/fonts";
 
 interface SurveyDetailsProps {
-  duration: string;
-  deliveryTime: string;
+  heading: string;
+  paragraphs: string[];
   features: string[];
 }
 
 const SurveyDetails = ({
-  duration,
-  deliveryTime,
+  heading,
+  paragraphs,
   features,
 }: SurveyDetailsProps) => {
   return (
@@ -25,13 +25,13 @@ const SurveyDetails = ({
             </div>
             <div>
               <h3 className="text-xl lg:text-2xl font-medium text-[#101828] mb-3">
-                How long does the survey take?
+                {heading}
               </h3>
-              <p className={`${sourceSans.className} text-[#364153] my-6 w-[90%]`}>
-                The duration of the survey depends on the size of the property,
-                but typically takes {duration}. We offer {deliveryTime} delivery
-                of the report for this type of survey.
-              </p>
+              <div className={`${sourceSans.className} text-[#364153] my-6 w-[90%] space-y-4`}>
+                {paragraphs.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </div>
               <p className={`${sourceSans.className}`}>
                 <Link
                   href="/contact"

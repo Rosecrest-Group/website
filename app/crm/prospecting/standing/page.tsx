@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { api } from "@/crm/lib/api";
 import type { ProspectAccountRow } from "@/crm/types/prospecting";
-import ProspectingListClient, { standingVariant } from "@/crm/components/prospecting/ProspectingListClient";
+import ProspectingListClient, { cameInColumn, standingVariant } from "@/crm/components/prospecting/ProspectingListClient";
 import StatusPill from "@/crm/components/ui/StatusPill";
 import type { Column } from "@/crm/components/ui/Table";
 
@@ -19,6 +19,7 @@ const columns: Column<ProspectAccountRow>[] = [
     ),
   },
   { key: "status", header: "Status" },
+  cameInColumn<ProspectAccountRow>("firstSeenAt"),
 ];
 
 export default function ProspectingStandingPage() {
