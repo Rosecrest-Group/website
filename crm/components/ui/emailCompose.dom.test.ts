@@ -68,7 +68,7 @@ afterEach(async () => {
   document.body.replaceChildren();
 });
 
-async function mount(node: ReactNs.ReactNode) {
+async function mount(node: import("react").ReactNode) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -158,7 +158,7 @@ describe("EmailChipInput", () => {
 describe("EmailToField", () => {
   it("shows the address beside Other and hides it for Client", async () => {
     function Harness() {
-      const [kind, setKind] = React.useState<"client" | "other">("client");
+      const [kind, setKind] = React.useState<import("@/crm/lib/emailCompose").EmailToKind>("client");
       const [otherEmail, setOtherEmail] = React.useState("");
       return React.createElement(EmailToField, {
         id: "to",

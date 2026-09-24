@@ -35,6 +35,12 @@ export type CampaignAttachment = {
   filename: string;
 };
 
+/** A lead kept on an older audience. New audiences use selections. */
+export type CampaignRecipient = {
+  id: string;
+  label: string;
+};
+
 export type CampaignTiming = {
   mode: "now" | "later" | "usual";
   sendDate: string | null;
