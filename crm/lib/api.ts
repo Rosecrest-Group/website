@@ -1596,6 +1596,9 @@ export const api = {
     }>(`/prospecting/runs${suffix}`);
   },
 
+  getProspectingRun: (id: string) =>
+    request<import("@/crm/types/prospecting").ProspectingRunSummary>(`/prospecting/runs/${encodeURIComponent(id)}`),
+
   startProspectingRun: (
     kind: import("@/crm/types/prospecting").ProspectingRunKind = "manual",
     extra?: { query?: string; lane?: string; serviceId?: string; area?: string },
