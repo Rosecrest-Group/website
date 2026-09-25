@@ -22,6 +22,7 @@ const LANES = [{ id: "", label: "Choose a lane" }, ...PROSPECT_LANE_OPTIONS];
 const FOLD_EASE = "duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
 const POLL_MS = 3000;
 const STALE_RUN_MS = 2 * 60 * 60 * 1000;
+const PAGE_SIZE = 25;
 
 type RunProgress = { step?: string; saved?: number; done?: number; total?: number };
 
@@ -121,6 +122,7 @@ export default function FindFirmsPage() {
   const [runNote, setRunNote] = useState<string | null>(null);
   const [rows, setRows] = useState<ProspectOpportunityRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(true);
   const [activeRun, setActiveRun] = useState<ProspectingRunSummary | null>(null);
@@ -134,10 +136,11 @@ export default function FindFirmsPage() {
       workflow: "sales",
       lane: lane || undefined,
       status: "draft,in_review,routed",
+      page,
     });
     setRows(listed.items);
     setTotal(listed.total);
-  }, [query, lane]);
+  }, [query, lane, page]);
 
   useEffect(() => {
     setLoading(true);
@@ -277,7 +280,14 @@ export default function FindFirmsPage() {
               )}
             >
               <div className="grid gap-4 sm:grid-cols-3">
-                <SelectField label="Lane" value={lane} onChange={(e) => setLane(e.target.value)}>
+                <SelectField
+                  label="Lane"
+                  value={lane}
+                  onChange={(e) => {
+                    setLane(e.target.value);
+                    setPage(1);
+                  }}
+                >
                   {LANES.map((item) => (
                     <option key={item.id || "any"} value={item.id}>
                       {item.label}
@@ -293,7 +303,10 @@ export default function FindFirmsPage() {
                 <TextField
                   label="Name (optional)"
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setPage(1);
+                  }}
                   placeholder="e.g. Montas Solicitors"
                 />
               </div>
@@ -320,6 +333,10 @@ export default function FindFirmsPage() {
           columns={columns}
           data={rows}
           totalCount={total}
+          page={page}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+          loading={loading}
           emptyMessage="No firms yet. Choose a lane and search."
           getRowKey={(row) => row.id}
           onRowClick={(row) => router.push(`/crm/prospecting/review/${row.id}`)}
