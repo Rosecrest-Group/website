@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { flushSync } from "react-dom";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/crm/lib/api";
 import { canAccessProspectingAdmin } from "@/crm/lib/rbac";
-import type { ProspectOpportunityRow, TenderFilter } from "@/crm/types/prospecting";
+import type { ProspectingRunSummary, ProspectOpportunityRow, TenderFilter } from "@/crm/types/prospecting";
 import type { ApiUser } from "@/crm/types";
 import ProspectingListClient, { cameInColumn } from "@/crm/components/prospecting/ProspectingListClient";
 import CurvedContainer from "@/crm/components/ui/CurvedContainer";
@@ -16,6 +16,42 @@ import SelectField from "@/crm/components/ui/SelectField";
 import TextField from "@/crm/components/ui/TextField";
 import Toggle from "@/crm/components/ui/Toggle";
 import type { Column } from "@/crm/components/ui/Table";
+
+const CHECK_POLL_MS = 3000;
+
+function isRunActive(run: ProspectingRunSummary): boolean {
+  return run.status === "queued" || run.status === "running";
+}
+
+function reportRecord(report: unknown): Record<string, unknown> {
+  return report && typeof report === "object" ? (report as Record<string, unknown>) : {};
+}
+
+function checkProgressLine(run: ProspectingRunSummary): string {
+  const progress = reportRecord(reportRecord(run.report).progress);
+  const step = typeof progress.step === "string" ? progress.step : null;
+  if (run.status === "queued" || !step) return "Tender check waiting to start…";
+  const count =
+    typeof progress.done === "number" && typeof progress.total === "number" && progress.total > 0
+      ? ` · ${progress.done} of ${progress.total}`
+      : "";
+  return `${step}${count}…`;
+}
+
+function checkResultLine(run: ProspectingRunSummary): string {
+  const report = reportRecord(run.report);
+  if (run.status === "failed") {
+    return typeof report.error === "string" && report.error ? `Tender check failed: ${report.error}` : "Tender check failed.";
+  }
+  const ingested = (key: string) => {
+    const value = reportRecord(report[key]).ingested;
+    return typeof value === "number" ? value : 0;
+  };
+  const read = ingested("procurements") + ingested("contractsFinder");
+  return read
+    ? `Tender check finished: ${read} matching tender${read === 1 ? "" : "s"} read. Open ones with a deadline ahead are listed below.`
+    : "Tender check finished: nothing new matched the feed.";
+}
 
 const STATUS_OPTIONS = [
   { id: "draft,in_review", label: "Awaiting review" },
@@ -45,8 +81,10 @@ const columns: Column<ProspectOpportunityRow>[] = [
 
 export default function PublicContractsPage() {
   const [status, setStatus] = useState("draft,in_review");
+  const [refreshKey, setRefreshKey] = useState(0);
   const load = useCallback(
     async (search: string, page: number) => {
+      void refreshKey;
       return api.listProspectingOpportunities({
         search: search || undefined,
         page,
@@ -54,8 +92,9 @@ export default function PublicContractsPage() {
         status: status || undefined,
       });
     },
-    [status],
+    [status, refreshKey],
   );
+  const refresh = useCallback(() => setRefreshKey((key) => key + 1), []);
 
   return (
     <ProspectingListClient
@@ -65,7 +104,7 @@ export default function PublicContractsPage() {
       load={load}
       onRowHref={(row) => `/crm/prospecting/review/${row.id}`}
       emptyMessage="No contracts in this list."
-      toolbar={<FeedFilter />}
+      toolbar={<FeedFilter onCheckFinished={refresh} />}
       toolbarExtra={
         <SelectField
           variant="filter"
@@ -213,8 +252,11 @@ function KeywordField({
   );
 }
 
-function FeedFilter() {
+function FeedFilter({ onCheckFinished }: { onCheckFinished: () => void }) {
   const [user, setUser] = useState<ApiUser | null>(null);
+  const [checkRun, setCheckRun] = useState<ProspectingRunSummary | null>(null);
+  const [startingCheck, setStartingCheck] = useState(false);
+  const checkRunId = checkRun?.id ?? null;
   const [filter, setFilter] = useState<TenderFilter | null>(null);
   const [includeKeywords, setIncludeKeywords] = useState<string[]>([]);
   const [excludeKeywords, setExcludeKeywords] = useState<string[]>([]);
@@ -235,7 +277,53 @@ function FeedFilter() {
       setIncludeKeywords(saved.includeKeywords);
       setExcludeKeywords(saved.excludeKeywords);
     }).catch(() => setNote("Could not load the feed filter."));
+    void api
+      .listProspectingRuns({ limit: 10 })
+      .then((listed) => {
+        const running = listed.items.find((run) => run.kind === "daily_procurement" && isRunActive(run));
+        if (running) setCheckRun((current) => current ?? running);
+      })
+      .catch(() => undefined);
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!checkRunId) return;
+    let cancelled = false;
+    let timer: number | undefined;
+    const tick = async () => {
+      try {
+        const run = await api.getProspectingRun(checkRunId);
+        if (cancelled) return;
+        if (!isRunActive(run)) {
+          setCheckRun(null);
+          setNote(checkResultLine(run));
+          onCheckFinished();
+          return;
+        }
+        setCheckRun(run);
+      } catch {
+        if (cancelled) return;
+      }
+      timer = window.setTimeout(() => void tick(), CHECK_POLL_MS);
+    };
+    timer = window.setTimeout(() => void tick(), CHECK_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [checkRunId, onCheckFinished]);
+
+  async function checkNow() {
+    setStartingCheck(true);
+    setNote(null);
+    try {
+      setCheckRun(await api.startProspectingRun("daily_procurement"));
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Could not start the tender check.");
+    } finally {
+      setStartingCheck(false);
+    }
+  }
 
   if (!isAdmin) return null;
   if (!filter) {
@@ -312,6 +400,15 @@ function FeedFilter() {
         <SecondaryButton
           type="button"
           size="small"
+          disabled={startingCheck || Boolean(checkRun)}
+          icon={startingCheck || checkRun ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : undefined}
+          onClick={() => void checkNow()}
+        >
+          {startingCheck || checkRun ? "Checking…" : "Check tenders now"}
+        </SecondaryButton>
+        <SecondaryButton
+          type="button"
+          size="small"
           aria-expanded={editing}
           onClick={() => (editing ? close() : setEditing(true))}
         >
@@ -378,7 +475,13 @@ function FeedFilter() {
           </div>
         </div>
       </div>
-      {note ? <p className="mt-2 text-sm text-ink-muted">{note}</p> : null}
+      {checkRun ? (
+        <p role="status" aria-live="polite" className="mt-2 text-sm text-ink-muted">
+          {checkProgressLine(checkRun)} This takes a few minutes; you can leave the page.
+        </p>
+      ) : note ? (
+        <p className="mt-2 text-sm text-ink-muted">{note}</p>
+      ) : null}
     </CurvedContainer>
   );
 }

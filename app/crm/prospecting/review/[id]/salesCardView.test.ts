@@ -182,6 +182,37 @@ describe("sales card view", () => {
     assert.equal(view.scoreBreakdown, "need 5");
   });
 
+  it("shows website evidence when the reader found some, and puts buyers with email first", () => {
+    const base = baseCard();
+    const webChip = (fieldPath: string, value: string) => ({
+      fieldPath,
+      label: fieldPath,
+      value,
+      confidence: "confirmed",
+      sourceId: "org_web",
+      sourceUrl: "https://kingsleynapley.co.uk",
+    });
+    const view = toSalesCard(
+      baseCard({
+        chips: [
+          ...base.chips,
+          webChip("web.office_postcodes", "2 office postcodes on the website: EC2A 4DJ, CB2 1AB"),
+          webChip("web.services", "Property litigation, Housing"),
+        ],
+        contacts: [
+          { id: "c5", personName: "Tom Brown", roleTitle: "Partner", email: null, confidence: "confirmed", sourceScope: "org_web", suppressed: false },
+          ...base.contacts,
+        ],
+      }),
+    );
+    assert.deepEqual(view.website, [
+      { label: "Offices", value: "2 office postcodes on the website: EC2A 4DJ, CB2 1AB" },
+      { label: "Services listed", value: "Property litigation, Housing" },
+    ]);
+    assert.match(view.buyers[0]?.line ?? "", /^Jane Smith/);
+    assert.deepEqual(toSalesCard(base).website, []);
+  });
+
   it("writes list codes as plain labels", () => {
     assert.equal(formatProspectDecision("management_review"), "Management review");
     assert.equal(formatProspectLane("property_operators"), "Property operators");

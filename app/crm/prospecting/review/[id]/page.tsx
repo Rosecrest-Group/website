@@ -191,6 +191,20 @@ function SalesCardBody({
           </dl>
         </CrmPanel>
 
+        <CrmPanel title="Website evidence">
+          {view.website.length ? (
+            <dl className="grid gap-4 sm:grid-cols-2">
+              {view.website.map((field) => (
+                <Field key={field.label} label={field.label}>
+                  <span className="wrap-break-word">{field.value}</span>
+                </Field>
+              ))}
+            </dl>
+          ) : (
+            <Unknown>Nothing read from the firm&apos;s website yet.</Unknown>
+          )}
+        </CrmPanel>
+
         <CurvedContainer>
           <div className="border-b border-line px-5 py-4 sm:px-6">
             <h2 className="text-base font-medium text-ink">Opportunity</h2>

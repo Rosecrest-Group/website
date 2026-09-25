@@ -353,7 +353,7 @@ export default function CrmAnalytics() {
             value={sales ? `${sales.conversionRate30d}%` : "0%"}
             icon={<CheckCircle />}
             iconTint="success"
-            subtitle={`${won} won`}
+            subtitle={`${sales?.cohortConverted ?? 0} of ${leads} leads won`}
             trend={vsPeriodTrend(deltas?.conversionRate, comparisonLabel)}
           />
           <StatsCard
@@ -370,7 +370,7 @@ export default function CrmAnalytics() {
             value={lost}
             icon={<UserMinus />}
             iconTint="danger"
-            subtitle={`${sales?.lostRate30d ?? 0}% of leads`}
+            subtitle={`${sales?.lostRate30d ?? 0}% of ${periodShort} leads lost`}
             trend={vsPeriodTrend(deltas?.lost, comparisonLabel, true)}
             action={{ label: "View lost", href: "/crm/leads?stage=LOST" }}
           />
@@ -434,7 +434,7 @@ export default function CrmAnalytics() {
             value={`${sales?.quoteToWinRate ?? 0}%`}
             icon={<Percent />}
             iconTint="success"
-            subtitle={`${won} won / ${sales?.quotedCount ?? 0} quoted`}
+            subtitle={`${sales?.quotedConverted ?? 0} won / ${sales?.quotedCount ?? 0} quoted`}
             trend={vsPeriodTrend(deltas?.quoteToWinRate, comparisonLabel)}
           />
         </div>
@@ -493,7 +493,7 @@ export default function CrmAnalytics() {
             value={`${sales?.avgTimeToPayDays ?? 0}d`}
             icon={<TrendingUp />}
             iconTint="info"
-            subtitle="From paid jobs"
+            subtitle="Quoted to paid"
           />
         </div>
 
@@ -594,7 +594,7 @@ export default function CrmAnalytics() {
         />
 
         <Table
-          title={`Speed to first touch · ${periodShort}`}
+          title={`Speed to first call · ${periodShort}`}
           columns={[
             { key: "cohort", header: "Cohort" },
             {

@@ -965,6 +965,8 @@ export interface DashboardSales {
   conversionRate30d: number;
   leadsLast30d: number;
   convertedLast30d: number;
+  /** Leads created in the period that are now won. */
+  cohortConverted?: number;
   lostLast30d: number;
   lostRate30d?: number;
   slaBreaches: number;
@@ -1030,6 +1032,8 @@ export interface DashboardSales {
   mrr?: number;
   arr?: number;
   quotedCount?: number;
+  /** Leads quoted in the period that are now won. */
+  quotedConverted?: number;
   quoteRate?: number;
   quoteToWinRate?: number;
   avgWonValue?: number;

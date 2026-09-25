@@ -29,6 +29,7 @@ export type SalesCardView = {
   scoreBand: string | null;
   scoreBreakdown: string | null;
   identity: SalesField[];
+  website: SalesField[];
   gates: SalesGateRow[];
   needKind: "signals" | "search-only" | "unknown";
   needLines: string[];
@@ -145,6 +146,7 @@ export function toSalesCard(card: ProspectCard): SalesCardView {
     scoreBand: card.scoreBand,
     scoreBreakdown: scoreBreakdown(card),
     identity: identityFields(card),
+    website: websiteFields(card),
     gates: card.gates.map((gate) => ({
       gate: gate.gate,
       gateLabel: humanLabel(gate.gate, GATE_LABELS),
@@ -191,6 +193,21 @@ function identityFields(card: ProspectCard): SalesField[] {
   return fields;
 }
 
+const WEBSITE_FIELDS: { label: string; fieldPath: string }[] = [
+  { label: "Offices", fieldPath: "web.office_postcodes" },
+  { label: "Services listed", fieldPath: "web.services" },
+  { label: "Recruiting", fieldPath: "web.vacancies" },
+  { label: "Supplier pages", fieldPath: "web.supplier_pages" },
+  { label: "Phone", fieldPath: "web.phones" },
+];
+
+function websiteFields(card: ProspectCard): SalesField[] {
+  return WEBSITE_FIELDS.flatMap(({ label, fieldPath }) => {
+    const value = scalarText(chipValue(card, fieldPath));
+    return value ? [{ label, value }] : [];
+  });
+}
+
 function needSection(card: ProspectCard): Pick<SalesCardView, "needKind" | "needLines"> {
   const statement = card.needStatement?.trim() ?? "";
   const searchOnly = Boolean(statement) && DISCOVERED_VIA_RE.test(statement);
@@ -229,6 +246,7 @@ function buyersFrom(card: ProspectCard): SalesBuyer[] {
     else named.push(contact);
   }
 
+  named.sort((a, b) => Number(Boolean(b.email)) - Number(Boolean(a.email)));
   const chosen = [...named.slice(0, 5)];
   if (mailboxes[0]) chosen.push(mailboxes[0]);
 
