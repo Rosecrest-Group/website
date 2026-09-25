@@ -47,8 +47,24 @@ export type ProspectOpportunityRow = {
   decision: string | null;
   scoreTotal: number | null;
   scoreBand: string | null;
+  tenderTitle?: string | null;
+  totalValueExVat?: number | null;
+  endsOn?: string | null;
+  portalUrl?: string | null;
+  contactName?: string | null;
+  contactEmail?: string | null;
+  ownerName?: string | null;
+  leadId?: string | null;
+  dueAt?: string | null;
   createdAt?: string;
   updatedAt: string;
+};
+
+export type TenderFilter = {
+  includeKeywords: string[];
+  excludeKeywords: string[];
+  englandOnly: boolean;
+  minValueGbp: number;
 };
 
 export type ProspectAccountRow = {

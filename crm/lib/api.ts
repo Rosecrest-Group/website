@@ -1598,7 +1598,7 @@ export const api = {
 
   startProspectingRun: (
     kind: import("@/crm/types/prospecting").ProspectingRunKind = "manual",
-    extra?: { query?: string; lane?: string; serviceId?: string },
+    extra?: { query?: string; lane?: string; serviceId?: string; area?: string },
   ) =>
     request<import("@/crm/types/prospecting").ProspectingRunSummary>("/prospecting/runs", {
       method: "POST",
@@ -1624,17 +1624,21 @@ export const api = {
 
   reviewProspectingOpportunity: (
     id: string,
-    body: { action: "approve" | "reject" | "escalate" | "override"; reason?: string; ownerUserId?: string },
+    body: { action: "approve" | "reject"; reason?: string; ownerUserId?: string },
   ) =>
-    request<{ id: string; status: string; decision: string | null }>(`/prospecting/opportunities/${id}/review`, {
+    request<{ id: string; status: string; decision: string | null; leadId?: string | null }>(`/prospecting/opportunities/${id}/review`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
-  listProspectingSignals: (params?: { page?: number }) =>
-    request<import("@/crm/types/prospecting").ProspectingListResponse<import("@/crm/types/prospecting").ProspectSignalRow>>(
-      `/prospecting/signals${params?.page ? `?page=${params.page}` : ""}`,
-    ),
+  getTenderFilter: () =>
+    request<import("@/crm/types/prospecting").TenderFilter>("/prospecting/tender-filter"),
+
+  saveTenderFilter: (body: import("@/crm/types/prospecting").TenderFilter) =>
+    request<import("@/crm/types/prospecting").TenderFilter & { filteredOut: number }>("/prospecting/tender-filter", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
 
   listProspectingAccounts: (params?: { page?: number; search?: string }) => {
     const qs = new URLSearchParams();
@@ -1646,11 +1650,6 @@ export const api = {
     );
   },
 
-  listProspectingContacts: (params?: { page?: number }) =>
-    request<import("@/crm/types/prospecting").ProspectingListResponse<import("@/crm/types/prospecting").ProspectContactRow>>(
-      `/prospecting/contacts${params?.page ? `?page=${params.page}` : ""}`,
-    ),
-
   listProspectingProcurements: (params?: { page?: number; frameworks?: boolean }) => {
     const qs = new URLSearchParams();
     if (params?.page) qs.set("page", String(params.page));
@@ -1660,35 +1659,6 @@ export const api = {
       `/prospecting/procurements${suffix}`,
     );
   },
-
-  listProspectingNetworks: (params?: { page?: number }) =>
-    request<import("@/crm/types/prospecting").ProspectingListResponse<import("@/crm/types/prospecting").ProspectNetworkRow>>(
-      `/prospecting/networks${params?.page ? `?page=${params.page}` : ""}`,
-    ),
-
-  listProspectingResults: () =>
-    request<{ items: import("@/crm/types/prospecting").ProspectResultRow[]; total: number }>("/prospecting/results"),
-
-  getProspectingAdmin: () =>
-    request<import("@/crm/types/prospecting").ProspectingAdminConfig>("/prospecting/admin"),
-
-  patchProspectingSource: (id: string, enabled: boolean) =>
-    request<{ id: string; enabled: boolean }>(`/prospecting/admin/sources/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ enabled }),
-    }),
-
-  patchProspectingService: (id: string, active: boolean) =>
-    request<{ id: string; active: boolean }>(`/prospecting/admin/services/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ active }),
-    }),
-
-  patchProspectingCoverage: (id: string, active: boolean) =>
-    request<{ id: string; active: boolean }>(`/prospecting/admin/coverage/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ active }),
-    }),
 
   exportProspecting: (type: "accounts" | "opportunities" | "evidence" | "frameworks" | "contacts") =>
     request<{ type: string; rows: Record<string, unknown>[] }>(`/prospecting/export/${type}`),

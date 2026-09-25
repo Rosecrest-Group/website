@@ -45,15 +45,19 @@ export type SalesCardView = {
 const UNKNOWN = "Unknown";
 const NONE_THIS_PASS = "None this pass";
 
-const LANE_LABELS: Record<string, string> = {
-  estate_agency_sales: "Estate agency — sales",
-  estate_agency_lettings: "Estate agency — lettings",
-  public_social_housing: "Public / social housing",
-  legal_expert: "Legal / expert",
-  development_party_wall: "Development / party wall",
-  mortgage_lending: "Mortgage lending",
-  property_operators: "Property operators",
-};
+export const PROSPECT_LANE_OPTIONS = [
+  { id: "estate_agency_sales", label: "Estate agency — sales" },
+  { id: "estate_agency_lettings", label: "Estate agency — lettings" },
+  { id: "public_social_housing", label: "Public / social housing" },
+  { id: "legal_expert", label: "Legal / expert" },
+  { id: "development_party_wall", label: "Development / party wall" },
+  { id: "mortgage_lending", label: "Mortgage lending" },
+  { id: "property_operators", label: "Property operators" },
+] as const;
+
+const LANE_LABELS: Record<string, string> = Object.fromEntries(
+  PROSPECT_LANE_OPTIONS.map((item) => [item.id, item.label]),
+);
 
 const WORKFLOW_LABELS: Record<string, string> = {
   sales: "Sales",
@@ -382,6 +386,18 @@ function hostFrom(value: unknown): string | null {
   const stripped = text.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
   const host = stripped.split("/")[0]?.trim() ?? "";
   return host || null;
+}
+
+export function formatProspectLane(value: unknown): string {
+  const raw = typeof value === "string" ? value : "";
+  if (!raw) return "—";
+  return humanLabel(raw, LANE_LABELS);
+}
+
+export function formatProspectDecision(value: unknown): string {
+  const raw = typeof value === "string" ? value : "";
+  if (!raw) return "—";
+  return humanLabel(raw, DECISION_LABELS);
 }
 
 function humanLabel(raw: string, map: Record<string, string>): string {

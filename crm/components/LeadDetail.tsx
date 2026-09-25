@@ -803,6 +803,42 @@ export default function LeadDetail({
             )}
           </CurvedContainer>
 
+          {lead.source === "B2B_PROSPECTING" && lead.b2bProspect ? (
+            <CrmPanel title="B2B prospect">
+              <dl className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs text-ink-muted">Type</dt>
+                  <dd className="mt-0.5 text-sm text-ink">{lead.b2bProspect.kind}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-ink-muted">Organisation</dt>
+                  <dd className="mt-0.5 text-sm text-ink">{lead.b2bProspect.legalName}</dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-xs text-ink-muted">Tender or firm</dt>
+                  <dd className="mt-0.5 text-sm text-ink">{lead.b2bProspect.title || "—"}</dd>
+                </div>
+                {lead.b2bProspect.valueExVat != null ? (
+                  <div>
+                    <dt className="text-xs text-ink-muted">Value ex VAT</dt>
+                    <dd className="mt-0.5 text-sm text-ink">£{lead.b2bProspect.valueExVat.toLocaleString("en-GB")}</dd>
+                  </div>
+                ) : null}
+              </dl>
+              <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                {lead.b2bProspect.portalUrl ? (
+                  <a href={lead.b2bProspect.portalUrl} target="_blank" rel="noreferrer" className="font-medium text-brand hover:underline">
+                    Open the notice
+                  </a>
+                ) : null}
+                <Link href={`/crm/prospecting/review/${lead.b2bProspect.opportunityId}`} className="font-medium text-brand hover:underline">
+                  Prospect card
+                </Link>
+              </div>
+            </CrmPanel>
+          ) : null}
+
+          {lead.source === "B2B_PROSPECTING" ? null : (
           <div
             className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-(--color-tc-20) bg-(--color-tc-20)"
           >
@@ -863,7 +899,9 @@ export default function LeadDetail({
               </div>
             ))}
           </div>
+          )}
 
+          {lead.source === "B2B_PROSPECTING" ? null : (
           <CrmPanel title="Next workflow step">
             <p className="font-medium text-(--color-tc-40)">{nextWorkflowStepText(lead)}</p>
             {nextStep?.detail && (
@@ -895,7 +933,9 @@ export default function LeadDetail({
               </SecondaryButton>
             )}
           </CrmPanel>
+          )}
 
+          {lead.source === "B2B_PROSPECTING" ? null : (
           <LeadWorkflowASend
             leadId={lead.id}
             jobId={lead.job?.id ?? lead.convertedToJobId}
@@ -906,6 +946,7 @@ export default function LeadDetail({
             surveyorEmail={lead.job?.assignedTo?.email}
             onSent={() => reload({ silent: true })}
           />
+          )}
 
           <LeadTags
             leadId={lead.id}

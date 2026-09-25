@@ -25,6 +25,7 @@ export type LeadSource =
   | "WEBSITE"
   | "WEBSITE_CONTACT_FORM"
   | "PARTY_WALL_TOOL"
+  | "B2B_PROSPECTING"
   | "DIRECT_PHONE"
   | "DIRECT_EMAIL"
   | "REFERRAL"
@@ -810,6 +811,16 @@ export interface LeadDetail extends Lead {
   intakeMessage?: string | null;
   intakeDocuments?: IntakeDocument[];
   signals?: LeadSignal[];
+  b2bProspect?: {
+    opportunityId: string;
+    kind: string;
+    legalName: string;
+    lane: string;
+    title: string | null;
+    portalUrl: string | null;
+    valueExVat: number | null;
+    endsOn: string | null;
+  } | null;
 }
 
 export interface IntakeDocument {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
@@ -23,6 +23,9 @@ export default function ProspectingListClient<T extends Record<string, unknown> 
   load,
   onRowHref,
   emptyMessage,
+  toolbar,
+  toolbarExtra,
+  footer,
 }: {
   title: string;
   subtitle: string;
@@ -30,6 +33,9 @@ export default function ProspectingListClient<T extends Record<string, unknown> 
   load: (search: string, page: number) => Promise<{ items: T[]; total: number }>;
   onRowHref?: (row: T) => string | null;
   emptyMessage?: string;
+  toolbar?: ReactNode;
+  toolbarExtra?: ReactNode;
+  footer?: ReactNode;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -64,8 +70,9 @@ export default function ProspectingListClient<T extends Record<string, unknown> 
   return (
     <CrmPageContent>
       <CrmPageHeader title={title} subtitle={subtitle} />
+      {toolbar}
       {error ? <p className="text-sm text-ink-muted">{error}</p> : null}
-      {loading && !rows.length ? <LoadingSpinner /> : (
+      {loading && !rows.length && !toolbarExtra ? <LoadingSpinner /> : (
         <Table
           columns={columns}
           data={rows}
@@ -74,6 +81,7 @@ export default function ProspectingListClient<T extends Record<string, unknown> 
             setSearch(value);
             setPage(1);
           }}
+          toolbarExtra={toolbarExtra}
           page={page}
           pageSize={25}
           totalCount={total}
@@ -91,6 +99,7 @@ export default function ProspectingListClient<T extends Record<string, unknown> 
           }
         />
       )}
+      {footer}
     </CrmPageContent>
   );
 }

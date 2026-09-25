@@ -156,9 +156,6 @@ function pathAllowed(role: UserRole, pathname: string): boolean {
   if (pathname.startsWith(`${CRM_BASE_PATH}/customers`)) {
     return canAccessCustomerDirectory(role);
   }
-  if (pathname.startsWith(`${CRM_BASE_PATH}/prospecting/admin`)) {
-    return hasExactRole(role, PROSPECTING_ADMIN_ROLES);
-  }
   if (pathname.startsWith(`${CRM_BASE_PATH}/prospecting`)) {
     return hasExactRole(role, PROSPECTING_ROLES);
   }

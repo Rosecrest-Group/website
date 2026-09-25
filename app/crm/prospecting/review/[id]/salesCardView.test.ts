@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { ProspectCard } from "@/crm/types/prospecting";
-import { toSalesCard } from "./salesCardView";
+import { formatProspectDecision, formatProspectLane, toSalesCard } from "./salesCardView";
 
 function baseCard(overrides: Partial<ProspectCard> = {}): ProspectCard {
   return {
@@ -180,5 +180,10 @@ describe("sales card view", () => {
     ]);
     assert.equal(view.decisionLabel, "Management review");
     assert.equal(view.scoreBreakdown, "need 5");
+  });
+
+  it("writes list codes as plain labels", () => {
+    assert.equal(formatProspectDecision("management_review"), "Management review");
+    assert.equal(formatProspectLane("property_operators"), "Property operators");
   });
 });
