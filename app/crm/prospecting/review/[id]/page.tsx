@@ -222,6 +222,11 @@ function SalesCardBody({
               <Unknown>No buying signal this pass.</Unknown>
             )}
           </Section>
+          {view.notice ? (
+            <Section label="Notice">
+              <p className="whitespace-pre-line text-sm text-ink">{view.notice}</p>
+            </Section>
+          ) : null}
           <Section label="Offer">
             <p className="text-sm text-ink">{view.offer}</p>
           </Section>

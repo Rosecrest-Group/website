@@ -213,6 +213,31 @@ describe("sales card view", () => {
     assert.deepEqual(toSalesCard(base).website, []);
   });
 
+  it("shows the notice text stored with a tender", () => {
+    const base = baseCard();
+    assert.equal(toSalesCard(base).notice, null);
+    const view = toSalesCard(
+      baseCard({
+        procurement: {
+          ocid: "ocds-x",
+          title: "Marine salvage",
+          status: "tender",
+          currentNoticeId: null,
+          currentNoticeType: "UK4",
+          currentNoticePublishedAt: null,
+          totalValueExVat: 15000,
+          portalUrl: null,
+          description: "seeking environmental contractors",
+          contact: null,
+          lots: [],
+          suppliers: [],
+          superseded: [],
+        },
+      }),
+    );
+    assert.equal(view.notice, "seeking environmental contractors");
+  });
+
   it("writes list codes as plain labels", () => {
     assert.equal(formatProspectDecision("management_review"), "Management review");
     assert.equal(formatProspectLane("property_operators"), "Property operators");

@@ -73,7 +73,18 @@ function closes(value: unknown): string {
 
 const columns: Column<ProspectOpportunityRow>[] = [
   { key: "legalName", header: "Buyer" },
-  { key: "tenderTitle", header: "Tender", render: (value) => (value ? String(value) : "—") },
+  {
+    key: "tenderTitle",
+    header: "Tender",
+    render: (value, row) => (
+      <div className="max-w-md">
+        <p>{value ? String(value) : "—"}</p>
+        {row.tenderDescription ? (
+          <p className="mt-1 line-clamp-4 whitespace-pre-line text-xs text-ink-muted">{row.tenderDescription}</p>
+        ) : null}
+      </div>
+    ),
+  },
   { key: "totalValueExVat", header: "Value", render: (value) => money(value) },
   { key: "endsOn", header: "Closes", render: (value) => closes(value) },
   cameInColumn<ProspectOpportunityRow>("createdAt"),

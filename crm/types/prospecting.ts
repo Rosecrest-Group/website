@@ -48,6 +48,7 @@ export type ProspectOpportunityRow = {
   scoreTotal: number | null;
   scoreBand: string | null;
   tenderTitle?: string | null;
+  tenderDescription?: string | null;
   totalValueExVat?: number | null;
   endsOn?: string | null;
   portalUrl?: string | null;
@@ -233,6 +234,7 @@ export type ProspectCard = {
     currentNoticePublishedAt: string | null;
     totalValueExVat: number | null;
     portalUrl: string | null;
+    description: string | null;
     contact: { name: string; email: string | null; sourceScope: string | null } | null;
     lots: {
       lotRef: string;

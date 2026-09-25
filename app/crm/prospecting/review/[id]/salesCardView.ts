@@ -39,6 +39,7 @@ export type SalesCardView = {
   value: string;
   framework: string;
   procurement: string;
+  notice: string | null;
   network: string;
   standingLines: string[];
 };
@@ -162,6 +163,7 @@ export function toSalesCard(card: ProspectCard): SalesCardView {
     value: valueLine(card),
     framework: frameworkLine(card),
     procurement: procurementLine(card),
+    notice: card.procurement?.description?.trim() || null,
     network: networkLine(card),
     standingLines: standingLines(card),
   };
