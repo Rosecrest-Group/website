@@ -123,6 +123,7 @@ export default function FindFirmsPage() {
   const [rows, setRows] = useState<ProspectOpportunityRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [contactFilter, setContactFilter] = useState("email");
   const [loading, setLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(true);
   const [activeRun, setActiveRun] = useState<ProspectingRunSummary | null>(null);
@@ -136,11 +137,12 @@ export default function FindFirmsPage() {
       workflow: "sales",
       lane: lane || undefined,
       status: "draft,in_review,routed",
+      hasContact: contactFilter === "email",
       page,
     });
     setRows(listed.items);
     setTotal(listed.total);
-  }, [query, lane, page]);
+  }, [query, lane, page, contactFilter]);
 
   useEffect(() => {
     setLoading(true);
@@ -337,7 +339,25 @@ export default function FindFirmsPage() {
           pageSize={PAGE_SIZE}
           onPageChange={setPage}
           loading={loading}
-          emptyMessage="No firms yet. Choose a lane and search."
+          emptyMessage={
+            contactFilter === "email"
+              ? "No firms with a published email. Switch to All firms to see the rest."
+              : "No firms yet. Choose a lane and search."
+          }
+          toolbarExtra={
+            <SelectField
+              variant="filter"
+              aria-label="Contacts"
+              value={contactFilter}
+              onChange={(e) => {
+                setContactFilter(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="email">With email</option>
+              <option value="all">All firms</option>
+            </SelectField>
+          }
           getRowKey={(row) => row.id}
           onRowClick={(row) => router.push(`/crm/prospecting/review/${row.id}`)}
         />

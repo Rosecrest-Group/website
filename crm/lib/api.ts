@@ -1608,7 +1608,7 @@ export const api = {
       body: JSON.stringify({ kind, ...extra }),
     }),
 
-  listProspectingOpportunities: (params?: { page?: number; search?: string; status?: string; workflow?: string; lane?: string; decision?: string }) => {
+  listProspectingOpportunities: (params?: { page?: number; search?: string; status?: string; workflow?: string; lane?: string; decision?: string; hasContact?: boolean }) => {
     const qs = new URLSearchParams();
     if (params?.page) qs.set("page", String(params.page));
     if (params?.search) qs.set("search", params.search);
@@ -1616,6 +1616,7 @@ export const api = {
     if (params?.workflow) qs.set("workflow", params.workflow);
     if (params?.lane) qs.set("lane", params.lane);
     if (params?.decision) qs.set("decision", params.decision);
+    if (params?.hasContact) qs.set("hasContact", "1");
     const suffix = qs.size ? `?${qs}` : "";
     return request<import("@/crm/types/prospecting").ProspectingListResponse<import("@/crm/types/prospecting").ProspectOpportunityRow>>(
       `/prospecting/opportunities${suffix}`,
