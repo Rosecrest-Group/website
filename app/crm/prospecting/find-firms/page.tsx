@@ -104,7 +104,13 @@ function reportLine(report: unknown): string | null {
   const warnings = Array.isArray(discovery.warnings)
     ? discovery.warnings.filter((w): w is string => typeof w === "string")
     : [];
-  const parts = [accounts != null ? `Done: ${accounts} firm${accounts === 1 ? "" : "s"} found` : null];
+  const parts = [
+    accounts == null
+      ? null
+      : accounts === 0
+        ? "Done: no new firms. Firms already saved were skipped."
+        : `Done: ${accounts} new firm${accounts === 1 ? "" : "s"} added`,
+  ];
   if (sra?.skipped) parts.push(sra.skipped);
   parts.push(...warnings);
   const error = (report as { error?: string }).error;
@@ -123,7 +129,7 @@ export default function FindFirmsPage() {
   const [rows, setRows] = useState<ProspectOpportunityRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [contactFilter, setContactFilter] = useState("email");
+  const [contactFilter, setContactFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(true);
   const [activeRun, setActiveRun] = useState<ProspectingRunSummary | null>(null);
