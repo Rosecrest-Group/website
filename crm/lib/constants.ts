@@ -77,6 +77,7 @@ export type CrmNavItem = {
   label: string;
   href: string;
   badge?: number;
+  children?: CrmNavItem[];
 };
 
 export type CrmNavSection = {
@@ -93,12 +94,25 @@ export const CRM_NAV_SECTIONS: CrmNavSection[] = [
       { label: "Pipeline", href: `${CRM_BASE_PATH}/pipeline` },
       { label: "Inbox", href: `${CRM_BASE_PATH}/inbox` },
       { label: "Calls", href: `${CRM_BASE_PATH}/calls` },
-      { label: "Contacts", href: `${CRM_BASE_PATH}/customers` },
       { label: "Leads", href: `${CRM_BASE_PATH}/leads` },
       { label: "Jobs", href: `${CRM_BASE_PATH}/jobs` },
       { label: "Tasks", href: `${CRM_BASE_PATH}/tasks` },
-      { label: "Schedule", href: `${CRM_BASE_PATH}/schedule` },
-      { label: "Email campaigns", href: `${CRM_BASE_PATH}/email-campaigns` },
+      {
+        label: "Contacts",
+        href: `${CRM_BASE_PATH}/customers`,
+        children: [
+          { label: "Contacts", href: `${CRM_BASE_PATH}/customers` },
+          { label: "Companies", href: `${CRM_BASE_PATH}/companies` },
+        ],
+      },
+      {
+        label: "Email campaigns",
+        href: `${CRM_BASE_PATH}/email-campaigns`,
+        children: [
+          { label: "Campaigns", href: `${CRM_BASE_PATH}/email-campaigns` },
+          { label: "Lists", href: `${CRM_BASE_PATH}/email-campaigns/lists` },
+        ],
+      },
     ],
   },
   {

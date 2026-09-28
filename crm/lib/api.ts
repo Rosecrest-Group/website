@@ -973,6 +973,19 @@ export const api = {
 
     request<Customer & { leads: Lead[]; jobs: Job[] }>(`/customers/${id}`),
 
+  listCompanies: (params?: Record<string, string>) => {
+    const qs = params ? `?${new URLSearchParams(params)}` : "";
+    return request<Paginated<import("@/crm/types").CrmCompanyRow>>(`/companies${qs}`);
+  },
+
+  getCompany: (id: string) => request<import("@/crm/types").CrmCompanyDetail>(`/companies/${id}`),
+
+  deleteCompanyContacts: (id: string, contactIds: string[]) =>
+    request<{ deleted: number; blocked: string[] }>(`/companies/${encodeURIComponent(id)}/contacts`, {
+      method: "DELETE",
+      body: JSON.stringify({ contactIds }),
+    }),
+
 
 
   listJobs: (params?: Record<string, string>) => {
@@ -1608,9 +1621,10 @@ export const api = {
       body: JSON.stringify({ kind, ...extra }),
     }),
 
-  listProspectingOpportunities: (params?: { page?: number; search?: string; status?: string; workflow?: string; lane?: string; decision?: string; hasContact?: boolean }) => {
+  listProspectingOpportunities: (params?: { page?: number; limit?: number; search?: string; status?: string; workflow?: string; lane?: string; decision?: string; hasContact?: boolean }) => {
     const qs = new URLSearchParams();
     if (params?.page) qs.set("page", String(params.page));
+    if (params?.limit) qs.set("limit", String(params.limit));
     if (params?.search) qs.set("search", params.search);
     if (params?.status) qs.set("status", params.status);
     if (params?.workflow) qs.set("workflow", params.workflow);
@@ -1666,6 +1680,68 @@ export const api = {
 
   exportProspecting: (type: "accounts" | "opportunities" | "evidence" | "frameworks" | "contacts") =>
     request<{ type: string; rows: Record<string, unknown>[] }>(`/prospecting/export/${type}`),
+
+  listContactLists: (params?: { page?: number; search?: string; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.search) qs.set("search", params.search);
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const suffix = qs.size ? `?${qs}` : "";
+    return request<import("@/crm/types/prospecting").ProspectingListResponse<import("@/crm/types/prospecting").ContactListRow>>(
+      `/prospecting/lists${suffix}`,
+    );
+  },
+
+  createContactList: (name: string) =>
+    request<import("@/crm/types/prospecting").ContactListRow>("/prospecting/lists", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+
+  getContactList: (id: string, params?: { page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const suffix = qs.size ? `?${qs}` : "";
+    return request<import("@/crm/types/prospecting").ContactListDetail>(
+      `/prospecting/lists/${encodeURIComponent(id)}${suffix}`,
+    );
+  },
+
+  updateContactList: (id: string, name: string) =>
+    request<import("@/crm/types/prospecting").ContactListRow>(`/prospecting/lists/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
+
+  deleteContactList: (id: string) =>
+    request<{ id: string }>(`/prospecting/lists/${encodeURIComponent(id)}`, { method: "DELETE" }),
+
+  cloneContactList: (id: string) =>
+    request<import("@/crm/types/prospecting").ContactListRow>(`/prospecting/lists/${encodeURIComponent(id)}/clone`, {
+      method: "POST",
+    }),
+
+  addContactListMemberships: (body: { listId?: string; name?: string; opportunityIds: string[] }) =>
+    request<import("@/crm/types/prospecting").ContactListAddResult>("/prospecting/lists/memberships", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  addContactListMembers: (listId: string, customerIds: string[]) =>
+    request<{ added: number; alreadyMembers: number; missing: number }>(
+      `/prospecting/lists/${encodeURIComponent(listId)}/members`,
+      { method: "POST", body: JSON.stringify({ customerIds }) },
+    ),
+
+  removeContactListMembers: (listId: string, memberIds: string[]) =>
+    request<{ removed: number }>(`/prospecting/lists/${encodeURIComponent(listId)}/members`, {
+      method: "DELETE",
+      body: JSON.stringify({ memberIds }),
+    }),
+
+  exportContactList: (id: string) =>
+    request<{ filename: string; csv: string }>(`/prospecting/lists/${encodeURIComponent(id)}/export`),
 
   listCampaigns: (
     page = 1,

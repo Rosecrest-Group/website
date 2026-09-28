@@ -6,6 +6,7 @@ import { api } from "@/crm/lib/api";
 import { LEAD_SOURCES, LEAD_STAGE_LABELS } from "@/crm/lib/constants";
 import type { CampaignSelection } from "@/crm/types/campaigns";
 import type { Lead } from "@/crm/types";
+import type { ContactListRow } from "@/crm/types/prospecting";
 import { cn } from "@/lib/utils";
 
 const STAGES = Object.entries(LEAD_STAGE_LABELS);
@@ -20,6 +21,7 @@ export function selectionKey(selection: CampaignSelection): string {
   if (selection.kind === "stage") return `stage:${selection.stage}`;
   if (selection.kind === "source") return `source:${selection.source}`;
   if (selection.kind === "email") return `email:${selection.email}`;
+  if (selection.kind === "contactList") return `contactList:${selection.id}`;
   return `lead:${selection.id}`;
 }
 
@@ -30,6 +32,7 @@ export function selectionLabel(selection: CampaignSelection): string {
     return LEAD_SOURCES.find((row) => row.value === selection.source)?.label ?? selection.source;
   }
   if (selection.kind === "email") return selection.email;
+  if (selection.kind === "contactList") return selection.label;
   return selection.label;
 }
 
@@ -67,12 +70,14 @@ function selectionTotal(
     all: number;
     stages: Record<string, number>;
     sources: Record<string, number>;
+    contactLists: Record<string, number>;
   } | null,
 ): number | null {
   if (!counts) return null;
   if (selection.kind === "list") return selection.list === "all" ? counts.all : counts.active;
   if (selection.kind === "stage") return counts.stages[selection.stage] ?? 0;
   if (selection.kind === "source") return counts.sources[selection.source] ?? 0;
+  if (selection.kind === "contactList") return counts.contactLists[selection.id] ?? null;
   return 1;
 }
 
@@ -133,7 +138,9 @@ export default function CampaignLeadPicker({
     all: number;
     stages: Record<string, number>;
     sources: Record<string, number>;
+    contactLists: Record<string, number>;
   } | null>(null);
+  const [namedLists, setNamedLists] = useState<ContactListRow[]>([]);
 
   function closeList() {
     setOpen(false);
@@ -142,10 +149,16 @@ export default function CampaignLeadPicker({
 
   useEffect(() => {
     let cancelled = false;
-    api
-      .getLeadCounts()
-      .then((row) => {
-        if (!cancelled) setCounts(row);
+    Promise.all([
+      api.getLeadCounts(),
+      api.listContactLists({ limit: 100 }).catch(() => ({ items: [] as ContactListRow[] })),
+    ])
+      .then(([row, listed]) => {
+        if (cancelled) return;
+        const contactLists: Record<string, number> = {};
+        for (const item of listed.items) contactLists[item.id] = item.memberCount;
+        setNamedLists(listed.items);
+        setCounts({ ...row, contactLists });
       })
       .catch(() => {
         if (!cancelled) setCounts(null);
@@ -194,6 +207,11 @@ export default function CampaignLeadPicker({
   const normalized = query.trim().toLowerCase();
 
   const lists = LISTS.filter((row) => !normalized || row.label.toLowerCase().includes(normalized));
+  const named = namedLists.filter(
+    (row) =>
+      !selectedKeys.has(`contactList:${row.id}`) &&
+      (!normalized || row.name.toLowerCase().includes(normalized)),
+  );
   const stages = STAGES.filter(([, label]) => !normalized || label.toLowerCase().includes(normalized));
   const sources = LEAD_SOURCES.filter((row) => !normalized || row.label.toLowerCase().includes(normalized));
   const people = leads.filter((lead) => !selectedKeys.has(`lead:${lead.id}`));
@@ -231,7 +249,13 @@ export default function CampaignLeadPicker({
     onChange(value.filter((row) => selectionKey(row) !== key));
   }
 
-  const noMatches = lists.length === 0 && stages.length === 0 && sources.length === 0 && people.length === 0 && !loading;
+  const noMatches =
+    lists.length === 0 &&
+    named.length === 0 &&
+    stages.length === 0 &&
+    sources.length === 0 &&
+    people.length === 0 &&
+    !loading;
 
   return (
     <div ref={rootRef}>
@@ -336,6 +360,23 @@ export default function CampaignLeadPicker({
                       title={row.label}
                       description={row.description}
                       onClick={() => toggle({ kind: "list", list: row.list })}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {named.length > 0 ? (
+              <div>
+                <p className="px-2 pb-1 text-xs font-medium uppercase tracking-wide text-ink-subtle">Named lists</p>
+                <div className="space-y-1">
+                  {named.map((row) => (
+                    <OptionButton
+                      key={row.id}
+                      selected={selectedKeys.has(`contactList:${row.id}`)}
+                      title={row.name}
+                      description={`${row.memberCount} contact${row.memberCount === 1 ? "" : "s"}`}
+                      onClick={() => toggle({ kind: "contactList", id: row.id, label: row.name })}
                     />
                   ))}
                 </div>

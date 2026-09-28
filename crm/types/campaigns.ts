@@ -28,7 +28,8 @@ export type CampaignSelection =
   | { kind: "stage"; stage: string }
   | { kind: "source"; source: string }
   | { kind: "lead"; id: string; label: string }
-  | { kind: "email"; email: string };
+  | { kind: "email"; email: string }
+  | { kind: "contactList"; id: string; label: string };
 
 export type CampaignAttachment = {
   url: string;

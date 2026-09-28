@@ -17,6 +17,7 @@ import {
   Funnel,
   GitBranch,
   Inbox,
+  List,
   Mail,
   LayoutDashboard,
   Phone,
@@ -48,7 +49,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CRM_BASE_PATH, CRM_LEGACY_PATH } from "@/crm/lib/constants";
+import { CRM_BASE_PATH, CRM_LEGACY_PATH, type CrmNavItem } from "@/crm/lib/constants";
 import { api, logout } from "@/crm/lib/api";
 import { canAccessAdminSettings, navSectionsForRole } from "@/crm/lib/rbac";
 import { useInboxUnreadCount } from "@/crm/lib/useInboxUnreadCount";
@@ -66,6 +67,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   conversations: MessagesSquare,
   team: UserCog,
   customers: Users,
+  companies: Building2,
   leads: UserPlus,
   jobs: FileText,
   tasks: CheckSquare,
@@ -83,6 +85,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   "legacy-opportunities": Target,
   "legacy-inbox": Inbox,
   "find-firms": Search,
+  lists: List,
   "prospect-review": ClipboardCheck,
   funnels: Funnel,
   prospecting: Building2,
@@ -96,11 +99,13 @@ const HREF_ICON: Record<string, string> = {
   [`${CRM_BASE_PATH}/conversations`]: "conversations",
   [`${CRM_BASE_PATH}/settings/team`]: "team",
   [`${CRM_BASE_PATH}/customers`]: "customers",
+  [`${CRM_BASE_PATH}/companies`]: "companies",
   [`${CRM_BASE_PATH}/leads`]: "leads",
   [`${CRM_BASE_PATH}/jobs`]: "jobs",
   [`${CRM_BASE_PATH}/tasks`]: "tasks",
   [`${CRM_BASE_PATH}/schedule`]: "schedule",
   [`${CRM_BASE_PATH}/email-campaigns`]: "email-campaigns",
+  [`${CRM_BASE_PATH}/email-campaigns/lists`]: "lists",
   [`${CRM_BASE_PATH}/workflows`]: "workflows",
   [`${CRM_BASE_PATH}/templates`]: "templates",
   [`${CRM_BASE_PATH}/analytics`]: "analytics",
@@ -123,9 +128,91 @@ const SIDEBAR_SECTIONS_EVENT = "crm-sidebar-sections";
 const SIDEBAR_COLLAPSE_EASE = "duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]";
 const SECTION_COLLAPSE_EASE = "duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]";
 
-function isActive(pathname: string, href: string) {
+function isActive(pathname: string, href: string, moreSpecific: string[] = []) {
   if (href === CRM_BASE_PATH) return pathname === CRM_BASE_PATH;
-  return pathname.startsWith(href);
+  if (!pathname.startsWith(href)) return false;
+  return !moreSpecific.some(
+    (other) => other !== href && other.length > href.length && pathname.startsWith(other),
+  );
+}
+
+function NavLink({
+  item,
+  pathname,
+  railCollapsed,
+  onNavigate,
+  nested = false,
+  siblingHrefs = [],
+  badge,
+}: {
+  item: CrmNavItem;
+  pathname: string;
+  railCollapsed: boolean;
+  onNavigate?: () => void;
+  nested?: boolean;
+  siblingHrefs?: string[];
+  badge?: number;
+}) {
+  const active = isActive(pathname, item.href, siblingHrefs);
+  const iconName = HREF_ICON[item.href] ?? "dashboard";
+  const Icon = NAV_ICONS[iconName] ?? LayoutDashboard;
+  const showBadge = badge !== undefined && badge > 0;
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      onMouseEnter={() => {
+        if (item.href === `${CRM_BASE_PATH}/pipeline`) void prefetchLeadBoard();
+      }}
+      title={railCollapsed ? item.label : undefined}
+      className={cn(
+        "group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors duration-200",
+        nested && "pl-4",
+        active
+          ? "bg-white font-medium text-ink shadow-[0_0_0_1px_var(--color-line)]"
+          : "font-normal text-ink-muted hover:bg-black/4 hover:text-ink",
+      )}
+    >
+      <span
+        className={cn(
+          "relative flex size-6 shrink-0 items-center justify-center rounded-md transition-colors duration-200",
+          active
+            ? "bg-brand-muted text-brand"
+            : "text-ink-subtle group-hover:bg-white/60 group-hover:text-ink",
+        )}
+      >
+        <Icon className="size-[14px]" strokeWidth={1.75} />
+        {showBadge ? (
+          <span
+            className={cn(
+              "absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-brand transition-opacity duration-200",
+              railCollapsed ? "opacity-100" : "opacity-0",
+            )}
+          />
+        ) : null}
+      </span>
+      <span
+        className={cn(
+          "min-w-0 flex-1 truncate whitespace-nowrap transition-opacity duration-200",
+          railCollapsed && "opacity-0",
+        )}
+      >
+        {item.label}
+      </span>
+      {showBadge ? (
+        <span
+          className={cn(
+            "rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none whitespace-nowrap text-white transition-opacity duration-200",
+            active ? "bg-brand" : "bg-ink",
+            railCollapsed && "opacity-0",
+          )}
+        >
+          {badge > 99 ? "99+" : badge}
+        </span>
+      ) : null}
+    </Link>
+  );
 }
 
 function readSidebarCollapsed() {
@@ -233,6 +320,7 @@ export default function CrmSidebar({
     getCollapsedSectionsServerSnapshot,
   );
   const [sectionAnimReady, setSectionAnimReady] = useState(false);
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
   const [user, setUser] = useState<ApiUser | null>(
     () => initialUser ?? getCachedApiUser(),
   );
@@ -376,9 +464,6 @@ export default function CrmSidebar({
                       )}
                     >
                       {section.items.map((item) => {
-                        const active = isActive(pathname, item.href);
-                        const iconName = HREF_ICON[item.href] ?? "dashboard";
-                        const Icon = NAV_ICONS[iconName] ?? LayoutDashboard;
                         const liveUnread =
                           item.href === teamChatHref
                             ? teamChatUnread
@@ -386,61 +471,75 @@ export default function CrmSidebar({
                               ? inboxUnread
                               : 0;
                         const badge = liveUnread > 0 ? liveUnread : item.badge;
+                        const children = item.children;
+                        if (!children?.length || railCollapsed) {
+                          return (
+                            <NavLink
+                              key={`${item.href}-${item.label}`}
+                              item={item}
+                              pathname={pathname}
+                              railCollapsed={railCollapsed}
+                              onNavigate={onNavigate}
+                              badge={badge}
+                            />
+                          );
+                        }
+
+                        const routeOpen =
+                          pathname.startsWith(item.href) ||
+                          children.some(
+                            (child) =>
+                              pathname === child.href || pathname.startsWith(`${child.href}/`),
+                          );
+                        const open = openMenus[item.href] ?? routeOpen;
+                        const iconName = HREF_ICON[item.href] ?? "dashboard";
+                        const Icon = NAV_ICONS[iconName] ?? LayoutDashboard;
+                        const siblingHrefs = children.map((child) => child.href);
 
                         return (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            onClick={onNavigate}
-                            onMouseEnter={() => {
-                              if (item.href === `${CRM_BASE_PATH}/pipeline`) void prefetchLeadBoard();
-                            }}
-                            title={railCollapsed ? item.label : undefined}
-                            className={cn(
-                              "group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors duration-200",
-                              active
-                                ? "bg-white font-medium text-ink shadow-[0_0_0_1px_var(--color-line)]"
-                                : "font-normal text-ink-muted hover:bg-black/4 hover:text-ink",
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                "relative flex size-6 shrink-0 items-center justify-center rounded-md transition-colors duration-200",
-                                active
-                                  ? "bg-brand-muted text-brand"
-                                  : "text-ink-subtle group-hover:bg-white/60 group-hover:text-ink",
-                              )}
+                          <div key={`${item.href}-${item.label}`}>
+                            <button
+                              type="button"
+                              aria-expanded={open}
+                              onClick={() =>
+                                setOpenMenus((current) => ({ ...current, [item.href]: !open }))
+                              }
+                              className="group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm font-normal text-ink-muted transition-colors duration-200 hover:bg-black/4 hover:text-ink"
                             >
-                              <Icon className="size-[14px]" strokeWidth={1.75} />
-                              {badge !== undefined && badge > 0 ? (
-                                <span
-                                  className={cn(
-                                    "absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-brand transition-opacity duration-200",
-                                    railCollapsed ? "opacity-100" : "opacity-0",
-                                  )}
-                                />
-                              ) : null}
-                            </span>
-                            <span
-                              className={cn(
-                                "min-w-0 flex-1 truncate whitespace-nowrap transition-opacity duration-200",
-                                railCollapsed && "opacity-0",
-                              )}
-                            >
-                              {item.label}
-                            </span>
-                            {badge !== undefined && badge > 0 ? (
-                              <span
-                                className={cn(
-                                  "rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none whitespace-nowrap text-white transition-opacity duration-200",
-                                  active ? "bg-brand" : "bg-ink",
-                                  railCollapsed && "opacity-0",
-                                )}
-                              >
-                                {badge > 99 ? "99+" : badge}
+                              <span className="relative flex size-6 shrink-0 items-center justify-center rounded-md text-ink-subtle transition-colors duration-200 group-hover:bg-white/60 group-hover:text-ink">
+                                <Icon className="size-[14px]" strokeWidth={1.75} />
                               </span>
-                            ) : null}
-                          </Link>
+                              <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                              <ChevronDown
+                                className={cn(
+                                  `size-3 shrink-0 transition-transform ${SECTION_COLLAPSE_EASE}`,
+                                  !open && "-rotate-90",
+                                )}
+                                strokeWidth={2}
+                              />
+                            </button>
+                            <div
+                              className={cn(
+                                "grid",
+                                sectionAnimReady && `transition-[grid-template-rows] ${SECTION_COLLAPSE_EASE}`,
+                                open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                              )}
+                            >
+                              <div className="min-h-0 overflow-hidden">
+                                {children.map((child) => (
+                                  <NavLink
+                                    key={child.href === item.href ? `${child.href}-${child.label}` : child.href}
+                                    item={child}
+                                    pathname={pathname}
+                                    railCollapsed={false}
+                                    onNavigate={onNavigate}
+                                    nested
+                                    siblingHrefs={siblingHrefs}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
                         );
                       })}
                     </div>

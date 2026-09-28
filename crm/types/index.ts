@@ -522,6 +522,31 @@ export interface Customer {
   updatedAt: string;
   _count?: { leads: number; jobs: number };
   latestLead?: { id: string; source: string; stage: string } | null;
+  listMemberships?: { id: string; name: string; addedAt: string }[];
+  accountId?: string | null;
+}
+
+export interface CrmCompanyRow {
+  id: string;
+  legalName: string;
+  companyNumber: string | null;
+  domain: string | null;
+  lane: string;
+  contactCount: number;
+}
+
+export interface CrmCompanyDetail extends CrmCompanyRow {
+  standingGrade: string;
+  address: string | null;
+  contacts: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    roleTitle: string | null;
+  }[];
+  lists: { id: string; name: string; addedAt: string }[];
 }
 
 export interface LeadTag {

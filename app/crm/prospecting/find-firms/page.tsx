@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { api } from "@/crm/lib/api";
 import type { ProspectOpportunityRow, ProspectingRunSummary } from "@/crm/types/prospecting";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
@@ -16,13 +17,14 @@ import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import Table, { type Column } from "@/crm/components/ui/Table";
 import StatusPill from "@/crm/components/ui/StatusPill";
 import { cameInColumn, describeProspectingRun } from "@/crm/components/prospecting/ProspectingListClient";
+import AddToListModal, { membershipToast } from "@/crm/components/prospecting/AddToListModal";
 import { formatProspectLane, PROSPECT_LANE_OPTIONS } from "../review/[id]/salesCardView";
 
 const LANES = [{ id: "", label: "Choose a lane" }, ...PROSPECT_LANE_OPTIONS];
 const FOLD_EASE = "duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
 const POLL_MS = 3000;
 const STALE_RUN_MS = 2 * 60 * 60 * 1000;
-const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [50, 100, 200] as const;
 
 type RunProgress = { step?: string; saved?: number; done?: number; total?: number };
 
@@ -108,8 +110,8 @@ function reportLine(report: unknown): string | null {
     accounts == null
       ? null
       : accounts === 0
-        ? "Done: no new firms. Firms already saved were skipped."
-        : `Done: ${accounts} new firm${accounts === 1 ? "" : "s"} added`,
+        ? "Done: no new firms with an email. Firms already saved were skipped."
+        : `Done: ${accounts} new firm${accounts === 1 ? "" : "s"} with an email`,
   ];
   if (sra?.skipped) parts.push(sra.skipped);
   parts.push(...warnings);
@@ -129,7 +131,11 @@ export default function FindFirmsPage() {
   const [rows, setRows] = useState<ProspectOpportunityRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [contactFilter, setContactFilter] = useState("all");
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(50);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addIds, setAddIds] = useState<string[]>([]);
+  const [contactFilter, setContactFilter] = useState("email");
   const [loading, setLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(true);
   const [activeRun, setActiveRun] = useState<ProspectingRunSummary | null>(null);
@@ -145,10 +151,11 @@ export default function FindFirmsPage() {
       status: "draft,in_review,routed",
       hasContact: contactFilter === "email",
       page,
+      limit: pageSize,
     });
     setRows(listed.items);
     setTotal(listed.total);
-  }, [query, lane, page, contactFilter]);
+  }, [query, lane, page, pageSize, contactFilter]);
 
   useEffect(() => {
     setLoading(true);
@@ -294,6 +301,7 @@ export default function FindFirmsPage() {
                   onChange={(e) => {
                     setLane(e.target.value);
                     setPage(1);
+                    setSelectedIds([]);
                   }}
                 >
                   {LANES.map((item) => (
@@ -314,6 +322,7 @@ export default function FindFirmsPage() {
                   onChange={(e) => {
                     setQuery(e.target.value);
                     setPage(1);
+                    setSelectedIds([]);
                   }}
                   placeholder="e.g. Montas Solicitors"
                 />
@@ -342,8 +351,18 @@ export default function FindFirmsPage() {
           data={rows}
           totalCount={total}
           page={page}
-          pageSize={PAGE_SIZE}
+          pageSize={pageSize}
+          pageSizeOptions={[...PAGE_SIZE_OPTIONS]}
           onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            if (PAGE_SIZE_OPTIONS.includes(size as (typeof PAGE_SIZE_OPTIONS)[number])) {
+              setPageSize(size as (typeof PAGE_SIZE_OPTIONS)[number]);
+            }
+            setPage(1);
+          }}
+          selectable
+          selectedKeys={selectedIds}
+          onSelectionChange={(keys) => setSelectedIds(keys.map(String))}
           loading={loading}
           emptyMessage={
             contactFilter === "email"
@@ -351,23 +370,42 @@ export default function FindFirmsPage() {
               : "No firms yet. Choose a lane and search."
           }
           toolbarExtra={
-            <SelectField
-              variant="filter"
-              aria-label="Contacts"
-              value={contactFilter}
-              onChange={(e) => {
-                setContactFilter(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="email">With email</option>
-              <option value="all">All firms</option>
-            </SelectField>
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedIds.length > 0 ? (
+                <PrimaryButton type="button" className="w-auto" onClick={() => { setAddIds(selectedIds); setAddOpen(true); }}>
+                  Add to list ({selectedIds.length})
+                </PrimaryButton>
+              ) : null}
+              <SelectField
+                variant="filter"
+                aria-label="Contacts"
+                value={contactFilter}
+                onChange={(e) => {
+                  setContactFilter(e.target.value);
+                  setPage(1);
+                  setSelectedIds([]);
+                }}
+              >
+                <option value="email">With email</option>
+                <option value="all">All firms</option>
+              </SelectField>
+            </div>
           }
           getRowKey={(row) => row.id}
           onRowClick={(row) => router.push(`/crm/prospecting/review/${row.id}`)}
         />
       )}
+      <AddToListModal
+        open={addOpen}
+        opportunityIds={addIds}
+        onClose={() => setAddOpen(false)}
+        onAdded={(result) => {
+          setAddOpen(false);
+          setSelectedIds([]);
+          toast.success(membershipToast(result));
+          router.push(`/crm/email-campaigns/lists/${result.list.id}`);
+        }}
+      />
     </CrmPageContent>
   );
 }

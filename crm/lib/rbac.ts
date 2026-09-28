@@ -153,7 +153,7 @@ function pathAllowed(role: UserRole, pathname: string): boolean {
   ) {
     return canReadLeads(role);
   }
-  if (pathname.startsWith(`${CRM_BASE_PATH}/customers`)) {
+  if (pathname.startsWith(`${CRM_BASE_PATH}/customers`) || pathname.startsWith(`${CRM_BASE_PATH}/companies`)) {
     return canAccessCustomerDirectory(role);
   }
   if (pathname.startsWith(`${CRM_BASE_PATH}/prospecting`)) {
@@ -215,6 +215,14 @@ export function navSectionsForRole(role: UserRole | null | undefined): CrmNavSec
 
   return CRM_NAV_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter((item) => canAccessCrmPath(role, item.href)),
+    items: section.items
+      .filter((item) => canAccessCrmPath(role, item.href))
+      .map((item) => {
+        const children = item.children?.filter((child) => canAccessCrmPath(role, child.href));
+        if (!children?.length) {
+          return { label: item.label, href: item.href, badge: item.badge };
+        }
+        return { ...item, children };
+      }),
   })).filter((section) => section.items.length > 0);
 }

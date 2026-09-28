@@ -2,9 +2,10 @@
 
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import ActionDropdown, { type DropdownAction } from "./ActionDropdown";
 import Pagination from "./Pagination";
+import SelectField from "./SelectField";
 
 export type Column<T> = {
   key: keyof T | string;
@@ -47,10 +48,51 @@ export type TableProps<T> = {
   page?: number;
   pageSize?: number;
   onPageChange?: (page: number) => void;
+  /** Page-size choices shown next to pagination */
+  pageSizeOptions?: number[];
+  onPageSizeChange?: (size: number) => void;
+  /** Row checkboxes plus a header select-all for the current page */
+  selectable?: boolean;
+  /** Which edge the checkbox column sits on */
+  selectionSide?: "left" | "right";
+  selectedKeys?: Array<string | number>;
+  onSelectionChange?: (keys: Array<string | number>) => void;
   /** Keep rows visible but dimmed while refetching (stale-while-revalidate) */
   loading?: boolean;
   className?: string;
 };
+
+function TableCheckbox({
+  checked,
+  indeterminate = false,
+  disabled = false,
+  ariaLabel,
+  onChange,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  disabled?: boolean;
+  ariaLabel: string;
+  onChange: (checked: boolean) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate && !checked;
+  }, [checked, indeterminate]);
+
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      onChange={(event) => onChange(event.target.checked)}
+      onClick={(event) => event.stopPropagation()}
+      className="size-4 cursor-pointer rounded border-line text-brand accent-brand focus:ring-2 focus:ring-brand-muted disabled:cursor-not-allowed"
+    />
+  );
+}
 
 function TableSearch({
   value,
@@ -100,6 +142,12 @@ export default function Table<T extends Record<string, unknown>>({
   page,
   pageSize,
   onPageChange,
+  pageSizeOptions,
+  onPageSizeChange,
+  selectable = false,
+  selectionSide = "left",
+  selectedKeys,
+  onSelectionChange,
   loading = false,
   className,
 }: TableProps<T>) {
@@ -121,8 +169,55 @@ export default function Table<T extends Record<string, unknown>>({
     onPageChange != null ? Math.max(1, Math.ceil(total / size)) : 1;
   const rangeStart = total === 0 ? 0 : (currentPage - 1) * size + 1;
   const rangeEnd = total === 0 ? 0 : Math.min(currentPage * size, total);
-  const showFooter = showToolbar || onPageChange != null;
-  const colSpan = columns.length + (actions && actions.length > 0 ? 1 : 0);
+  const showPageSize = Boolean(pageSizeOptions?.length && onPageSizeChange);
+  const showFooter = showToolbar || onPageChange != null || showPageSize;
+  const colSpan =
+    columns.length +
+    (actions && actions.length > 0 ? 1 : 0) +
+    (selectable ? 1 : 0);
+  const selected = new Set((selectedKeys ?? []).map((key) => String(key)));
+  const pageKeys = data.map((row, index) =>
+    String(getRowKey ? getRowKey(row, index) : index),
+  );
+  const selectedOnPage = pageKeys.filter((key) => selected.has(key));
+  const allPageSelected = pageKeys.length > 0 && selectedOnPage.length === pageKeys.length;
+  const somePageSelected = selectedOnPage.length > 0 && !allPageSelected;
+
+  function setSelected(next: Set<string>) {
+    onSelectionChange?.(Array.from(next));
+  }
+
+  function toggleRow(key: string, checked: boolean) {
+    const next = new Set(selected);
+    if (checked) next.add(key);
+    else next.delete(key);
+    setSelected(next);
+  }
+
+  function togglePage(checked: boolean) {
+    const next = new Set(selected);
+    for (const key of pageKeys) {
+      if (checked) next.add(key);
+      else next.delete(key);
+    }
+    setSelected(next);
+  }
+
+  const selectionOnRight = selectable && selectionSide === "right";
+  const selectionHeader = selectable ? (
+    <th
+      scope="col"
+      className={cn("w-10 px-3 py-3 sm:px-5", selectionOnRight ? "text-right" : "text-left")}
+    >
+      <TableCheckbox
+        checked={allPageSelected}
+        indeterminate={somePageSelected}
+        disabled={data.length === 0}
+        ariaLabel="Select all rows on this page"
+        onChange={togglePage}
+      />
+    </th>
+  ) : null;
 
   return (
     <section
@@ -171,6 +266,7 @@ export default function Table<T extends Record<string, unknown>>({
           {!hideHeader && (
             <thead>
               <tr className={cn("border-b border-line", headerClassName)}>
+                {selectionOnRight ? null : selectionHeader}
                 {columns.map((col) => (
                   <th
                     key={String(col.key)}
@@ -209,6 +305,7 @@ export default function Table<T extends Record<string, unknown>>({
                     Action
                   </th>
                 )}
+                {selectionOnRight ? selectionHeader : null}
               </tr>
             </thead>
           )}
@@ -225,6 +322,8 @@ export default function Table<T extends Record<string, unknown>>({
             ) : (
               data.map((row, rowIndex) => {
                 const key = getRowKey ? getRowKey(row, rowIndex) : rowIndex;
+                const keyStr = String(key);
+                const isSelected = selected.has(keyStr);
                 const customRowClass = rowClassName
                   ? rowClassName(row, rowIndex)
                   : "";
@@ -232,14 +331,30 @@ export default function Table<T extends Record<string, unknown>>({
                 return (
                   <tr
                     key={key}
+                    aria-selected={selectable ? isSelected : undefined}
                     onClick={() => onRowClick?.(row, rowIndex)}
                     onMouseEnter={() => onRowMouseEnter?.(row, rowIndex)}
                     className={cn(
-                      "border-b border-line last:border-b-0 transition-colors hover:bg-sidebar/60",
+                      "border-b border-line last:border-b-0 transition-colors duration-150 ease-out motion-reduce:transition-none",
                       onRowClick && "cursor-pointer",
+                      isSelected
+                        ? "bg-brand-muted hover:bg-brand-muted"
+                        : "hover:bg-sidebar/60",
                       customRowClass,
                     )}
                   >
+                    {selectable && !selectionOnRight ? (
+                      <td
+                        className="w-10 px-3 py-3 sm:px-5 sm:py-4"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <TableCheckbox
+                          checked={isSelected}
+                          ariaLabel="Select row"
+                          onChange={(checked) => toggleRow(keyStr, checked)}
+                        />
+                      </td>
+                    ) : null}
                     {columns.map((col) => {
                       const value = getCellValue(row, col.key);
                       const content = col.render
@@ -275,6 +390,18 @@ export default function Table<T extends Record<string, unknown>>({
                         />
                       </td>
                     )}
+                    {selectionOnRight ? (
+                      <td
+                        className="w-10 px-3 py-3 text-right sm:px-5 sm:py-4"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <TableCheckbox
+                          checked={isSelected}
+                          ariaLabel="Select row"
+                          onChange={(checked) => toggleRow(keyStr, checked)}
+                        />
+                      </td>
+                    ) : null}
                   </tr>
                 );
               })
@@ -290,14 +417,39 @@ export default function Table<T extends Record<string, unknown>>({
               ? "Showing 0 entries"
               : `Showing ${rangeStart} to ${rangeEnd} of ${total} entries`}
           </p>
-          {onPageChange != null ? (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={onPageChange}
-              label="Table pagination"
-              disabled={loading}
-            />
+          {showPageSize || onPageChange != null ? (
+            <div className="flex flex-wrap items-center gap-3">
+              {showPageSize && pageSizeOptions && onPageSizeChange ? (
+                <SelectField
+                  variant="filter"
+                  aria-label="Rows per page"
+                  value={String(size)}
+                  disabled={loading}
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    if (!Number.isFinite(next) || next === size) return;
+                    onPageSizeChange(next);
+                    onPageChange?.(1);
+                  }}
+                  className="w-auto min-w-18"
+                >
+                  {pageSizeOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </SelectField>
+              ) : null}
+              {onPageChange != null ? (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={onPageChange}
+                  label="Table pagination"
+                  disabled={loading}
+                />
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}

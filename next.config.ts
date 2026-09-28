@@ -42,6 +42,16 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      {
+        source: "/crm/prospecting/lists",
+        destination: "/crm/email-campaigns/lists",
+        permanent: true,
+      },
+      {
+        source: "/crm/prospecting/lists/:id",
+        destination: "/crm/email-campaigns/lists/:id",
+        permanent: true,
+      },
       { source: "/about-us", destination: "/about", permanent: true },
       { source: "/faq", destination: "/faqs", permanent: true },
       { source: "/contact-us", destination: "/contact", permanent: true },

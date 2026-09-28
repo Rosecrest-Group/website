@@ -36,6 +36,48 @@ export type ProspectingListResponse<T> = {
   limit?: number;
 };
 
+export type ContactListRow = {
+  id: string;
+  name: string;
+  memberCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ContactListMemberRow = {
+  id: string;
+  kind: "company" | "person";
+  accountId: string | null;
+  customerId: string | null;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  companyNumber: string | null;
+  domain: string | null;
+  contactCount: number;
+  addedAt: string;
+};
+
+export type ContactListDetail = ContactListRow & {
+  members: ContactListMemberRow[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+export type ContactListAddResult = {
+  list: ContactListRow;
+  added: number;
+  skipped: number;
+  alreadyMembers: number;
+};
+
+export type ContactListMembership = {
+  id: string;
+  name: string;
+  addedAt: string;
+};
+
 export type ProspectOpportunityRow = {
   id: string;
   legalName: string;
