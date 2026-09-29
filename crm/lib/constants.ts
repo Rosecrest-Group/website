@@ -207,11 +207,25 @@ export const LEAD_STAGE_LABELS: Record<string, string> = {
   FOLLOWING_UP: "Following up",
   AWAITING_PAYMENT: "Awaiting payment",
   PAUSED: "On hold",
+  IN_CONVERSATION: "In conversation",
   CONVERTED: "Won",
   LOST: "Lost",
 };
 
-/** Open pipeline: not won and not lost. Includes New even if no quote has been recorded. */
+export function returnToPipelineLabel(stage: string | null | undefined): string {
+  const label = stage ? LEAD_STAGE_LABELS[stage] : undefined;
+  if (
+    label &&
+    stage !== "IN_CONVERSATION" &&
+    stage !== "CONVERTED" &&
+    stage !== "LOST"
+  ) {
+    return `Return to ${label}`;
+  }
+  return "Return to New lead";
+}
+
+/** Open pipeline: not won, not lost, and not in conversation. */
 export const ACTIVE_LEAD_STAGES = [
   "NEW",
   "QUOTE_SENT",

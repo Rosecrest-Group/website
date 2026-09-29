@@ -13,6 +13,7 @@ import {
   LEAD_SOURCES,
   LEAD_STAGE_LABELS,
   LOST_REASON_OPTIONS,
+  returnToPipelineLabel,
   formatPropertyValueLabel,
   intakeMessageLabel,
   surveyLevelLabel,
@@ -154,6 +155,8 @@ export default function LeadDetail({
   const [lostReason, setLostReason] = useState(LOST_REASON_OPTIONS[0]?.value ?? "OTHER");
   const [lostReasonNote, setLostReasonNote] = useState("");
   const [markingLost, setMarkingLost] = useState(false);
+  const [conversationMove, setConversationMove] = useState<"enter" | "return" | null>(null);
+  const [conversationError, setConversationError] = useState<string | null>(null);
   const [stoppingAutomation, setStoppingAutomation] = useState(false);
   const [moveToPaidConfirmOpen, setMoveToPaidConfirmOpen] = useState(false);
   const [movingToPaid, setMovingToPaid] = useState(false);
@@ -293,6 +296,27 @@ export default function LeadDetail({
       setAdvanceWorkflowError(e instanceof Error ? e.message : "Failed to send the next step");
     } finally {
       setAdvancingWorkflow(false);
+    }
+  }
+
+  async function moveConversation(direction: "enter" | "return") {
+    setConversationMove(direction);
+    setConversationError(null);
+    try {
+      if (direction === "enter") {
+        await api.markLeadInConversation(id);
+        toast.success("Moved to In conversation");
+      } else {
+        await api.returnLeadToPipeline(id);
+        toast.success("Returned to the pipeline");
+      }
+      reload({ silent: true });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not update this lead";
+      setConversationError(message);
+      toast.error(message);
+    } finally {
+      setConversationMove(null);
     }
   }
 
@@ -450,7 +474,11 @@ export default function LeadDetail({
   }
 
   const automationActive = Boolean(
-    lead && !lead.cadenceStopped && lead.stage !== "LOST" && lead.stage !== "CONVERTED"
+    lead &&
+      !lead.cadenceStopped &&
+      lead.stage !== "LOST" &&
+      lead.stage !== "CONVERTED" &&
+      lead.stage !== "IN_CONVERSATION"
   );
   const nextStep = automationActive && lead ? lead.nextWorkflowStep : null;
   const nextRun =
@@ -463,16 +491,30 @@ export default function LeadDetail({
     lead &&
     lead.stage !== "CONVERTED" &&
     lead.stage !== "LOST" &&
+    lead.stage !== "IN_CONVERSATION" &&
     !lead.cadenceStopped;
   const canMarkLost = lead && lead.stage !== "CONVERTED" && lead.stage !== "LOST";
+  const canEnterConversation = Boolean(
+    lead &&
+      lead.stage !== "CONVERTED" &&
+      lead.stage !== "LOST" &&
+      lead.stage !== "IN_CONVERSATION"
+  );
+  const canReturnToPipeline = lead?.stage === "IN_CONVERSATION";
+  const returnLabel = returnToPipelineLabel(lead?.stageBeforeConversation);
   const canMarkWon =
-    lead && lead.stage !== "CONVERTED" && lead.stage !== "LOST" && !lead.convertedToJobId;
+    lead &&
+    lead.stage !== "CONVERTED" &&
+    lead.stage !== "LOST" &&
+    lead.stage !== "IN_CONVERSATION" &&
+    !lead.convertedToJobId;
   const needsFulfilmentJob =
     Boolean(lead && isLeadPaid(lead) && !lead.job && !lead.convertedToJobId);
   const canMoveToPaid =
     Boolean(
       lead &&
         lead.stage !== "LOST" &&
+        lead.stage !== "IN_CONVERSATION" &&
         ((!isLeadPaid(lead) && lead.stage !== "CONVERTED") || needsFulfilmentJob)
     );
 
@@ -540,6 +582,15 @@ export default function LeadDetail({
 
   const detailBody = (
     <>
+      {lead.stage === "IN_CONVERSATION" && (
+        <div className="mb-6 rounded-xl border border-line bg-sidebar px-4 py-3 text-sm text-ink">
+          <p className="font-medium">In conversation</p>
+          <p className="mt-1 text-ink-muted">
+            Quote chase is stopped. Replies still land on this lead. {returnLabel} when this becomes a job.
+          </p>
+        </div>
+      )}
+
       {lead.stage === "LOST" && (
         <div className="mb-6 rounded-xl border border-line bg-sidebar px-4 py-3 text-sm text-ink">
           <p className="font-medium">Marked lost</p>
@@ -636,6 +687,13 @@ export default function LeadDetail({
           stoppingAutomation={stoppingAutomation}
           canStopAutomation={Boolean(canStopAutomation)}
           canMarkLost={Boolean(canMarkLost)}
+          canEnterConversation={canEnterConversation}
+          canReturnToPipeline={canReturnToPipeline}
+          returnLabel={returnLabel}
+          conversationMove={conversationMove}
+          conversationError={conversationError}
+          onEnterConversation={() => void moveConversation("enter")}
+          onReturnToPipeline={() => void moveConversation("return")}
           canMarkWon={Boolean(canMarkWon)}
           canMoveToPaid={canMoveToPaid}
           markingWon={markingWon}
@@ -1003,6 +1061,31 @@ export default function LeadDetail({
                 >
                   {stoppingAutomation ? "Stopping…" : "Stop automation"}
                 </SecondaryButton>
+              )}
+              {canEnterConversation && (
+                <SecondaryButton
+                  type="button"
+                  size="small"
+                  className="w-full justify-start"
+                  onClick={() => void moveConversation("enter")}
+                  disabled={conversationMove !== null}
+                >
+                  {conversationMove === "enter" ? "Moving…" : "In conversation"}
+                </SecondaryButton>
+              )}
+              {canReturnToPipeline && (
+                <SecondaryButton
+                  type="button"
+                  size="small"
+                  className="w-full justify-start"
+                  onClick={() => void moveConversation("return")}
+                  disabled={conversationMove !== null}
+                >
+                  {conversationMove === "return" ? "Moving…" : returnLabel}
+                </SecondaryButton>
+              )}
+              {conversationError && (
+                <p className="text-sm text-red-600">{conversationError}</p>
               )}
               {canMarkLost && (
                 <SecondaryButton

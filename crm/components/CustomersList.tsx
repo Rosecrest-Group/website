@@ -44,6 +44,7 @@ function contactStatus(row: Customer): { label: string; stage: string | null } {
   if (!stage) return { label: "—", stage: null };
   if (stage === "CONVERTED") return { label: "Won", stage };
   if (stage === "LOST") return { label: "Lost", stage };
+  if (stage === "IN_CONVERSATION") return { label: "In conversation", stage };
   return { label: "Active", stage };
 }
 
@@ -164,6 +165,7 @@ export default function CustomersList({
               >
                 <option value="">All statuses</option>
                 <option value="active">Active</option>
+                <option value="in_conversation">In conversation</option>
                 <option value="won">Won</option>
                 <option value="lost">Lost</option>
               </SelectField>

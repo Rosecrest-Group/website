@@ -95,6 +95,13 @@ export default function EmbeddedLeadProfile({
   stoppingAutomation,
   canStopAutomation,
   canMarkLost,
+  canEnterConversation,
+  canReturnToPipeline,
+  returnLabel,
+  conversationMove,
+  conversationError,
+  onEnterConversation,
+  onReturnToPipeline,
   canMarkWon,
   canMoveToPaid,
   markingWon,
@@ -120,6 +127,13 @@ export default function EmbeddedLeadProfile({
   stoppingAutomation: boolean;
   canStopAutomation: boolean;
   canMarkLost: boolean;
+  canEnterConversation: boolean;
+  canReturnToPipeline: boolean;
+  returnLabel: string;
+  conversationMove: "enter" | "return" | null;
+  conversationError: string | null;
+  onEnterConversation: () => void;
+  onReturnToPipeline: () => void;
   canMarkWon: boolean;
   canMoveToPaid: boolean;
   markingWon: boolean;
@@ -433,6 +447,31 @@ export default function EmbeddedLeadProfile({
                   >
                     {stoppingAutomation ? "Stopping…" : "Stop automation"}
                   </SecondaryButton>
+                ) : null}
+                {canEnterConversation ? (
+                  <SecondaryButton
+                    type="button"
+                    size="small"
+                    className="w-full"
+                    onClick={onEnterConversation}
+                    disabled={conversationMove !== null}
+                  >
+                    {conversationMove === "enter" ? "Moving…" : "In conversation"}
+                  </SecondaryButton>
+                ) : null}
+                {canReturnToPipeline ? (
+                  <SecondaryButton
+                    type="button"
+                    size="small"
+                    className="w-full"
+                    onClick={onReturnToPipeline}
+                    disabled={conversationMove !== null}
+                  >
+                    {conversationMove === "return" ? "Moving…" : returnLabel}
+                  </SecondaryButton>
+                ) : null}
+                {conversationError ? (
+                  <p className="col-span-2 text-sm text-red-600">{conversationError}</p>
                 ) : null}
                 {canMarkLost ? (
                   <SecondaryButton

@@ -14,6 +14,7 @@ export type LeadStage =
   | "FOLLOWING_UP"
   | "AWAITING_PAYMENT"
   | "PAUSED"
+  | "IN_CONVERSATION"
   | "CONVERTED"
   | "LOST";
 
@@ -560,6 +561,8 @@ export interface Lead {
   source: LeadSource;
   sourceRef: string | null;
   stage: LeadStage;
+  /** Pipeline stage restored by Return to pipeline. Set only while stage is IN_CONVERSATION. */
+  stageBeforeConversation?: LeadStage | null;
   jobType: JobType;
   surveyLevel: SurveyLevel | null;
   propertyAddress: string;

@@ -104,6 +104,8 @@ export function leadStageToPillVariant(stage: string): StatusVariant {
       return "awaiting";
     case "PAUSED":
       return "paused";
+    case "IN_CONVERSATION":
+      return "assigned";
     case "CONVERTED":
       return "completed";
     case "LOST":

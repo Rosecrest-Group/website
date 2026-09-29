@@ -30,6 +30,7 @@ const STAGES: LeadStage[] = [
   "FOLLOWING_UP",
   "AWAITING_PAYMENT",
   "PAUSED",
+  "IN_CONVERSATION",
   "CONVERTED",
   "LOST",
 ];

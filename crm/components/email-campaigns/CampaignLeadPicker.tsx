@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 const STAGES = Object.entries(LEAD_STAGE_LABELS);
 
 const LISTS: { list: "active" | "all"; label: string; description: string }[] = [
-  { list: "active", label: "Active leads", description: "Open pipeline, not won or lost" },
+  { list: "active", label: "Active leads", description: "Open pipeline only" },
   { list: "all", label: "All leads", description: "Every lead, including won and lost" },
 ];
 

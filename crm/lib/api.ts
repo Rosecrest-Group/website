@@ -893,6 +893,12 @@ export const api = {
 
     request<Lead>(`/leads/${id}/stage`, { method: "POST", body: JSON.stringify({ stage }) }),
 
+  markLeadInConversation: (id: string) =>
+    request<Lead>(`/leads/${id}/in-conversation`, { method: "POST" }),
+
+  returnLeadToPipeline: (id: string) =>
+    request<Lead>(`/leads/${id}/return-to-pipeline`, { method: "POST" }),
+
   markLeadLost: (id: string, lostReason: string, lostReasonNote?: string) =>
 
     request<Lead>(`/leads/${id}/mark-lost`, { method: "POST", body: JSON.stringify({ lostReason, lostReasonNote }) }),
