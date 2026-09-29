@@ -526,16 +526,16 @@ export interface Customer {
   accountId?: string | null;
 }
 
-export interface CrmCompanyRow {
+export type CrmCompanyRow = {
   id: string;
   legalName: string;
   companyNumber: string | null;
   domain: string | null;
   lane: string;
   contactCount: number;
-}
+};
 
-export interface CrmCompanyDetail extends CrmCompanyRow {
+export type CrmCompanyDetail = CrmCompanyRow & {
   standingGrade: string;
   address: string | null;
   contacts: {
@@ -547,7 +547,7 @@ export interface CrmCompanyDetail extends CrmCompanyRow {
     roleTitle: string | null;
   }[];
   lists: { id: string; name: string; addedAt: string }[];
-}
+};
 
 export interface LeadTag {
   id: string;
