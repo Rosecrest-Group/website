@@ -1749,6 +1749,37 @@ export const api = {
   exportContactList: (id: string) =>
     request<{ filename: string; csv: string }>(`/prospecting/lists/${encodeURIComponent(id)}/export`),
 
+  importContactList: (
+    id: string,
+    body: {
+      sourceLabel: string;
+      expectEmail: true;
+      rows: {
+        line: number;
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone: string;
+        company: string;
+      }[];
+    },
+  ) =>
+    request<import("@/crm/types/prospecting").ContactListImportRecord>(
+      `/prospecting/lists/${encodeURIComponent(id)}/import`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+
+  listContactListImports: (id: string) =>
+    request<{ items: import("@/crm/types/prospecting").ContactListImportRecord[] }>(
+      `/prospecting/lists/${encodeURIComponent(id)}/imports`,
+    ),
+
+  undoContactListImport: (id: string, importId: string) =>
+    request<{ removed: number; alreadyUndone: boolean }>(
+      `/prospecting/lists/${encodeURIComponent(id)}/imports/${encodeURIComponent(importId)}/undo`,
+      { method: "POST" },
+    ),
+
   listCampaigns: (
     page = 1,
     query?: {

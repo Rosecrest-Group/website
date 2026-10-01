@@ -72,6 +72,23 @@ export type ContactListAddResult = {
   alreadyMembers: number;
 };
 
+export type ContactListImportError = {
+  line: number;
+  reason: string;
+};
+
+export type ContactListImportRecord = {
+  id: string;
+  sourceLabel: string;
+  added: number;
+  alreadyMembers: number;
+  createdCustomers: number;
+  errorCount: number;
+  errors: ContactListImportError[];
+  undoneAt: string | null;
+  createdAt: string;
+};
+
 export type ContactListMembership = {
   id: string;
   name: string;

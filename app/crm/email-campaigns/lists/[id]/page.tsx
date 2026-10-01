@@ -183,6 +183,13 @@ export default function ContactListDetailPage() {
         subtitle={`${list.memberCount} compan${list.memberCount === 1 ? "y" : "ies"}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <SecondaryButton
+              type="button"
+              className="w-auto"
+              onClick={() => router.push(`/crm/email-campaigns/lists/${list.id}/import`)}
+            >
+              Import
+            </SecondaryButton>
             <SecondaryButton type="button" className="w-auto" disabled={exporting} onClick={() => void exportCsv()}>
               {exporting ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
               {exporting ? "Exporting…" : "Export"}
@@ -225,7 +232,7 @@ export default function ContactListDetailPage() {
         selectable
         selectedKeys={selectedIds}
         onSelectionChange={(keys) => setSelectedIds(keys.map(String))}
-        emptyMessage="No companies in this list. Add firms from Find Firms."
+        emptyMessage="No companies in this list. Import a spreadsheet or add firms from Find Firms."
         toolbarExtra={
           selectedIds.length > 0 ? (
             <PrimaryButton type="button" className="w-auto" disabled={removing} onClick={() => void removeSelected()}>
