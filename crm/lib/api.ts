@@ -11,6 +11,7 @@ import type {
   LeadDuplicateMatch,
 
   Customer,
+  CustomerType,
 
   DashboardFinance,
 
@@ -979,6 +980,18 @@ export const api = {
 
     request<Customer & { leads: Lead[]; jobs: Job[] }>(`/customers/${id}`),
 
+  updateCustomer: (
+    id: string,
+    payload: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      phone?: string;
+      company?: string;
+      customerType?: CustomerType;
+    },
+  ) => request<Customer>(`/customers/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+
   listCompanies: (params?: Record<string, string>) => {
     const qs = params ? `?${new URLSearchParams(params)}` : "";
     return request<Paginated<import("@/crm/types").CrmCompanyRow>>(`/companies${qs}`);
@@ -1754,6 +1767,7 @@ export const api = {
     body: {
       sourceLabel: string;
       expectEmail: true;
+      customerType?: CustomerType;
       rows: {
         line: number;
         firstName: string;
@@ -1761,6 +1775,7 @@ export const api = {
         email: string;
         phone: string;
         company: string;
+        customerType?: CustomerType;
       }[];
     },
   ) =>

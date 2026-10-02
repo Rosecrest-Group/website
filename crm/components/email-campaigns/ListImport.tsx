@@ -11,12 +11,20 @@ import {
   SAMPLE_LIST_CSV,
   autoMapHeader,
   importFieldLabel,
+  inferImportedCustomerType,
+  parseCustomerType,
   parseSpreadsheet,
   sheetFileName,
   type ImportField,
   type ParsedSheet,
 } from "@/crm/lib/listImportFile";
-import type { ContactListImportError, ContactListImportRecord } from "@/crm/types/prospecting";
+import type { CustomerType } from "@/crm/types";
+import type {
+  ContactListImportError,
+  ContactListImportRecord,
+  ContactListMemberRow,
+} from "@/crm/types/prospecting";
+import { CUSTOMER_TYPE_LABELS, CUSTOMER_TYPE_OPTIONS } from "@/crm/lib/constants";
 import { cn } from "@/lib/utils";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
@@ -27,6 +35,7 @@ import SelectField from "@/crm/components/ui/SelectField";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import Table, { type Column } from "@/crm/components/ui/Table";
 import ConfirmModal from "@/crm/components/ui/ConfirmModal";
+import EditImportedContactModal from "@/crm/components/email-campaigns/EditImportedContactModal";
 
 type MapRow = {
   index: number;
@@ -91,12 +100,19 @@ export default function ListImport() {
   const [undoTarget, setUndoTarget] = useState<ContactListImportRecord | null>(null);
   const [undoing, setUndoing] = useState(false);
   const [undoError, setUndoError] = useState<string | null>(null);
+  const [defaultType, setDefaultType] = useState<CustomerType | "">("");
+  const [defaultTypeTouched, setDefaultTypeTouched] = useState(false);
+  const [importedMembers, setImportedMembers] = useState<ContactListMemberRow[]>([]);
+  const [editMember, setEditMember] = useState<ContactListMemberRow | null>(null);
 
   const load = useCallback(async () => {
     const [detail, imports] = await Promise.all([api.getContactList(id, { page: 1, limit: 1 }), api.listContactListImports(id)]);
     setListName(detail.name);
     setHistory(imports.items);
-  }, [id]);
+    if (!defaultTypeTouched) {
+      setDefaultType(inferImportedCustomerType({ listName: detail.name }) ?? "");
+    }
+  }, [id, defaultTypeTouched]);
 
   useEffect(() => {
     setLoading(true);
@@ -112,6 +128,7 @@ export default function ListImport() {
     setImported(false);
     setImportError(null);
     setResult(null);
+    setImportedMembers([]);
   }
 
   async function takeFile(file: File) {
@@ -172,9 +189,17 @@ export default function ListImport() {
       (sheet?.columns ?? []).map((column, index) => ({
         index,
         header: column.header,
-        preview: column.samples.join(", ") || "—",
+        preview:
+          mapping[index] === "customerType"
+            ? column.samples
+                .map((sample) => {
+                  const mapped = parseCustomerType(sample);
+                  return mapped ? `${sample} → ${CUSTOMER_TYPE_LABELS[mapped]}` : sample;
+                })
+                .join(", ") || "—"
+            : column.samples.join(", ") || "—",
       })),
-    [sheet],
+    [sheet, mapping],
   );
 
   const mapColumns: Column<MapRow>[] = [
@@ -212,22 +237,62 @@ export default function ListImport() {
     setImporting(true);
     setImportError(null);
     try {
-      const rows = sheet.rows.map((row, index) => ({
-        line: (sheet.hadHeader ? 2 : 1) + index,
-        firstName: cell(row, mapping, "firstName").slice(0, 200),
-        lastName: cell(row, mapping, "lastName").slice(0, 200),
-        email: cell(row, mapping, "email").slice(0, 320),
-        phone: cell(row, mapping, "phone").slice(0, 80),
-        company: cell(row, mapping, "company").slice(0, 200),
-      }));
-      const importedRow = await api.importContactList(id, {
-        sourceLabel,
-        expectEmail: true,
-        rows,
+      const fallbackType =
+        defaultType || inferImportedCustomerType({ listName }) || undefined;
+      const rows = sheet.rows.map((row, index) => {
+        const company = cell(row, mapping, "company").slice(0, 200);
+        const typeValue = cell(row, mapping, "customerType");
+        const customerType =
+          inferImportedCustomerType({ typeValue, listName, company }) ?? fallbackType;
+        return {
+          line: (sheet.hadHeader ? 2 : 1) + index,
+          firstName: cell(row, mapping, "firstName").slice(0, 200),
+          lastName: cell(row, mapping, "lastName").slice(0, 200),
+          email: cell(row, mapping, "email").slice(0, 320),
+          phone: cell(row, mapping, "phone").slice(0, 80),
+          company,
+          ...(customerType ? { customerType } : {}),
+        };
       });
+      const payload = {
+        sourceLabel,
+        expectEmail: true as const,
+        ...(fallbackType ? { customerType: fallbackType } : {}),
+        rows,
+      };
+      let importedRow: ContactListImportRecord;
+      try {
+        importedRow = await api.importContactList(id, payload);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "";
+        const sentType = Boolean(payload.customerType) || rows.some((row) => row.customerType);
+        if (!sentType || !/customerType|unrecogni[sz]ed|unexpected field/i.test(message)) {
+          throw err;
+        }
+        importedRow = await api.importContactList(id, {
+          sourceLabel,
+          expectEmail: true,
+          rows: rows.map((row) => ({
+            line: row.line,
+            firstName: row.firstName,
+            lastName: row.lastName,
+            email: row.email,
+            phone: row.phone,
+            company: row.company,
+          })),
+        });
+      }
       setResult(importedRow);
       setImported(true);
       setHistory((current) => [importedRow, ...current.filter((row) => row.id !== importedRow.id)]);
+      const cutoff = Date.now() - 10 * 60 * 1000;
+      const detail = await api.getContactList(id, { page: 1, limit: 50 });
+      setImportedMembers(
+        detail.members.filter((member) => {
+          const added = Date.parse(member.addedAt);
+          return Number.isFinite(added) && added >= cutoff;
+        }),
+      );
       toast.success("Contacts imported.");
     } catch (err) {
       setImportError(err instanceof Error ? err.message : "Could not import");
@@ -365,7 +430,8 @@ export default function ListImport() {
       >
         <p className="text-sm font-medium text-ink">Drop a CSV or TXT file</p>
         <p className="mt-1 text-sm text-ink-muted">
-          Use the sample columns: First name, Last name, Email, Phone, Company. A row needs an email or a phone.
+          Use the sample columns: First name, Last name, Email, Phone, Company, Type. A row needs an
+          email or a phone. Solicitor / legal rows map to Legal — not Landlord.
         </p>
         <div className="mt-4 flex justify-center">
           <SecondaryButton type="button" className="w-auto" disabled={readingFile} onClick={() => fileRef.current?.click()}>
@@ -395,7 +461,7 @@ export default function ListImport() {
             setPaste(event.target.value);
             setPasteError(null);
           }}
-          placeholder="First name, Last name, Email, Phone, Company"
+          placeholder="First name, Last name, Email, Phone, Company, Type"
         />
         <SecondaryButton type="button" className="w-auto" disabled={usingPaste || paste.trim().length === 0} onClick={usePasted}>
           {usingPaste ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
@@ -421,7 +487,28 @@ export default function ListImport() {
               />
               <p className="text-sm text-ink-muted">
                 {mappedCount} contact{mappedCount === 1 ? "" : "s"} ready. Unmatched columns are not imported.
+                {mapping.includes("customerType")
+                  ? " Type values such as Solicitor map to Legal / solicitor."
+                  : defaultType
+                    ? ` No Type column — these contacts will be imported as ${CUSTOMER_TYPE_LABELS[defaultType]}.`
+                    : " Map a Type column, or choose a type below, so solicitors are not stored as Landlord."}
               </p>
+              <SelectField
+                label="Contact type"
+                value={defaultType}
+                onChange={(event) => {
+                  setDefaultTypeTouched(true);
+                  setDefaultType(event.target.value as CustomerType | "");
+                  setImportError(null);
+                }}
+              >
+                <option value="">Set from the Type column or list name</option>
+                {CUSTOMER_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </SelectField>
               <label className="flex items-start gap-2 text-sm text-ink">
                 <input
                   type="checkbox"
@@ -498,6 +585,41 @@ export default function ListImport() {
                       {result.errors.length > 50 ? (
                         <p className="text-sm text-ink-muted">Showing 50 of {result.errors.length}. Download the file for the rest.</p>
                       ) : null}
+                      {importedMembers.length > 0 ? (
+                        <Table
+                          title="Edit imported contacts"
+                          columns={[
+                            { key: "name", header: "Name", render: (value) => String(value || "—") },
+                            {
+                              key: "email",
+                              header: "Email",
+                              render: (value) => (value ? String(value) : "—"),
+                            },
+                            {
+                              key: "edit",
+                              header: "",
+                              render: (_value, row) =>
+                                row.customerId ? (
+                                  <SecondaryButton
+                                    type="button"
+                                    size="small"
+                                    className="w-auto"
+                                    onClick={() => setEditMember(row)}
+                                  >
+                                    Edit
+                                  </SecondaryButton>
+                                ) : null,
+                            },
+                          ]}
+                          data={importedMembers}
+                          getRowKey={(row) => row.id}
+                          emptyMessage="No contacts from this import."
+                        />
+                      ) : result.added > 0 ? (
+                        <p className="text-sm text-ink-muted">
+                          Open the list to edit a contact if a name, email, or type needs a correction.
+                        </p>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -523,6 +645,26 @@ export default function ListImport() {
         error={undoError ?? undefined}
         onConfirm={() => void confirmUndo()}
         onCancel={() => setUndoTarget(null)}
+      />
+      <EditImportedContactModal
+        isOpen={editMember != null}
+        member={editMember}
+        defaultCustomerType={defaultType || inferImportedCustomerType({ listName }) || null}
+        onClose={() => setEditMember(null)}
+        onSaved={(customer) => {
+          setImportedMembers((current) =>
+            current.map((row) =>
+              row.customerId === customer.id
+                ? {
+                    ...row,
+                    name: `${customer.firstName} ${customer.lastName}`.trim(),
+                    email: customer.email,
+                    phone: customer.phone,
+                  }
+                : row,
+            ),
+          );
+        }}
       />
     </CrmPageContent>
   );

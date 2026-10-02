@@ -15,6 +15,8 @@ import TextField from "@/crm/components/ui/TextField";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import Table, { type Column } from "@/crm/components/ui/Table";
 import ConfirmModal from "@/crm/components/ui/ConfirmModal";
+import EditImportedContactModal from "@/crm/components/email-campaigns/EditImportedContactModal";
+import { inferImportedCustomerType } from "@/crm/lib/listImportFile";
 
 export default function ContactListDetailPage() {
   const params = useParams<{ id: string }>();
@@ -34,6 +36,7 @@ export default function ContactListDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [editMember, setEditMember] = useState<ContactListMemberRow | null>(null);
 
   const load = useCallback(async () => {
     const detail = await api.getContactList(id, { page, limit: 50 });
@@ -149,6 +152,24 @@ export default function ContactListDetailPage() {
       header: "Domain",
       render: (value) => (value ? String(value) : "—"),
     },
+    {
+      key: "edit",
+      header: "",
+      render: (_value, row) =>
+        row.customerId ? (
+          <SecondaryButton
+            type="button"
+            size="small"
+            className="w-auto"
+            onClick={(event) => {
+              event.stopPropagation();
+              setEditMember(row);
+            }}
+          >
+            Edit
+          </SecondaryButton>
+        ) : null,
+    },
   ];
 
   if (loading && !list) {
@@ -257,6 +278,15 @@ export default function ContactListDetailPage() {
         error={deleteError ?? undefined}
         onConfirm={() => void confirmDelete()}
         onCancel={() => setDeleteOpen(false)}
+      />
+      <EditImportedContactModal
+        isOpen={editMember != null}
+        member={editMember}
+        defaultCustomerType={inferImportedCustomerType({ listName: list.name }) || null}
+        onClose={() => setEditMember(null)}
+        onSaved={() => {
+          void load();
+        }}
       />
     </CrmPageContent>
   );
