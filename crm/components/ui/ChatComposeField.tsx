@@ -20,6 +20,7 @@ export type ChatComposeFieldProps = {
   disabled?: boolean;
   placeholder?: string;
   onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onSelect?: (event: React.SyntheticEvent<HTMLTextAreaElement>) => void;
   className?: string;
   leadingSlot?: ReactNode;
   attachments?: PendingComposeAttachment[];
@@ -42,6 +43,7 @@ const ChatComposeField = forwardRef<HTMLTextAreaElement, ChatComposeFieldProps>(
       disabled = false,
       placeholder = "Type a message…",
       onKeyDown,
+      onSelect,
       className = "",
       leadingSlot,
       attachments = [],
@@ -57,9 +59,10 @@ const ChatComposeField = forwardRef<HTMLTextAreaElement, ChatComposeFieldProps>(
     const handleChange = useCallback(
       (event: React.ChangeEvent<HTMLTextAreaElement>) => {
         onChange(event.target.value);
+        onSelect?.(event);
         resizeTextarea(event.target);
       },
-      [onChange]
+      [onChange, onSelect]
     );
 
     const handleKeyDown = useCallback(
@@ -144,6 +147,7 @@ const ChatComposeField = forwardRef<HTMLTextAreaElement, ChatComposeFieldProps>(
             ref={ref}
             value={value}
             onChange={handleChange}
+            onSelect={onSelect}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             rows={1}

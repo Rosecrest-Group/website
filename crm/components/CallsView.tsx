@@ -648,16 +648,19 @@ function CallDetail({
   const initials = initialsFromName(name);
   const [recordingSrc, setRecordingSrc] = useState<string | null>(null);
   const [recordingError, setRecordingError] = useState(false);
+  const [recordingForId, setRecordingForId] = useState(call.id);
+  if (recordingForId !== call.id) {
+    setRecordingForId(call.id);
+    setRecordingSrc(null);
+    setRecordingError(false);
+  }
 
   useEffect(() => {
     if (!call.recordingUrl) {
-      setRecordingSrc(null);
-      setRecordingError(false);
       return;
     }
     let objectUrl: string | null = null;
     let cancelled = false;
-    setRecordingError(false);
     api
       .fetchDialpadCallRecording(call.id)
       .then((blob) => {

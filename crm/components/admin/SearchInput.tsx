@@ -24,20 +24,15 @@ export default function SearchInput({
   variant = "table",
 }: SearchInputProps) {
   const [internalValue, setInternalValue] = useState(controlledValue || "");
-
-  useEffect(() => {
-    if (controlledValue !== undefined) {
-      setInternalValue(controlledValue);
-    }
-  }, [controlledValue]);
+  const value = controlledValue !== undefined ? controlledValue : internalValue;
 
   useEffect(() => {
     if (!onSearch) return;
     const timer = setTimeout(() => {
-      onSearch(internalValue);
+      onSearch(value);
     }, debounceMs);
     return () => clearTimeout(timer);
-  }, [internalValue, debounceMs, onSearch]);
+  }, [value, debounceMs, onSearch]);
 
   if (variant === "header") {
     return (
@@ -50,7 +45,7 @@ export default function SearchInput({
         <input
           type="search"
           placeholder={placeholder}
-          value={internalValue}
+          value={value}
           onChange={(e) => {
             setInternalValue(e.target.value);
             onChange?.(e.target.value);
@@ -66,7 +61,7 @@ export default function SearchInput({
       <input
         type="search"
         placeholder={placeholder}
-        value={internalValue}
+        value={value}
         onChange={(e) => {
           setInternalValue(e.target.value);
           onChange?.(e.target.value);

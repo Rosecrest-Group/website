@@ -180,19 +180,24 @@ export default function WorkflowRunsPanel({
 }: Props) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [executions, setExecutions] = useState<WorkflowExecutionRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const requestKey = `${workflowId}:${statusFilter}:${refreshToken}`;
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [showMigration, setShowMigration] = useState(false);
 
   const loadExecutions = useCallback(async () => {
-    const res = await api.listWorkflowExecutions({ workflowId, status: statusFilter });
-    setExecutions(res.items as WorkflowExecutionRecord[]);
-    setLoading(false);
-  }, [workflowId, statusFilter]);
+    try {
+      const res = await api.listWorkflowExecutions({ workflowId, status: statusFilter });
+      setExecutions(res.items as WorkflowExecutionRecord[]);
+    } finally {
+      setLoadedKey(`${workflowId}:${statusFilter}:${refreshToken}`);
+    }
+  }, [workflowId, statusFilter, refreshToken]);
 
   useEffect(() => {
-    setLoading(true);
-    loadExecutions().catch(() => setLoading(false));
-  }, [loadExecutions, refreshToken]);
+    void loadExecutions();
+  }, [loadExecutions, requestKey]);
+
+  const loading = loadedKey !== requestKey;
 
   useEffect(() => {
     const timer = setInterval(() => {

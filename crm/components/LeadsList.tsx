@@ -93,7 +93,9 @@ export default function LeadsList({
   const { stage, source } = filters;
   const page = pageFromFilter(filters.page);
   const initialDataRef = useRef(initialData);
-  initialDataRef.current = initialData;
+  useEffect(() => {
+    initialDataRef.current = initialData;
+  }, [initialData]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
@@ -124,23 +126,20 @@ export default function LeadsList({
       const cached =
         getListPageCache<LeadsListInitialData>("leads:default") ?? initialDataRef.current;
       if (cached) {
-        initialDataRef.current = null;
-        setLeads(cached.items);
-        setTotal(cached.total);
-        setLoading(false);
-        const ids = cached.items.slice(0, 3).map((l) => l.id);
-        if (ids.length === 0) return;
         const warm = window.setTimeout(() => {
-          for (const id of ids) {
-            void prefetchLead(id);
-            void prefetchLeadThreadWithActivities(id);
+          initialDataRef.current = null;
+          setLeads(cached.items);
+          setTotal(cached.total);
+          setLoading(false);
+          for (const lead of cached.items.slice(0, 3)) {
+            void prefetchLead(lead.id);
+            void prefetchLeadThreadWithActivities(lead.id);
           }
-        }, 400);
+        }, 0);
         return () => window.clearTimeout(warm);
       }
     }
 
-    setLoading(true);
     const params: Record<string, string> = {
       page: String(page),
       limit: String(PAGE_SIZE),
@@ -149,6 +148,7 @@ export default function LeadsList({
     if (stage) params.stage = stage;
     if (source) params.source = source;
     const timer = setTimeout(() => {
+      setLoading(true);
       api
         .listLeads(params)
         .then((res) => {

@@ -101,10 +101,9 @@ export const EmailRichEditor = forwardRef<EmailRichEditorHandle, EmailRichEditor
   const lastEmittedHtmlRef = useRef<string | null>(null);
   const [showSource, setShowSource] = useState(false);
   const [source, setSource] = useState(html);
-
-  useEffect(() => {
-    if (!showSource) setSource(html);
-  }, [html, showSource]);
+  if (!showSource && source !== html) {
+    setSource(html);
+  }
 
   useEffect(() => {
     if (showSource || !editorRef.current) return;

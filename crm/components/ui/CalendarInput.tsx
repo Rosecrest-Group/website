@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
@@ -132,21 +132,6 @@ export default function CalendarInput({
       openUp,
     });
   }
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-    setViewDate(selectedDate || minAllowedDate || new Date());
-  }, [isOpen, selectedDate, minAllowedDate]);
-
-  useLayoutEffect(() => {
-    if (!isOpen) {
-      setPosition(null);
-      return;
-    }
-    updatePosition();
-  }, [isOpen, includeTime, placement]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -396,7 +381,15 @@ export default function CalendarInput({
         ref={buttonRef}
         type="button"
         id={id}
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => {
+          if (isOpen) {
+            setIsOpen(false);
+            return;
+          }
+          setViewDate(selectedDate || minAllowedDate || new Date());
+          updatePosition();
+          setIsOpen(true);
+        }}
         className="flex w-full items-center justify-between rounded-xl border border-(--color-tc-20) bg-white px-4 py-3 text-left text-sm text-(--color-tc-40) outline-none focus:border-transparent focus:ring-2 focus:ring-(--color-primary) focus:ring-opacity-20"
       >
         <span className={displayValue ? "text-(--color-tc-40)" : "text-(--color-tc-30)"}>

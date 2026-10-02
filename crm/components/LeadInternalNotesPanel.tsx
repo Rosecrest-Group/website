@@ -237,39 +237,39 @@ export function NoteCommentsSlidePanel({
 }) {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
-  const [mentionQuery, setMentionQuery] = useState("");
+  const [cursor, setCursor] = useState(0);
   const [mentionSuggestions, setMentionSuggestions] = useState<MentionSuggestion | null>(null);
   const composeRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const repliesByParent = useMemo(() => noteRepliesByParent(notes), [notes]);
   const replies = note ? repliesByParent.get(note.id) ?? [] : [];
-
-  useEffect(() => {
+  const noteId = note?.id ?? null;
+  const [draftNoteId, setDraftNoteId] = useState(noteId);
+  if (draftNoteId !== noteId) {
+    setDraftNoteId(noteId);
     if (!note) {
       setDraft("");
       setError("");
-      return;
     }
+  }
+
+  useEffect(() => {
+    if (!note) return;
     requestAnimationFrame(() => {
       composeRef.current?.focus();
       scrollRef.current?.scrollIntoView({ block: "end" });
     });
-  }, [note?.id]);
+  }, [note?.id, note]);
 
-  const activeMentionToken = useMemo(() => {
-    const cursor = composeRef.current?.selectionStart ?? draft.length;
-    return mentionTokenAtCursor(draft, cursor);
-  }, [draft]);
-
-  useEffect(() => {
-    setMentionQuery(activeMentionToken ?? "");
-  }, [activeMentionToken]);
+  const activeMentionToken = useMemo(
+    () => mentionTokenAtCursor(draft, cursor),
+    [draft, cursor],
+  );
+  const mentionQuery = activeMentionToken ?? "";
+  const visibleMentionSuggestions = mentionQuery ? mentionSuggestions : null;
 
   useEffect(() => {
-    if (!mentionQuery) {
-      setMentionSuggestions(null);
-      return;
-    }
+    if (!mentionQuery) return;
     const timer = setTimeout(() => {
       void api.getMentionSuggestions(mentionQuery).then(setMentionSuggestions);
     }, 200);
@@ -334,9 +334,9 @@ export function NoteCommentsSlidePanel({
         note ? (
           <div className="w-full space-y-2">
             <div className="relative">
-              {mentionSuggestions && activeMentionToken !== null ? (
+              {visibleMentionSuggestions && activeMentionToken !== null ? (
                 <MentionMenu
-                  suggestions={mentionSuggestions}
+                  suggestions={visibleMentionSuggestions}
                   draft={draft}
                   setDraft={setDraft}
                   composeRef={composeRef}
@@ -346,19 +346,20 @@ export function NoteCommentsSlidePanel({
                 ref={composeRef}
                 value={draft}
                 onChange={setDraft}
+                onSelect={(event) => setCursor(event.currentTarget.selectionStart)}
                 onSend={() => void handleSend()}
                 placeholder="Write a comment… Use @name to tag teammates"
                 onKeyDown={(event) => {
                   if (
                     event.key !== "Enter" ||
                     event.shiftKey ||
-                    !mentionSuggestions ||
+                    !visibleMentionSuggestions ||
                     activeMentionToken === null
                   ) {
                     return;
                   }
-                  const firstUser = mentionSuggestions.users[0];
-                  const firstGroup = mentionSuggestions.groups[0];
+                  const firstUser = visibleMentionSuggestions.users[0];
+                  const firstGroup = visibleMentionSuggestions.groups[0];
                   if (!firstUser && !firstGroup) return;
                   event.preventDefault();
                   insertMentionToken(
@@ -475,7 +476,7 @@ export default function LeadInternalNotesPanel({
   const [attachments, setAttachments] = useState<LocalPendingAttachment[]>([]);
   const [error, setError] = useState("");
   const [commentNote, setCommentNote] = useState<InternalMessageItem | null>(null);
-  const [mentionQuery, setMentionQuery] = useState("");
+  const [cursor, setCursor] = useState(0);
   const [mentionSuggestions, setMentionSuggestions] = useState<MentionSuggestion | null>(null);
   const composeRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -540,20 +541,15 @@ export default function LeadInternalNotesPanel({
     }
   }, [loading, notes.length]);
 
-  const activeMentionToken = useMemo(() => {
-    const cursor = composeRef.current?.selectionStart ?? draft.length;
-    return mentionTokenAtCursor(draft, cursor);
-  }, [draft]);
+  const activeMentionToken = useMemo(
+    () => mentionTokenAtCursor(draft, cursor),
+    [draft, cursor],
+  );
+  const mentionQuery = activeMentionToken ?? "";
+  const visibleMentionSuggestions = mentionQuery ? mentionSuggestions : null;
 
   useEffect(() => {
-    setMentionQuery(activeMentionToken ?? "");
-  }, [activeMentionToken]);
-
-  useEffect(() => {
-    if (!mentionQuery) {
-      setMentionSuggestions(null);
-      return;
-    }
+    if (!mentionQuery) return;
     const timer = setTimeout(() => {
       void api.getMentionSuggestions(mentionQuery).then(setMentionSuggestions);
     }, 200);
@@ -704,9 +700,9 @@ export default function LeadInternalNotesPanel({
         ) : null}
 
         <div className="relative">
-          {mentionSuggestions && activeMentionToken !== null ? (
+          {visibleMentionSuggestions && activeMentionToken !== null ? (
             <MentionMenu
-              suggestions={mentionSuggestions}
+              suggestions={visibleMentionSuggestions}
               draft={draft}
               setDraft={setDraft}
               composeRef={composeRef}
@@ -716,6 +712,7 @@ export default function LeadInternalNotesPanel({
             ref={composeRef}
             value={draft}
             onChange={setDraft}
+            onSelect={(event) => setCursor(event.currentTarget.selectionStart)}
             onSend={() => void handleSendNote()}
             sending={sending}
             placeholder="Add an internal note… Use @name to tag teammates"
@@ -754,13 +751,13 @@ export default function LeadInternalNotesPanel({
               if (
                 event.key !== "Enter" ||
                 event.shiftKey ||
-                !mentionSuggestions ||
+                !visibleMentionSuggestions ||
                 activeMentionToken === null
               ) {
                 return;
               }
-              const firstUser = mentionSuggestions.users[0];
-              const firstGroup = mentionSuggestions.groups[0];
+              const firstUser = visibleMentionSuggestions.users[0];
+              const firstGroup = visibleMentionSuggestions.groups[0];
               if (!firstUser && !firstGroup) return;
               event.preventDefault();
               insertMentionToken(

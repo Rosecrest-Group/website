@@ -92,10 +92,11 @@ function DataDumpSidebar({
 export default function DataDumpShell({ children }: { children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pathname = usePathname();
-
-  useEffect(() => {
+  const [navPath, setNavPath] = useState(pathname);
+  if (navPath !== pathname) {
+    setNavPath(pathname);
     setMobileNavOpen(false);
-  }, [pathname]);
+  }
 
   useEffect(() => {
     document.body.style.overflow = mobileNavOpen ? "hidden" : "";

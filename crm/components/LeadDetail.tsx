@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
@@ -65,6 +65,13 @@ function leadsListHref(): string {
     ["stage", "source", "page"],
     { stage: "", source: "", page: "" },
   );
+}
+
+const DEFAULT_LEADS_HREF = `${CRM_BASE_PATH}/leads`;
+
+function subscribeLeadsHref(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  return () => window.removeEventListener("storage", onStoreChange);
 }
 
 function formatRelative(dateStr: string) {
@@ -1600,10 +1607,7 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 function LeadDetailBreadcrumb({ name }: { name?: string }) {
-  const [leadsHref, setLeadsHref] = useState(`${CRM_BASE_PATH}/leads`);
-  useEffect(() => {
-    setLeadsHref(leadsListHref());
-  }, []);
+  const leadsHref = useSyncExternalStore(subscribeLeadsHref, leadsListHref, () => DEFAULT_LEADS_HREF);
 
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-sm">

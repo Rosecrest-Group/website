@@ -111,7 +111,7 @@ export function currentStepLabel(
 }
 
 export function formatStepSummary(step: WorkflowExecutionStep): { label: string; detail?: string } {
-  let label = step.label ?? step.type;
+  const label = step.label ?? step.type;
   let detail = step.detail;
 
   if (step.type === "branch" && step.branchResult !== undefined) {

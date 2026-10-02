@@ -304,9 +304,14 @@ function CollapsiblePlainBody({
 function CollapsibleEmailBody({ body, isOutbound }: { body: string; isOutbound: boolean }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
+  const [expandedForBody, setExpandedForBody] = useState(body);
   const [overflows, setOverflows] = useState(false);
   const [fullHeight, setFullHeight] = useState(0);
   const designed = isDesignedEmailHtml(body);
+  if (body !== expandedForBody) {
+    setExpandedForBody(body);
+    setExpanded(false);
+  }
 
   useLayoutEffect(() => {
     const el = contentRef.current;
@@ -322,10 +327,6 @@ function CollapsibleEmailBody({ body, isOutbound }: { body: string; isOutbound: 
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [body]);
-
-  useEffect(() => {
-    setExpanded(false);
   }, [body]);
 
   const collapsed = overflows && !expanded;
@@ -872,10 +873,11 @@ function CallThreadBanner({
   const outcome = typeof meta.outcome === "string" ? meta.outcome.toLowerCase() : "";
   const durationSeconds =
     asFiniteNumber(meta.durationSeconds) ?? asFiniteNumber(meta.duration);
+  const [nowMs] = useState(() => Date.now());
   const isInitiated =
     activity.type.includes("initiated") &&
     durationSeconds == null &&
-    Date.now() - new Date(activity.createdAt).getTime() < 3 * 60 * 1000;
+    nowMs - new Date(activity.createdAt).getTime() < 3 * 60 * 1000;
   const missed =
     outcome === "no_answer" ||
     outcome === "missed" ||

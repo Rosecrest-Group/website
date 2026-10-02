@@ -23,6 +23,8 @@ import { getCachedCurrentUser, prefetchCurrentUser } from "@/crm/lib/currentUser
 import TaskDetailPanel from "@/crm/components/TaskDetailPanel";
 import { cn } from "@/lib/utils";
 
+const EMPTY_TASK_MAP = new Map<string, Task>();
+
 /* ------------------------------------------------------------------ */
 /*  Type config — each activity type maps to an icon + a chip style.   */
 /*                                                                     */
@@ -892,7 +894,6 @@ export default function ActivityFeed({
 
   useEffect(() => {
     if (taskIds.length === 0) {
-      setTaskById(new Map());
       return;
     }
 
@@ -912,8 +913,16 @@ export default function ActivityFeed({
   }, [taskIds]);
 
   const events = useMemo(
-    () => activitiesToEvents(activities, currentUserId, taskById, leadName, messagesById, templatesById),
-    [activities, currentUserId, taskById, leadName, messagesById, templatesById]
+    () =>
+      activitiesToEvents(
+        activities,
+        currentUserId,
+        taskIds.length === 0 ? EMPTY_TASK_MAP : taskById,
+        leadName,
+        messagesById,
+        templatesById,
+      ),
+    [activities, currentUserId, taskById, taskIds, leadName, messagesById, templatesById]
   );
 
   function handleTaskClick(taskId: string) {

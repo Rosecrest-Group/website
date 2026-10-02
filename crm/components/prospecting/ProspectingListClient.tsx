@@ -43,29 +43,30 @@ export default function ProspectingListClient<T extends Record<string, unknown> 
   const [rows, setRows] = useState<T[]>([]);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const requestKey = `${search}\0${page}`;
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     void load(search, page)
       .then((data) => {
         if (cancelled) return;
         setRows(data.items);
         setTotal(data.total);
         setError(null);
+        setLoadedKey(requestKey);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Could not load");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        setLoadedKey(requestKey);
       });
     return () => {
       cancelled = true;
     };
-  }, [search, page, load]);
+  }, [search, page, load, requestKey]);
+
+  const loading = loadedKey !== requestKey;
 
   return (
     <CrmPageContent>

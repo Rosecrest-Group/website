@@ -32,11 +32,15 @@ export default function CrmSlidePanel({
 }: CrmSlidePanelProps) {
   const [mounted, setMounted] = useState(isOpen);
   const [visible, setVisible] = useState(false);
+  if (isOpen && !mounted) {
+    setMounted(true);
+  }
+  if (!isOpen && visible) {
+    setVisible(false);
+  }
 
   useEffect(() => {
     if (isOpen) {
-      setMounted(true);
-      setVisible(false);
       let inner = 0;
       const outer = requestAnimationFrame(() => {
         inner = requestAnimationFrame(() => setVisible(true));
@@ -46,7 +50,6 @@ export default function CrmSlidePanel({
         cancelAnimationFrame(inner);
       };
     }
-    setVisible(false);
     const timer = setTimeout(() => setMounted(false), PANEL_MS);
     return () => clearTimeout(timer);
   }, [isOpen]);

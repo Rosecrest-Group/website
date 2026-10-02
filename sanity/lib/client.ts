@@ -1,4 +1,4 @@
-import { createClient } from 'next-sanity'
+import { createClient, type SanityClient } from 'next-sanity'
 import { apiVersion, dataset, projectId } from '../env'
 
 /**
@@ -9,20 +9,25 @@ import { apiVersion, dataset, projectId } from '../env'
 const readToken =
   process.env.SANITY_API_READ_TOKEN || process.env.SANITY_API_WRITE_TOKEN
 
-export const client = createClient({
-  projectId,
-  dataset,
-  apiVersion,
-  /** CDN ignores auth — disable whenever we send a token */
-  useCdn: process.env.NODE_ENV === 'production' && !readToken,
-  token: readToken || undefined,
-})
+export const client: SanityClient | null = projectId
+  ? createClient({
+      projectId,
+      dataset,
+      apiVersion,
+      /** CDN ignores auth — disable whenever we send a token */
+      useCdn: process.env.NODE_ENV === 'production' && !readToken,
+      token: readToken || undefined,
+    })
+  : null
 
 /** Sanity queries wired into Next.js Data Cache (matches `export const revalidate` on routes). */
 export function sanityFetch<Response>(
   query: string,
   params: Record<string, unknown> = {},
 ) {
+  if (!client) {
+    return Promise.resolve(undefined as Response)
+  }
   return client.fetch<Response>(query, params, {
     next: { revalidate: 60 },
   })

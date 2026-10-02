@@ -135,28 +135,27 @@ export default function CrmAnalytics() {
   const [period, setPeriod] = useState<DashboardPeriod>("30d");
   const [sales, setSales] = useState<DashboardSales | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loadedPeriod, setLoadedPeriod] = useState<DashboardPeriod | null>(null);
   const fetchGeneration = useRef(0);
-  const hasLoadedSales = useRef(false);
 
   useEffect(() => {
     const generation = ++fetchGeneration.current;
-    if (hasLoadedSales.current) setIsRefreshing(true);
 
     api
       .getDashboard(period)
       .then((salesDash) => {
         if (generation !== fetchGeneration.current) return;
-        hasLoadedSales.current = true;
         setSales(salesDash);
+        setLoadedPeriod(period);
       })
       .catch(console.error)
       .finally(() => {
         if (generation !== fetchGeneration.current) return;
         setLoading(false);
-        setIsRefreshing(false);
       });
   }, [period]);
+
+  const isRefreshing = sales !== null && loadedPeriod !== period;
 
   const periodShort =
     DASHBOARD_PERIODS.find((item) => item.value === period)?.short ?? "30d";

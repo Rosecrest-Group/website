@@ -88,21 +88,17 @@ export default function CurrencyDropdown({
     }
   }, [isOpen, isMobile]);
 
-  useEffect(() => {
-    if (isOpen && buttonRef.current && !isMobile) {
-      const buttonRect = buttonRef.current.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const spaceBelow = viewportHeight - buttonRect.bottom;
-      const spaceAbove = buttonRect.top;
-      const dropdownHeight = 300;
-      
-      if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
-        setShouldOpenUp(true);
-      } else {
-        setShouldOpenUp(false);
-      }
+  function measureOpenDirection() {
+    if (!buttonRef.current || isMobile) {
+      setShouldOpenUp(false);
+      return;
     }
-  }, [isOpen, isMobile]);
+    const buttonRect = buttonRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - buttonRect.bottom;
+    const spaceAbove = buttonRect.top;
+    const dropdownHeight = 300;
+    setShouldOpenUp(spaceBelow < dropdownHeight && spaceAbove > dropdownHeight);
+  }
 
   useEffect(() => {
     const styleId = 'currency-dropdown-no-outline';
@@ -197,7 +193,10 @@ export default function CurrencyDropdown({
         ref={buttonRef}
         type="button"
         tabIndex={-1}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (!isOpen) measureOpenDirection();
+          setIsOpen(!isOpen);
+        }}
         onFocus={(e) => e.target.blur()}
         onMouseDown={(e) => {
           e.preventDefault();

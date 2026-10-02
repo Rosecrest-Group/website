@@ -9,7 +9,7 @@ import { apiVersion, dataset, projectId } from './sanity/env'
 export default defineConfig({
   name: 'rosecrest',
   title: 'Rosecrest Blog',
-  projectId,
+  projectId: projectId || 'unused',
   dataset,
   basePath: '/studio',
   plugins: [structureTool(), visionTool({ defaultApiVersion: apiVersion })],
