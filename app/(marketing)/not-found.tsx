@@ -21,7 +21,7 @@ interface Post {
 export default async function NotFound() {
   let recentPosts: Post[] = [];
   try {
-    const posts: Post[] = await sanityFetch<Post[]>(allPostsQuery);
+    const posts: Post[] = (await sanityFetch<Post[]>(allPostsQuery)) ?? [];
     recentPosts = posts.slice(0, 3);
   } catch {
     // fail silently — posts are non-critical

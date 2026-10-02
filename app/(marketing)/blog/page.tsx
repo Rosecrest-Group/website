@@ -22,7 +22,7 @@ interface Post {
 }
 
 export default async function BlogPage() {
-  const posts: Post[] = await sanityFetch<Post[]>(allPostsQuery);
+  const posts: Post[] = (await sanityFetch<Post[]>(allPostsQuery)) ?? [];
 
   return (
     <div className="bg-[#FBF7F4]">

@@ -31,7 +31,7 @@ interface Post {
 }
 
 export async function generateStaticParams() {
-  const slugs: string[] = await sanityFetch<string[]>(postSlugsQuery);
+  const slugs: string[] = (await sanityFetch<string[]>(postSlugsQuery)) ?? [];
   return slugs.map((slug) => ({ slug }));
 }
 
@@ -87,14 +87,14 @@ export default async function BlogPostPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [post, allPosts]: [Post | null, Post[]] = await Promise.all([
+  const [post, allPosts] = await Promise.all([
     sanityFetch<Post | null>(postBySlugQuery, { slug }),
     sanityFetch<Post[]>(allPostsQuery),
   ]);
 
   if (!post) notFound();
 
-  const relatedPosts = allPosts.filter((p) => p.slug !== slug).slice(0, 5);
+  const relatedPosts = (allPosts ?? []).filter((p) => p.slug !== slug).slice(0, 5);
 
   return (
     <div className="bg-[#FBF7F4] min-h-screen">
