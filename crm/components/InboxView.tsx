@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { LayoutGroup, motion, useReducedMotion } from "framer-motion";
 import {
@@ -173,7 +173,7 @@ function InboxThreadRow({
   onPrefetch: () => void;
   onAction: (actionId: string) => void;
 }) {
-  const ChannelIcon = channelIcon(thread.lastMessage.channel);
+  const channelIconType = channelIcon(thread.lastMessage.channel);
   const isUnread = Boolean(thread.unread) && !isSelected;
   const unreadCount = thread.unreadCount ?? 0;
   const addressLabel = counterpartLabel(thread.lastMessage);
@@ -269,7 +269,7 @@ function InboxThreadRow({
               channelBadgeClass(thread.lastMessage.channel, thread.lastMessage.direction)
             )}
           >
-            <ChannelIcon className="size-3" aria-hidden />
+            {createElement(channelIconType, { className: "size-3", "aria-hidden": true })}
             {thread.lastMessage.channel}
           </span>
           {addressLabel && (

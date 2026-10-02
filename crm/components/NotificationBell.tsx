@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Bell, BellRing } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,11 +35,11 @@ function formatWhen(iso: string) {
 export default function NotificationBell() {
   const { unreadCount, items, setItems, refresh } = useNotificationCount();
   const [open, setOpen] = useState(false);
-  const [permission, setPermission] = useState<NotificationPermission | null>(null);
-
-  useEffect(() => {
-    if (pushNotificationsSupported()) setPermission(notificationPermission());
-  }, []);
+  const [permission, setPermission] = useState<NotificationPermission | null>(() =>
+    typeof window !== "undefined" && pushNotificationsSupported()
+      ? notificationPermission()
+      : null,
+  );
 
   async function enableBrowserNotifications() {
     await registerPushNotifications().catch(() => false);

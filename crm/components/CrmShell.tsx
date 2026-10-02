@@ -41,11 +41,12 @@ function CrmShellInner({
   const { left: topBarLeft } = useCrmTopBar();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pathname = usePathname();
-  const isWorkflowBuilder = /^\/crm\/workflows\/[^/]+/.test(pathname);
-
-  useEffect(() => {
+  const [navPath, setNavPath] = useState(pathname);
+  if (navPath !== pathname) {
+    setNavPath(pathname);
     setMobileNavOpen(false);
-  }, [pathname]);
+  }
+  const isWorkflowBuilder = /^\/crm\/workflows\/[^/]+/.test(pathname);
 
   // Anywhere in the CRM, not just Team Chat — client messages notify too now.
   useEffect(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { MoreHorizontal, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,14 +61,6 @@ export default function ActionDropdown({
     });
   }
 
-  useLayoutEffect(() => {
-    if (!isOpen) {
-      setPosition(null);
-      return;
-    }
-    updatePosition();
-  }, [isOpen]);
-
   useEffect(() => {
     if (!isOpen) return;
 
@@ -105,7 +97,14 @@ export default function ActionDropdown({
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setIsOpen((open) => !open)}
+        onClick={() => {
+          if (isOpen) {
+            setIsOpen(false);
+            return;
+          }
+          updatePosition();
+          setIsOpen(true);
+        }}
         aria-label={ariaLabel}
         aria-expanded={isOpen}
         className={cn(

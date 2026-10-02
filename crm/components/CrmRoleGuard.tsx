@@ -21,12 +21,12 @@ export default function CrmRoleGuard({
   const [role, setRole] = useState<UserRole | null>(
     () => initialRole ?? getCachedCurrentUser()?.role ?? null,
   );
+  if (initialRole && role !== initialRole) {
+    setRole(initialRole);
+  }
 
   useEffect(() => {
-    if (initialRole) {
-      setRole(initialRole);
-      return;
-    }
+    if (initialRole) return;
     if (getCachedCurrentUser()) return;
     api
       .getMe()

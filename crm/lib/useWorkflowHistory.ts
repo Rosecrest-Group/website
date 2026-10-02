@@ -25,7 +25,7 @@ export function useWorkflowHistory(
   sanitizeEdges: (edges: Edge[]) => Edge[]
 ) {
   const latestRef = useRef<Snapshot>({ nodes, edges });
-  latestRef.current = { nodes, edges };
+  latestRef.current = { nodes, edges }; // eslint-disable-line react-hooks/refs -- latest snapshot for undo/redo
 
   const pastRef = useRef<Snapshot[]>([]);
   const futureRef = useRef<Snapshot[]>([]);

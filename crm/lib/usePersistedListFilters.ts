@@ -34,11 +34,12 @@ export function usePersistedListFilters<T extends ListFilterValues>(
   const router = useRouter();
   const searchParams = useSearchParams();
   const optionsRef = useRef(options);
-  optionsRef.current = options;
   const routerRef = useRef(router);
-  routerRef.current = router;
   const searchParamsRef = useRef(searchParams);
-  searchParamsRef.current = searchParams;
+  // Keep the latest callback/router/options without retriggering memoized writers.
+  optionsRef.current = options; // eslint-disable-line react-hooks/refs -- latest-ref pattern
+  routerRef.current = router; // eslint-disable-line react-hooks/refs -- latest-ref pattern
+  searchParamsRef.current = searchParams; // eslint-disable-line react-hooks/refs -- latest-ref pattern
 
   const urlFilters = listFiltersFromSearchParams(
     searchParams,

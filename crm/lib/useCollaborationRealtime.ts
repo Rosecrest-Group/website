@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { api } from "@/crm/lib/api";
+import { useLatestRef } from "@/crm/lib/useLatestRef";
 
 export type CollaborationEventHandler = (event: {
   type: string;
@@ -14,8 +15,7 @@ export type CollaborationEventHandler = (event: {
 }) => void;
 
 export function useCollaborationRealtime(onEvent: CollaborationEventHandler, enabled = true) {
-  const handlerRef = useRef(onEvent);
-  handlerRef.current = onEvent;
+  const handlerRef = useLatestRef(onEvent);
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;

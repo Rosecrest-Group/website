@@ -9,27 +9,48 @@ on:
 jobs:
   api:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: api
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      # The CRM API lives in Rosecrest-Group/crm-api and is not vendored here
+      # (see README and .gitignore). Run the suite only when a local/submodule
+      # checkout is present so setup-node does not fail on a missing lockfile.
+      - name: Detect API checkout
+        id: api
+        run: |
+          if [ -f api/package-lock.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "API source is not in this repository; skipping api install/test/build."
+          fi
+
       - uses: actions/setup-node@v4
+        if: steps.api.outputs.present == 'true'
         with:
           node-version: "20"
           cache: npm
           cache-dependency-path: api/package-lock.json
-      - run: npm ci
+
+      - if: steps.api.outputs.present == 'true'
+        working-directory: api
+        run: npm ci
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
           SUPABASE_URL: https://example.supabase.co
           SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test
           SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test
           SUPABASE_JWT_SECRET: test-jwt-secret-at-least-32-characters-long
-      - run: npm test
-      - run: npm run build
+
+      - if: steps.api.outputs.present == 'true'
+        working-directory: api
+        run: npm test
+
+      - if: steps.api.outputs.present == 'true'
+        working-directory: api
+        run: npm run build
 
   web:
     runs-on: ubuntu-latest

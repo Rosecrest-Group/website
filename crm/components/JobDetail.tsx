@@ -2021,7 +2021,17 @@ export default function JobDetail({ id }: { id: string }) {
                   .join(" ")
             : undefined
         }
-        children={pendingStageSilent && pendingStage === "ACCESS_CONFIRMED" && !isTrade ? (
+        confirmLabel={pendingStageSilent ? "Jump stage" : "Move stage"}
+        loading={stageSaving}
+        error={stageError ?? undefined}
+        onConfirm={() => void confirmStageMove()}
+        onCancel={() => {
+          if (stageSaving) return;
+          setPendingStage(null);
+          setPendingStageSilent(false);
+        }}
+      >
+        {pendingStageSilent && pendingStage === "ACCESS_CONFIRMED" && !isTrade ? (
           <div className="space-y-3">
             <SelectField
               label="Assigned surveyor"
@@ -2077,16 +2087,7 @@ export default function JobDetail({ id }: { id: string }) {
             </SelectField>
           </div>
         ) : null}
-        confirmLabel={pendingStageSilent ? "Jump stage" : "Move stage"}
-        loading={stageSaving}
-        error={stageError ?? undefined}
-        onConfirm={() => void confirmStageMove()}
-        onCancel={() => {
-          if (stageSaving) return;
-          setPendingStage(null);
-          setPendingStageSilent(false);
-        }}
-      />
+      </ConfirmModal>
 
       <ConfirmModal
         isOpen={pendingDeleteDoc !== null}

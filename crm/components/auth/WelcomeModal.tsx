@@ -55,7 +55,7 @@ export default function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
 
               {/* Title */}
               <h3 className="text-center text-lg sm:text-xl md:text-2xl font-semibold text-gray-900 pt-3 sm:pt-4 pb-2 leading-none sm:leading-tight md:leading-normal">
-                Great! You're almost set. Here's what comes next:
+                Great! You&apos;re almost set. Here&apos;s what comes next:
               </h3>
 
               {/* Action Items */}

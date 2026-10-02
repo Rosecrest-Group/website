@@ -187,11 +187,7 @@ export default function CampaignLeadPicker({
   useEffect(() => {
     if (!open) return;
     const search = query.trim();
-    if (!search) {
-      setLeads([]);
-      setLoading(false);
-      return;
-    }
+    if (!search) return;
     const timer = window.setTimeout(() => {
       setLoading(true);
       api
@@ -214,7 +210,8 @@ export default function CampaignLeadPicker({
   );
   const stages = STAGES.filter(([, label]) => !normalized || label.toLowerCase().includes(normalized));
   const sources = LEAD_SOURCES.filter((row) => !normalized || row.label.toLowerCase().includes(normalized));
-  const people = leads.filter((lead) => !selectedKeys.has(`lead:${lead.id}`));
+  const people = (query.trim() ? leads : []).filter((lead) => !selectedKeys.has(`lead:${lead.id}`));
+  const searching = Boolean(query.trim()) && loading;
 
   function toggle(selection: CampaignSelection) {
     const key = selectionKey(selection);
@@ -255,7 +252,7 @@ export default function CampaignLeadPicker({
     stages.length === 0 &&
     sources.length === 0 &&
     people.length === 0 &&
-    !loading;
+    !searching;
 
   return (
     <div ref={rootRef}>
@@ -418,7 +415,7 @@ export default function CampaignLeadPicker({
             {normalized ? (
               <div>
                 <p className="px-2 pb-1 text-xs font-medium uppercase tracking-wide text-ink-subtle">Leads</p>
-                {loading && people.length === 0 ? (
+                {searching && people.length === 0 ? (
                   <p className="px-2 py-2 text-sm text-ink-muted">Searching…</p>
                 ) : people.length === 0 ? (
                   <p className="px-2 py-2 text-sm text-ink-muted">No leads match that search.</p>

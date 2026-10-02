@@ -1,3 +1,4 @@
+import { createElement } from "react";
 import { Mail, MessageSquare, Phone } from "lucide-react";
 import {
   SalesIgniterRichContent,
@@ -68,7 +69,7 @@ export function DumpMessageCard({
 }) {
   const isOutbound = isDumpOutbound(message);
   const channel = dumpMessageChannel(message);
-  const ChannelIcon = channelIcon(channel);
+  const channelIconType = channelIcon(channel);
   const authorName = isOutbound ? "Rosecrest" : customerName;
   const showPreviewHint =
     message.emailHydrated === false ||
@@ -207,7 +208,7 @@ export function DumpMessageCard({
               channel === "CALL" && "text-orange-700"
             )}
           >
-            <ChannelIcon className="size-3" aria-hidden />
+            {createElement(channelIconType, { className: "size-3", "aria-hidden": true })}
             {channelLabel(channel, message)}
           </span>
           {time ? <span>{time}</span> : null}

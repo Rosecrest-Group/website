@@ -22,39 +22,36 @@ export default function WorkflowTemplatePreviewModal({
   onClose,
 }: Props) {
   const [preview, setPreview] = useState<{ subject: string | null; body: string } | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadedId, setLoadedId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open || !templateId) {
-      setPreview(null);
-      setError(null);
-      return;
-    }
+    if (!open || !templateId) return;
 
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    setPreview(null);
-
     api
       .previewTemplate(templateId)
       .then((result) => {
-        if (!cancelled) setPreview(result);
+        if (cancelled) return;
+        setPreview(result);
+        setError(null);
+        setLoadedId(templateId);
       })
       .catch((e) => {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Could not load template preview");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (cancelled) return;
+        setPreview(null);
+        setError(e instanceof Error ? e.message : "Could not load template preview");
+        setLoadedId(templateId);
       });
 
     return () => {
       cancelled = true;
     };
   }, [open, templateId]);
+
+  const loading = Boolean(open && templateId && loadedId !== templateId);
+  const shownPreview = open && loadedId === templateId ? preview : null;
+  const shownError = open && loadedId === templateId ? error : null;
 
   if (!open || !templateId) return null;
 
@@ -87,32 +84,32 @@ export default function WorkflowTemplatePreviewModal({
               Loading preview…
             </p>
           )}
-          {error && <p className="wf-template-error">{error}</p>}
-          {preview && !loading && (
+          {shownError && <p className="wf-template-error">{shownError}</p>}
+          {shownPreview && !loading && (
             <div>
               <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--wf-text-3)" }}>
                 Rendered preview
               </p>
-              {preview.subject && (
+              {shownPreview.subject && (
                 <p className="mt-2 text-sm font-medium" style={{ color: "var(--wf-text-1)" }}>
-                  {preview.subject}
+                  {shownPreview.subject}
                 </p>
               )}
               {channel === "EMAIL" ? (
                 <div
                   className={`crm-email-body mt-3 rounded-xl p-3 text-sm [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-xl${
-                    preview.body && isDesignedEmailHtml(preview.body) ? " crm-email-body--designed" : ""
+                    shownPreview.body && isDesignedEmailHtml(shownPreview.body) ? " crm-email-body--designed" : ""
                   }`}
                   style={{ background: "var(--wf-bg-subtle)", color: "var(--wf-text-1)" }}
                   dangerouslySetInnerHTML={{
                     __html: sanitizeEmailHtml(
-                      isHtmlContent(preview.body) ? preview.body : plainTextToHtml(preview.body)
+                      isHtmlContent(shownPreview.body) ? shownPreview.body : plainTextToHtml(shownPreview.body)
                     ),
                   }}
                 />
               ) : (
                 (() => {
-                  const { text, mediaUrls } = parseTrailingMediaUrls(preview.body);
+                  const { text, mediaUrls } = parseTrailingMediaUrls(shownPreview.body);
                   return (
                     <>
                       {text && (

@@ -14,11 +14,11 @@ export default function CompaniesList() {
   const [rows, setRows] = useState<CrmCompanyRow[]>([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [loadedSearch, setLoadedSearch] = useState<string | null>(null);
+
   useEffect(() => {
-    setLoading(true);
     const timer = setTimeout(() => {
       const params: Record<string, string> = {};
       if (search.trim()) params.search = search.trim();
@@ -30,10 +30,12 @@ export default function CompaniesList() {
           setError(null);
         })
         .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load companies"))
-        .finally(() => setLoading(false));
+        .finally(() => setLoadedSearch(search));
     }, search ? 300 : 0);
     return () => clearTimeout(timer);
   }, [search]);
+
+  const loading = loadedSearch !== search;
 
   const columns: Column<CrmCompanyRow>[] = [
     {

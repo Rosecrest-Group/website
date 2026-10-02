@@ -324,18 +324,19 @@ export default function CrmSidebar({
   const [user, setUser] = useState<ApiUser | null>(
     () => initialUser ?? getCachedApiUser(),
   );
+  if (initialUser && user !== initialUser) {
+    setUser(initialUser);
+  }
 
   useEffect(() => {
-    if (initialUser) {
-      setUser(initialUser);
-      return;
-    }
+    if (initialUser) return;
     api.getMe().then(setUser).catch(() => setUser(null));
   }, [initialUser]);
 
   useEffect(() => {
     if (!collapsible) return;
-    setCollapsed(readSidebarCollapsed());
+    const id = requestAnimationFrame(() => setCollapsed(readSidebarCollapsed()));
+    return () => cancelAnimationFrame(id);
   }, [collapsible]);
 
   useEffect(() => {
@@ -624,12 +625,12 @@ function SidebarFooter({
   const [user, setUser] = useState<ApiUser | null>(
     () => userProp ?? getCachedApiUser(),
   );
+  if (userProp && user !== userProp) {
+    setUser(userProp);
+  }
 
   useEffect(() => {
-    if (userProp) {
-      setUser(userProp);
-      return;
-    }
+    if (userProp) return;
     api.getMe().then(setUser).catch(() => setUser(null));
   }, [userProp]);
 

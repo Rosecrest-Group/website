@@ -60,7 +60,8 @@ export default function CustomersList({
   const [search, setSearch] = useState("");
   const [source, setSource] = useState("");
   const [leadStatus, setLeadStatus] = useState("");
-  const [loading, setLoading] = useState(() => !seed);
+  const filterKey = `${search}\0${source}\0${leadStatus}`;
+  const [loadedKey, setLoadedKey] = useState<string | null>(() => (seed ? filterKey : null));
   const skipInitialFetch = useRef(Boolean(seed));
 
   useEffect(() => {
@@ -69,7 +70,6 @@ export default function CustomersList({
       return;
     }
     skipInitialFetch.current = false;
-    setLoading(true);
     const params: Record<string, string> = {};
     if (search) params.search = search;
     if (source) params.source = source;
@@ -82,10 +82,12 @@ export default function CustomersList({
           setTotal(res.total);
           if (!search && !source && !leadStatus) setListPageCache("customers:default", res);
         })
-        .finally(() => setLoading(false));
+        .finally(() => setLoadedKey(filterKey));
     }, search ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [search, source, leadStatus]);
+  }, [search, source, leadStatus, filterKey]);
+
+  const loading = loadedKey !== filterKey;
 
   const columns: Column<Customer & Record<string, unknown>>[] = [
     {

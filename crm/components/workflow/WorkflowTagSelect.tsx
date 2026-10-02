@@ -49,9 +49,12 @@ export default function WorkflowTagSelect({
     );
   });
 
-  useEffect(() => {
+  const highlightKey = `${availableOptions.length}:${query}`;
+  const [highlightForKey, setHighlightForKey] = useState(highlightKey);
+  if (highlightForKey !== highlightKey) {
+    setHighlightForKey(highlightKey);
     setHighlight(0);
-  }, [availableOptions.length, query]);
+  }
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent) {

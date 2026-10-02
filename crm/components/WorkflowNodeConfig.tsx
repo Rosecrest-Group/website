@@ -139,6 +139,12 @@ export default function WorkflowNodeConfig({
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [showTemplatePreview, setShowTemplatePreview] = useState(false);
   const [positionExpanded, setPositionExpanded] = useState(false);
+  const [uiForNode, setUiForNode] = useState(node.id);
+  if (uiForNode !== node.id) {
+    setUiForNode(node.id);
+    setShowTemplatePreview(false);
+    setPositionExpanded(false);
+  }
   const channel = messageChannel(nodeType);
   const selectedTemplateId = String(data.templateId ?? "").trim();
   const selectedTemplate = selectedTemplateId
@@ -163,11 +169,6 @@ export default function WorkflowNodeConfig({
       : [...attachmentDocumentTypes, docType];
     update({ attachmentDocumentTypes: next });
   };
-
-  useEffect(() => {
-    setPositionExpanded(false);
-    setShowTemplatePreview(false);
-  }, [node.id]);
 
   useEffect(() => {
     if (nodeType !== "createTask") return;
