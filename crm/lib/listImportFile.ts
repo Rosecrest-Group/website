@@ -1,10 +1,12 @@
+import type { CustomerType } from "@/crm/types";
+
 export const IMPORT_ROW_LIMIT = 2000;
 
-export const SAMPLE_LIST_CSV = `First name,Last name,Email,Phone,Company
-Ada,Lovelace,ada@example.com,020 7946 0958,Analytical Engines Ltd
+export const SAMPLE_LIST_CSV = `First name,Last name,Email,Phone,Company,Type
+Ada,Lovelace,ada@example.com,020 7946 0958,Analytical Engines Ltd,Legal
 `;
 
-export type ImportField = "firstName" | "lastName" | "email" | "phone" | "company" | "skip";
+export type ImportField = "firstName" | "lastName" | "email" | "phone" | "company" | "customerType" | "skip";
 
 const FIELD_LABELS: Record<ImportField, string> = {
   firstName: "First name",
@@ -12,10 +14,19 @@ const FIELD_LABELS: Record<ImportField, string> = {
   email: "Email",
   phone: "Phone",
   company: "Company",
+  customerType: "Type",
   skip: "Don't import",
 };
 
-export const IMPORT_FIELDS: ImportField[] = ["email", "firstName", "lastName", "phone", "company", "skip"];
+export const IMPORT_FIELDS: ImportField[] = [
+  "email",
+  "firstName",
+  "lastName",
+  "phone",
+  "company",
+  "customerType",
+  "skip",
+];
 
 export function importFieldLabel(field: ImportField): string {
   return FIELD_LABELS[field];
@@ -27,6 +38,15 @@ const ALIASES: Record<Exclude<ImportField, "skip">, string[]> = {
   email: ["email", "email address", "e-mail", "e-mail address"],
   phone: ["phone", "phone number", "telephone", "mobile"],
   company: ["company", "company name", "organisation", "organization"],
+  customerType: [
+    "type",
+    "customer type",
+    "lead type",
+    "contact type",
+    "category",
+    "tag",
+    "tags",
+  ],
 };
 
 export function autoMapHeader(header: string): ImportField {
@@ -35,6 +55,47 @@ export function autoMapHeader(header: string): ImportField {
     if (ALIASES[field].includes(key)) return field;
   }
   return "skip";
+}
+
+const CUSTOMER_TYPES: CustomerType[] = ["HOMEBUYER", "LANDLORD", "LEGAL", "COUNCIL", "TRADE"];
+
+/** Solicitor / legal-firm wording. Checked before landlord so “landlord solicitors” stays LEGAL. */
+const LEGAL_TYPE_RE =
+  /\b(solicitor|solicitors|legal|lawyer|lawyers|law\s*firm|law\s*firms|conveyancer|conveyancers|sra)\b/i;
+const LANDLORD_TYPE_RE = /\b(landlord|landlords|lettings?)\b/i;
+const HOMEBUYER_TYPE_RE = /\b(home\s*buyers?|homeowners?|buyers?)\b/i;
+const COUNCIL_TYPE_RE = /\b(council|local\s*authorit(?:y|ies)|housing\s*assoc)/i;
+const TRADE_TYPE_RE = /\b(trade|trades?person|contractor)\b/i;
+
+/**
+ * Map a spreadsheet type/tag cell (or list name / company) onto CRM customerType.
+ * Solicitor wording becomes LEGAL — never LANDLORD.
+ */
+export function parseCustomerType(raw: string): CustomerType | null {
+  const text = raw.trim();
+  if (!text) return null;
+  const compact = text.replace(/[\s-]+/g, "_").toUpperCase();
+  if ((CUSTOMER_TYPES as string[]).includes(compact)) {
+    return compact as CustomerType;
+  }
+  if (LEGAL_TYPE_RE.test(text)) return "LEGAL";
+  if (LANDLORD_TYPE_RE.test(text)) return "LANDLORD";
+  if (HOMEBUYER_TYPE_RE.test(text)) return "HOMEBUYER";
+  if (COUNCIL_TYPE_RE.test(text)) return "COUNCIL";
+  if (TRADE_TYPE_RE.test(text)) return "TRADE";
+  return null;
+}
+
+export function inferImportedCustomerType(input: {
+  typeValue?: string;
+  listName?: string;
+  company?: string;
+}): CustomerType | null {
+  return (
+    parseCustomerType(input.typeValue ?? "") ??
+    parseCustomerType(input.listName ?? "") ??
+    parseCustomerType(input.company ?? "")
+  );
 }
 
 export type ParsedColumn = {

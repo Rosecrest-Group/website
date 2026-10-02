@@ -270,6 +270,18 @@ export const TASK_STATUS_LABELS: Record<string, string> = {
   DONE: "Done",
 };
 
+export const CUSTOMER_TYPE_LABELS: Record<string, string> = {
+  HOMEBUYER: "Homebuyer",
+  LANDLORD: "Landlord",
+  LEGAL: "Legal / solicitor",
+  COUNCIL: "Council",
+  TRADE: "Trade",
+};
+
+export const CUSTOMER_TYPE_OPTIONS: { value: keyof typeof CUSTOMER_TYPE_LABELS; label: string }[] = (
+  Object.keys(CUSTOMER_TYPE_LABELS) as Array<keyof typeof CUSTOMER_TYPE_LABELS>
+).map((value) => ({ value, label: CUSTOMER_TYPE_LABELS[value] }));
+
 export const JOB_TYPE_LABELS: Record<string, string> = {
   RICS_SURVEY: "RICS survey",
   CPR_35_REPORT: "CPR-35 report",
