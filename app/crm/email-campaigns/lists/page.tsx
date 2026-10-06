@@ -6,11 +6,14 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/crm/lib/api";
 import type { ContactListRow } from "@/crm/types/prospecting";
+import type { CustomerType } from "@/crm/types";
+import { CUSTOMER_TYPE_OPTIONS } from "@/crm/lib/customerTypes";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import TextField from "@/crm/components/ui/TextField";
+import SelectField from "@/crm/components/ui/SelectField";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import Table, { type Column } from "@/crm/components/ui/Table";
 import CrmModal from "@/crm/components/ui/CrmModal";
@@ -24,6 +27,7 @@ export default function ContactListsPage() {
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
+  const [customerType, setCustomerType] = useState<CustomerType | "">("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -41,13 +45,14 @@ export default function ContactListsPage() {
   }, [load]);
 
   async function create() {
-    if (!name.trim() || creating) return;
+    if (!name.trim() || !customerType || creating) return;
     setCreating(true);
     setCreateError(null);
     try {
-      const list = await api.createContactList(name.trim());
+      const list = await api.createContactList(name.trim(), customerType);
       setCreateOpen(false);
       setName("");
+      setCustomerType("");
       toast.success(`${list.name} created.`);
       router.push(`/crm/email-campaigns/lists/${list.id}`);
     } catch (err) {
@@ -77,7 +82,7 @@ export default function ContactListsPage() {
         title="Lists"
         subtitle="Named groups of companies from Find Firms. People live on the company."
         actions={
-          <PrimaryButton type="button" onClick={() => { setCreateOpen(true); setCreateError(null); setName(""); }}>
+          <PrimaryButton type="button" onClick={() => { setCreateOpen(true); setCreateError(null); setName(""); setCustomerType(""); }}>
             Create list
           </PrimaryButton>
         }
@@ -110,20 +115,38 @@ export default function ContactListsPage() {
             <SecondaryButton type="button" className="w-auto" disabled={creating} onClick={() => setCreateOpen(false)}>
               Cancel
             </SecondaryButton>
-            <PrimaryButton type="button" className="w-auto min-w-32" disabled={!name.trim() || creating} onClick={() => void create()}>
+            <PrimaryButton type="button" className="w-auto min-w-32" disabled={!name.trim() || !customerType || creating} onClick={() => void create()}>
               {creating ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
               {creating ? "Creating…" : "Create list"}
             </PrimaryButton>
           </>
         }
       >
-        <TextField
-          label="List name"
-          value={name}
-          disabled={creating}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="e.g. Croydon solicitors"
-        />
+        <div className="space-y-4">
+          <TextField
+            label="List name"
+            value={name}
+            disabled={creating}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="e.g. Croydon solicitors"
+          />
+          <SelectField
+            label="Contact type"
+            value={customerType}
+            disabled={creating}
+            onChange={(event) => setCustomerType(event.target.value as CustomerType | "")}
+          >
+            <option value="">Choose a type</option>
+            {CUSTOMER_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </SelectField>
+          <p className="text-sm text-ink-muted">
+            People created by importing into this list are saved as this type. The list name does not set it.
+          </p>
+        </div>
         {createError ? <p className="mt-3 text-sm text-orange-700">{createError}</p> : null}
       </CrmModal>
     </CrmPageContent>

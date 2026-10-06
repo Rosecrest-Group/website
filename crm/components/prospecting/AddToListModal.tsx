@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { api } from "@/crm/lib/api";
 import type { ContactListAddResult, ContactListRow } from "@/crm/types/prospecting";
+import type { CustomerType } from "@/crm/types";
+import { CUSTOMER_TYPE_OPTIONS } from "@/crm/lib/customerTypes";
 import CrmModal from "@/crm/components/ui/CrmModal";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
@@ -47,6 +49,7 @@ export default function AddToListModal({
   const [listsLoading, setListsLoading] = useState(!listsCache);
   const [listId, setListId] = useState(NEW_LIST);
   const [name, setName] = useState("");
+  const [customerType, setCustomerType] = useState<CustomerType | "">("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,6 +80,7 @@ export default function AddToListModal({
     if (!open) return;
     setListId(NEW_LIST);
     setName("");
+    setCustomerType("");
     setError(null);
     setLoading(false);
     if (listsCache) setLists(listsCache);
@@ -86,7 +90,7 @@ export default function AddToListModal({
   }, [open]);
 
   const creating = listId === NEW_LIST;
-  const canSubmit = creating ? name.trim().length > 0 : Boolean(listId);
+  const canSubmit = creating ? name.trim().length > 0 && Boolean(customerType) : Boolean(listId);
 
   async function submit() {
     if (!canSubmit || loading) return;
@@ -97,6 +101,7 @@ export default function AddToListModal({
         const result = await api.addContactListMemberships({
           listId: creating ? undefined : listId,
           name: creating ? name.trim() : undefined,
+          customerType: creating && customerType ? customerType : undefined,
           opportunityIds,
         });
         upsertCachedList(result.list);
@@ -107,7 +112,7 @@ export default function AddToListModal({
       let target: ContactListRow;
       if (creating) {
         try {
-          target = await api.createContactList(name.trim());
+          target = await api.createContactList(name.trim(), customerType as CustomerType);
         } catch (err) {
           if (err instanceof Error && /already exists/i.test(err.message)) {
             const listed = await api.listContactLists({ search: name.trim(), limit: 100 });
@@ -190,13 +195,28 @@ export default function AddToListModal({
                 creating ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0",
               )}
             >
-              <TextField
-                label="List name"
-                value={name}
-                disabled={loading || !creating}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="e.g. Croydon solicitors"
-              />
+              <div className="space-y-4">
+                <TextField
+                  label="List name"
+                  value={name}
+                  disabled={loading || !creating}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="e.g. Croydon solicitors"
+                />
+                <SelectField
+                  label="Contact type"
+                  value={customerType}
+                  disabled={loading || !creating}
+                  onChange={(event) => setCustomerType(event.target.value as CustomerType | "")}
+                >
+                  <option value="">Choose a type</option>
+                  {CUSTOMER_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </SelectField>
+              </div>
             </div>
           </div>
         </div>

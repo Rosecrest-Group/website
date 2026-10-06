@@ -7,11 +7,14 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/crm/lib/api";
 import type { ContactListDetail, ContactListMemberRow } from "@/crm/types/prospecting";
+import type { CustomerType } from "@/crm/types";
+import { CUSTOMER_TYPE_OPTIONS } from "@/crm/lib/customerTypes";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import SecondaryButton from "@/crm/components/ui/SecondaryButton";
 import TextField from "@/crm/components/ui/TextField";
+import SelectField from "@/crm/components/ui/SelectField";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import Table, { type Column } from "@/crm/components/ui/Table";
 import ConfirmModal from "@/crm/components/ui/ConfirmModal";
@@ -25,6 +28,7 @@ export default function ContactListDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [customerType, setCustomerType] = useState<CustomerType>("LANDLORD");
   const [renaming, setRenaming] = useState(false);
   const [renameError, setRenameError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -39,6 +43,7 @@ export default function ContactListDetailPage() {
     const detail = await api.getContactList(id, { page, limit: 50 });
     setList(detail);
     setName(detail.name);
+    setCustomerType(detail.customerType);
   }, [id, page]);
 
   useEffect(() => {
@@ -48,17 +53,21 @@ export default function ContactListDetailPage() {
       .finally(() => setLoading(false));
   }, [load]);
 
-  async function rename() {
-    if (!list || name.trim() === list.name || renaming) return;
+  async function saveList() {
+    if (!list || renaming) return;
+    const nextName = name.trim();
+    if (!nextName) return;
+    if (nextName === list.name && customerType === list.customerType) return;
     setRenaming(true);
     setRenameError(null);
     try {
-      const updated = await api.updateContactList(list.id, name.trim());
-      setList({ ...list, name: updated.name, updatedAt: updated.updatedAt });
+      const updated = await api.updateContactList(list.id, { name: nextName, customerType });
+      setList({ ...list, name: updated.name, customerType: updated.customerType, updatedAt: updated.updatedAt });
       setName(updated.name);
-      toast.success("List renamed.");
+      setCustomerType(updated.customerType);
+      toast.success("List saved.");
     } catch (err) {
-      setRenameError(err instanceof Error ? err.message : "Could not rename");
+      setRenameError(err instanceof Error ? err.message : "Could not save");
     } finally {
       setRenaming(false);
     }
@@ -169,7 +178,8 @@ export default function ContactListDetailPage() {
 
   if (!list) return null;
 
-  const dirty = name.trim() !== list.name && name.trim().length > 0;
+  const dirty =
+    name.trim().length > 0 && (name.trim() !== list.name || customerType !== list.customerType);
 
   return (
     <CrmPageContent>
@@ -214,9 +224,23 @@ export default function ContactListDetailPage() {
             disabled={renaming}
           />
         </div>
-        <PrimaryButton type="button" className="w-auto" disabled={!dirty || renaming} onClick={() => void rename()}>
+        <div className="min-w-44">
+          <SelectField
+            label="Contact type"
+            value={customerType}
+            disabled={renaming}
+            onChange={(event) => setCustomerType(event.target.value as CustomerType)}
+          >
+            {CUSTOMER_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </SelectField>
+        </div>
+        <PrimaryButton type="button" className="w-auto" disabled={!dirty || renaming} onClick={() => void saveList()}>
           {renaming ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-          {renaming ? "Saving…" : "Save name"}
+          {renaming ? "Saving…" : "Save"}
         </PrimaryButton>
       </div>
       {renameError ? <p className="text-sm text-orange-700">{renameError}</p> : null}

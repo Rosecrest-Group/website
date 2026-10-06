@@ -39,6 +39,7 @@ export type ProspectingListResponse<T> = {
 export type ContactListRow = {
   id: string;
   name: string;
+  customerType: "HOMEBUYER" | "LANDLORD" | "LEGAL" | "COUNCIL" | "TRADE";
   memberCount: number;
   createdAt: string;
   updatedAt: string;

@@ -64,7 +64,7 @@ export default function CustomerProfile({ id }: { id: string }) {
           {customer.firstName} {customer.lastName}
         </h1>
         <p className="mt-1 text-sm text-(--color-tc-30)">
-          {customer.email} · {customer.phone} · {customer.customerType}
+          {customer.email} · {customer.phone}
           {customer.accountId ? (
             <>
               {" · "}

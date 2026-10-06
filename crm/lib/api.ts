@@ -1698,10 +1698,10 @@ export const api = {
     );
   },
 
-  createContactList: (name: string) =>
+  createContactList: (name: string, customerType: import("@/crm/types").CustomerType) =>
     request<import("@/crm/types/prospecting").ContactListRow>("/prospecting/lists", {
       method: "POST",
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, customerType }),
     }),
 
   getContactList: (id: string, params?: { page?: number; limit?: number }) => {
@@ -1714,10 +1714,13 @@ export const api = {
     );
   },
 
-  updateContactList: (id: string, name: string) =>
+  updateContactList: (
+    id: string,
+    body: { name: string; customerType?: import("@/crm/types").CustomerType }
+  ) =>
     request<import("@/crm/types/prospecting").ContactListRow>(`/prospecting/lists/${encodeURIComponent(id)}`, {
       method: "PATCH",
-      body: JSON.stringify({ name }),
+      body: JSON.stringify(body),
     }),
 
   deleteContactList: (id: string) =>
@@ -1728,7 +1731,12 @@ export const api = {
       method: "POST",
     }),
 
-  addContactListMemberships: (body: { listId?: string; name?: string; opportunityIds: string[] }) =>
+  addContactListMemberships: (body: {
+    listId?: string;
+    name?: string;
+    customerType?: import("@/crm/types").CustomerType;
+    opportunityIds: string[];
+  }) =>
     request<import("@/crm/types/prospecting").ContactListAddResult>("/prospecting/lists/memberships", {
       method: "POST",
       body: JSON.stringify(body),
