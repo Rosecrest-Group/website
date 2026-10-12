@@ -7,14 +7,26 @@ function parsePane(value: string | string[] | undefined): ThreadPane | undefined
   return undefined;
 }
 
+function parseCampaignReturn(value: string | string[] | undefined): string | undefined {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (!raw || !/^[a-z0-9]{8,40}$/i.test(raw)) return undefined;
+  return raw;
+}
+
 export default async function LeadDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ pane?: string | string[] }>;
+  searchParams: Promise<{ pane?: string | string[]; fromCampaign?: string | string[] }>;
 }) {
   const { id } = await params;
   const query = await searchParams;
-  return <LeadDetail id={id} initialPane={parsePane(query.pane)} />;
+  return (
+    <LeadDetail
+      id={id}
+      initialPane={parsePane(query.pane)}
+      returnCampaignId={parseCampaignReturn(query.fromCampaign)}
+    />
+  );
 }

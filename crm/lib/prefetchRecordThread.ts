@@ -6,27 +6,34 @@ import { prefetchConversationThread } from "@/crm/lib/prefetchConversationThread
 const recordThreadCache = new Map<string, InternalConversationSummary>();
 const inflight = new Map<string, Promise<InternalConversationSummary | null>>();
 
-function recordThreadKey(params: { leadId?: string; jobId?: string }) {
-  return params.leadId ? `lead:${params.leadId}` : params.jobId ? `job:${params.jobId}` : "";
+function recordThreadKey(params: { leadId?: string; jobId?: string; customerId?: string }) {
+  return params.leadId
+    ? `lead:${params.leadId}`
+    : params.jobId
+      ? `job:${params.jobId}`
+      : params.customerId
+        ? `customer:${params.customerId}`
+        : "";
 }
 
 export function getCachedRecordThread(params: {
   leadId?: string;
   jobId?: string;
+  customerId?: string;
 }): InternalConversationSummary | null {
   const key = recordThreadKey(params);
   return key ? (recordThreadCache.get(key) ?? null) : null;
 }
 
 export function cacheRecordThread(
-  params: { leadId?: string; jobId?: string },
+  params: { leadId?: string; jobId?: string; customerId?: string },
   thread: InternalConversationSummary
 ) {
   const key = recordThreadKey(params);
   if (key) recordThreadCache.set(key, thread);
 }
 
-export function prefetchRecordThread(params: { leadId?: string; jobId?: string }) {
+export function prefetchRecordThread(params: { leadId?: string; jobId?: string; customerId?: string }) {
   const key = recordThreadKey(params);
   if (!key) return Promise.resolve(null);
   
@@ -41,6 +48,7 @@ export function prefetchRecordThread(params: { leadId?: string; jobId?: string }
     .listConversations({
       ...(params.leadId ? { leadId: params.leadId } : {}),
       ...(params.jobId ? { jobId: params.jobId } : {}),
+      ...(params.customerId ? { customerId: params.customerId } : {}),
       kind: "RECORD_THREAD",
     })
     .then((list) => {
@@ -63,6 +71,7 @@ export function prefetchRecordThread(params: { leadId?: string; jobId?: string }
 export function getInflightRecordThread(params: {
   leadId?: string;
   jobId?: string;
+  customerId?: string;
 }): Promise<InternalConversationSummary | null> | null {
   const key = recordThreadKey(params);
   return key ? (inflight.get(key) ?? null) : null;

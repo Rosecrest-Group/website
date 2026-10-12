@@ -1180,6 +1180,8 @@ export default function LeadMessageThread({
   /** When true, paint seed immediately but still fetch fresh messages (inbox preview). */
   revalidateSeed = false,
   isActive = true,
+  hostedThread = false,
+  onHostedSend,
 }: {
   leadId: string;
   customerName: string;
@@ -1200,6 +1202,18 @@ export default function LeadMessageThread({
   revalidateSeed?: boolean;
   /** When false, the thread stays mounted offscreen (inbox tab carousel). */
   isActive?: boolean;
+  /** Render the supplied messages and send through onHostedSend. Does not load or write a lead thread. */
+  hostedThread?: boolean;
+  onHostedSend?: (input: {
+    channel: Channel;
+    subject?: string;
+    body?: string;
+    htmlBody?: string;
+    mediaUrls?: string[];
+    toAddress?: string;
+    ccAddresses?: string[];
+    replyToMessageId?: string;
+  }) => Promise<void>;
 }) {
   const cachedThread = getCachedLeadThread(leadId);
   const [messages, setMessages] = useState(() =>
@@ -1261,6 +1275,10 @@ export default function LeadMessageThread({
   );
 
   useEffect(() => {
+    if (hostedThread) {
+      if (emailContactsProp) setEmailContacts(emailContactsProp);
+      return;
+    }
     setEmailContacts(
       mergeEmailContacts(emailContactsFromLead(getCachedLead(leadId)), emailContactsProp)
     );
@@ -1282,6 +1300,7 @@ export default function LeadMessageThread({
     emailContactsProp?.vendorName,
     emailContactsProp?.surveyorEmail,
     emailContactsProp?.surveyorName,
+    hostedThread,
   ]);
 
   useEffect(() => {
@@ -1358,6 +1377,7 @@ export default function LeadMessageThread({
   }, [initialThreadActivities, leadId]);
 
   useEffect(() => {
+    if (hostedThread) return;
     let cancelled = false;
     const cached = getCachedLeadThread(leadId);
     const cacheIsComplete = Boolean(cached?.notesLoaded);
@@ -1460,7 +1480,14 @@ export default function LeadMessageThread({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when lead / messaging providers change
-  }, [leadId, teamConnectEnabled, dialpadEnabled, revalidateSeed]);
+  }, [leadId, teamConnectEnabled, dialpadEnabled, revalidateSeed, hostedThread]);
+
+  useEffect(() => {
+    if (!hostedThread) return;
+    setMessages(initialMessages);
+    setThreadActivities(initialThreadActivities);
+    setLoading(false);
+  }, [hostedThread, initialMessages, initialThreadActivities]);
 
   useEffect(() => {
     hasScrolledToBottomRef.current = false;
@@ -1468,6 +1495,7 @@ export default function LeadMessageThread({
 
   // Opening the thread clears it for the whole team and drops the matching bell items.
   useEffect(() => {
+    if (hostedThread) return;
     onReadRef.current?.(leadId);
     void api
       .markInboxThreadRead(leadId)
@@ -1475,7 +1503,7 @@ export default function LeadMessageThread({
       .catch(() => {
         // best-effort: the row just stays highlighted until the next refresh
       });
-  }, [leadId]);
+  }, [leadId, hostedThread]);
 
   useLayoutEffect(() => {
     // Jump on the thread's first paint; only animate for messages that arrive after it.
@@ -1595,6 +1623,7 @@ export default function LeadMessageThread({
   }
 
   useEffect(() => {
+    if (hostedThread) return;
     if (!teamConnectEnabled && !dialpadEnabled) return;
     const tick = () => {
       if (document.visibilityState !== "visible") return;
@@ -1602,7 +1631,7 @@ export default function LeadMessageThread({
     };
     const timer = window.setInterval(tick, 60_000);
     return () => window.clearInterval(timer);
-  }, [leadId, teamConnectEnabled, dialpadEnabled]);
+  }, [leadId, teamConnectEnabled, dialpadEnabled, hostedThread]);
 
   const composePlaceholder =
     channel === "EMAIL"
@@ -1669,9 +1698,8 @@ export default function LeadMessageThread({
     setSending(true);
     setError("");
     try {
-      await api.sendMessage({
+      const payload = {
         channel,
-        leadId,
         body: channel === "EMAIL" ? text : text || undefined,
         htmlBody: channel === "EMAIL" ? emailPayload?.html : undefined,
         mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
@@ -1683,7 +1711,12 @@ export default function LeadMessageThread({
           channel === "SMS" && teamConnectEnabled
             ? selectedPhoneDocId ?? smsNumbers[0]?.phoneDocId
             : undefined,
-      });
+      };
+      if (hostedThread && onHostedSend) {
+        await onHostedSend(payload);
+      } else {
+        await api.sendMessage({ ...payload, leadId });
+      }
       setPlainBody("");
       setHtmlBody("");
       composeRef.current?.clearMedia();
@@ -1695,7 +1728,7 @@ export default function LeadMessageThread({
         setToKind("client");
         setOtherToEmail("");
       }
-      await refreshMessages();
+      if (!hostedThread) await refreshMessages();
       onSent?.();
       setComposeExpanded(false);
       toast.success(

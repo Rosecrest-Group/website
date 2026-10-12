@@ -34,6 +34,7 @@ import {
   uploadNoteAttachments,
 } from "@/crm/lib/leadNotes";
 import { prefetchLeadThreadWithActivities } from "@/crm/lib/loadLeadThread";
+import { ensureRecordThread } from "@/crm/lib/recordThread";
 import { scrollChatContainerToBottom } from "@/crm/lib/scrollChatThread";
 import type { InternalMessageItem, MentionSuggestion, Message } from "@/crm/types";
 import { cn } from "@/lib/utils";
@@ -222,6 +223,7 @@ export function NoteThreadBubble({
 
 export function NoteCommentsSlidePanel({
   leadId,
+  customerId,
   conversationId,
   note,
   notes,
@@ -229,6 +231,7 @@ export function NoteCommentsSlidePanel({
   onNotesChange,
 }: {
   leadId: string;
+  customerId?: string;
   conversationId: string | null;
   note: InternalMessageItem | null;
   notes: InternalMessageItem[];
@@ -298,7 +301,7 @@ export function NoteCommentsSlidePanel({
     });
 
     try {
-      const thread = await resolveNotesThread(leadId, conversationId);
+      const thread = await resolveNotesThread(leadId, conversationId, customerId);
       const created = await api.sendConversationMessage(thread.id, {
         body: text,
         parentMessageId: note.id,
@@ -449,6 +452,7 @@ export function NoteCommentsSlidePanel({
 
 export default function LeadInternalNotesPanel({
   leadId,
+  customerId,
   referencedMessage = null,
   onClearReferencedMessage,
   onPosted,
@@ -457,6 +461,8 @@ export default function LeadInternalNotesPanel({
   isActive = true,
 }: {
   leadId: string;
+  /** Notes for a contact who has no lead. Skips the lead thread fetch. */
+  customerId?: string;
   referencedMessage?: Message | null;
   onClearReferencedMessage?: () => void;
   onPosted?: () => void;
@@ -498,11 +504,25 @@ export default function LeadInternalNotesPanel({
       setLoading(true);
     }
 
-    void prefetchLeadThreadWithActivities(leadId)
+    const load = customerId
+      ? ensureRecordThread({ customerId }).then(async (thread) => {
+          const page = await api.listConversationMessages(thread.id, { latest: true });
+          const notes = [...page.items].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          );
+          return { notes, conversationId: thread.id };
+        })
+      : prefetchLeadThreadWithActivities(leadId).then((result) => ({
+          notes: result.notes,
+          conversationId: result.conversationId,
+        }));
+
+    void load
       .then((result) => {
         if (cancelled) return;
         setNotes(result.notes);
         setConversationId(result.conversationId);
+        if (customerId) persistLeadNotes(leadId, result.notes, result.conversationId);
       })
       .catch(() => {
         if (!cancelled && !existing?.notesLoaded) setNotes(existing?.notes ?? []);
@@ -514,7 +534,7 @@ export default function LeadInternalNotesPanel({
     return () => {
       cancelled = true;
     };
-  }, [leadId]);
+  }, [leadId, customerId]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -605,7 +625,7 @@ export default function LeadInternalNotesPanel({
     onPosted?.();
 
     try {
-      const thread = await resolveNotesThread(leadId, conversationId);
+      const thread = await resolveNotesThread(leadId, conversationId, customerId);
       const attachmentIds = await uploadNoteAttachments(
         thread.id,
         attachmentsToSend.map((item) => item.file)
@@ -774,6 +794,7 @@ export default function LeadInternalNotesPanel({
 
       <NoteCommentsSlidePanel
         leadId={leadId}
+        customerId={customerId}
         conversationId={conversationId}
         note={commentNote}
         notes={notes}

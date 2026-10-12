@@ -30,12 +30,13 @@ function mergeServerTags(previous: LeadTag[], serverTags: LeadTag[]) {
 }
 
 export interface LeadTagsProps {
-  leadId: string;
+  leadId?: string;
+  customerId?: string;
   tags: LeadTag[];
   onChange: (tags: LeadTag[]) => void;
 }
 
-export default function LeadTags({ leadId, tags, onChange }: LeadTagsProps) {
+export default function LeadTags({ leadId, customerId, tags, onChange }: LeadTagsProps) {
   const listboxId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -126,7 +127,9 @@ export default function LeadTags({ leadId, tags, onChange }: LeadTagsProps) {
     requestAnimationFrame(() => inputRef.current?.focus());
 
     try {
-      const updated = await api.addLeadTag(leadId, payload);
+      const updated = customerId
+        ? await api.addCustomerTag(customerId, payload)
+        : await api.addLeadTag(leadId!, payload);
       const merged = mergeServerTags(tagsRef.current, updated.tags ?? []);
       tagsRef.current = merged;
       onChange(merged);
@@ -147,7 +150,9 @@ export default function LeadTags({ leadId, tags, onChange }: LeadTagsProps) {
     onChange(next);
 
     try {
-      const updated = await api.removeLeadTag(leadId, tagId);
+      const updated = customerId
+        ? await api.removeCustomerTag(customerId, tagId)
+        : await api.removeLeadTag(leadId!, tagId);
       const merged = mergeServerTags(tagsRef.current, updated.tags ?? []);
       tagsRef.current = merged;
       onChange(merged);

@@ -36,7 +36,7 @@ export default function SlidingPaneTabs<T extends string>({
 
   return (
     <LayoutGroup id={id}>
-      <div className="flex items-center gap-0.5 rounded-lg bg-sidebar p-0.5">
+      <div className="flex w-fit items-center gap-0.5 rounded-lg bg-sidebar p-0.5">
         {panes.map((pane) => {
           const isActive = value === pane;
           return (

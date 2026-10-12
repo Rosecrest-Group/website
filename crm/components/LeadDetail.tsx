@@ -137,6 +137,7 @@ export default function LeadDetail({
   onDeleted,
   onUpdated,
   initialPane,
+  returnCampaignId,
 }: {
   id: string;
   embedded?: boolean;
@@ -144,6 +145,7 @@ export default function LeadDetail({
   onDeleted?: () => void;
   onUpdated?: () => void;
   initialPane?: ThreadPane;
+  returnCampaignId?: string;
 }) {
   const router = useRouter();
   const { setLeft: setTopBar } = useCrmTopBar();
@@ -274,9 +276,9 @@ export default function LeadDetail({
     if (embedded) return;
     const customer = lead?.customer;
     const name = customer ? `${customer.firstName} ${customer.lastName}` : undefined;
-    setTopBar(<LeadDetailBreadcrumb name={name} />);
+    setTopBar(<LeadDetailBreadcrumb name={name} returnCampaignId={returnCampaignId} />);
     return () => setTopBar(null);
-  }, [embedded, lead, setTopBar]);
+  }, [embedded, lead, returnCampaignId, setTopBar]);
 
   async function stopAutomation() {
     setStoppingAutomation(true);
@@ -1606,17 +1608,19 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function LeadDetailBreadcrumb({ name }: { name?: string }) {
+function LeadDetailBreadcrumb({ name, returnCampaignId }: { name?: string; returnCampaignId?: string }) {
   const leadsHref = useSyncExternalStore(subscribeLeadsHref, leadsListHref, () => DEFAULT_LEADS_HREF);
+  const backHref = returnCampaignId ? `${CRM_BASE_PATH}/email-campaigns/${returnCampaignId}` : leadsHref;
+  const backLabel = returnCampaignId ? "Campaign" : "Leads";
 
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-sm">
       <Link
-        href={leadsHref}
+        href={backHref}
         className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-(--color-tc-30) transition-colors hover:bg-(--color-nc-10) hover:text-(--color-tc-40)"
       >
         <ArrowLeft className="size-3.5" />
-        Leads
+        {backLabel}
       </Link>
       <ChevronRight className="size-3.5 shrink-0 text-(--color-tc-20)" aria-hidden />
       <span className="shrink-0 text-(--color-tc-30)">Active</span>

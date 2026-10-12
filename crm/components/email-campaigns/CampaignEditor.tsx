@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Calendar, ChevronDown } from "lucide-react";
+import { ArrowLeft, Calendar, ChevronDown, ChevronRight } from "lucide-react";
 import { api } from "@/crm/lib/api";
 import { CRM_BASE_PATH } from "@/crm/lib/constants";
+import { useCrmTopBar } from "@/crm/lib/crmTopBarContext";
 import { htmlToPlainText } from "@/crm/lib/messageFormatting";
 import type { CampaignAudience, CampaignDetail, CampaignLeadFilter } from "@/crm/types/campaigns";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
-import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import PrimaryButton from "@/crm/components/ui/PrimaryButton";
 import TextField from "@/crm/components/ui/TextField";
 import MessageRichCompose, {
@@ -17,7 +17,16 @@ import MessageRichCompose, {
 } from "@/crm/components/ui/MessageRichCompose";
 import LoadingSpinner from "@/crm/components/ui/LoadingSpinner";
 import StatusPill from "@/crm/components/ui/StatusPill";
+import Toggle from "@/crm/components/ui/Toggle";
 import CampaignLeadPicker from "@/crm/components/email-campaigns/CampaignLeadPicker";
+import CampaignRecipients from "@/crm/components/email-campaigns/CampaignRecipients";
+import SlidingPaneTabs from "@/crm/components/ui/SlidingPaneTabs";
+
+const CAMPAIGN_VIEWS = ["recipients", "email"] as const;
+const CAMPAIGN_VIEW_LABEL = {
+  recipients: "Recipients",
+  email: "Email",
+} as const;
 
 const MERGE_FIELDS = [
   "{{customer.firstName}}",
@@ -32,6 +41,38 @@ const MERGE_FIELDS = [
 
 const DEFAULT_FROM_NAME = "Rosecrest Group";
 
+function campaignStatusLabel(status: string) {
+  if (status === "DRAFT") return "Draft";
+  if (status === "SENT") return "Sent";
+  return status;
+}
+
+function CampaignBreadcrumb({ name, status }: { name?: string; status?: string }) {
+  return (
+    <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-sm">
+      <Link
+        href={`${CRM_BASE_PATH}/email-campaigns`}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-(--color-tc-30) transition-colors hover:bg-(--color-nc-10) hover:text-(--color-tc-40)"
+      >
+        <ArrowLeft className="size-3.5" />
+        Email campaigns
+      </Link>
+      {status ? (
+        <>
+          <ChevronRight className="size-3.5 shrink-0 text-(--color-tc-20)" aria-hidden />
+          <span className="shrink-0 text-(--color-tc-30)">{campaignStatusLabel(status)}</span>
+        </>
+      ) : null}
+      {name ? (
+        <>
+          <ChevronRight className="size-3.5 shrink-0 text-(--color-tc-20)" aria-hidden />
+          <span className="truncate font-medium text-(--color-tc-40)">{name}</span>
+        </>
+      ) : null}
+    </nav>
+  );
+}
+
 const FOLD_GRID =
   "grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none";
 
@@ -40,6 +81,7 @@ function emptyFilter(): CampaignLeadFilter {
 }
 
 export default function CampaignEditor({ id }: { id: string }) {
+  const { setLeft: setTopBar } = useCrmTopBar();
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
   const [subject, setSubject] = useState("");
   const [html, setHtml] = useState("");
@@ -71,6 +113,9 @@ export default function CampaignEditor({ id }: { id: string }) {
     skippedCount: number;
   } | null>(null);
   const [sendTimesError, setSendTimesError] = useState("");
+  const [view, setView] = useState<"recipients" | "email">("recipients");
+  const [audiencePreview, setAudiencePreview] = useState<{ willSend: number; alreadyMailed: number } | null>(null);
+  const [audiencePreviewState, setAudiencePreviewState] = useState<"idle" | "loading" | "error">("idle");
   const composeRef = useRef<MessageRichComposeHandle>(null);
   const emailEditorRef = useRef<EmailRichEditorHandle>(null);
   const insertTarget = useRef<"subject" | "body">("body");
@@ -94,6 +139,7 @@ export default function CampaignEditor({ id }: { id: string }) {
         setPlain(htmlToPlainText(row.html));
         setAudience({
           ...row.audience,
+          excludePreviousListSends: row.audience.excludePreviousListSends ?? false,
           recipients: row.audience.recipients ?? [],
           selections: row.audience.selections ?? [],
           attachments: row.audience.attachments ?? [],
@@ -136,6 +182,11 @@ export default function CampaignEditor({ id }: { id: string }) {
   }, [campaign?.id, campaign?.audience.attachments]);
 
   useEffect(() => {
+    setTopBar(<CampaignBreadcrumb name={campaign?.name} status={campaign?.status} />);
+    return () => setTopBar(null);
+  }, [campaign?.name, campaign?.status, setTopBar]);
+
+  useEffect(() => {
     if (sendMode !== "usual" || !scheduleDate || !scheduleTime) {
       setSendTimes(null);
       setSendTimesError("");
@@ -161,6 +212,37 @@ export default function CampaignEditor({ id }: { id: string }) {
     }, 300);
     return () => window.clearTimeout(timer);
   }, [id, sendMode, scheduleDate, scheduleTime, quietOn, quietStart, quietEnd, audience]);
+
+  const namedLists = (audience.selections ?? []).filter((row) => row.kind === "contactList");
+  const excludeMailed = Boolean(audience.excludePreviousListSends) && namedLists.length > 0;
+
+  useEffect(() => {
+    if (!excludeMailed || lockedRef.current) {
+      setAudiencePreview(null);
+      setAudiencePreviewState("idle");
+      return;
+    }
+    let cancelled = false;
+    setAudiencePreviewState("loading");
+    const timer = window.setTimeout(() => {
+      api
+        .previewCampaignAudience(id, { ...audience, excludePreviousListSends: true })
+        .then((row) => {
+          if (cancelled) return;
+          setAudiencePreview(row);
+          setAudiencePreviewState("idle");
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setAudiencePreview(null);
+          setAudiencePreviewState("error");
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [id, excludeMailed, audience]);
 
   function scheduledAtValue(): string | null {
     if (sendMode !== "later" || !scheduleDate || !scheduleTime) return null;
@@ -268,21 +350,7 @@ export default function CampaignEditor({ id }: { id: string }) {
     }
   }
 
-  if (loading) {
-    return (
-      <CrmPageContent className="space-y-4 py-3 sm:py-4 lg:py-4">
-        <LoadingSpinner />
-      </CrmPageContent>
-    );
-  }
-
-  if (!campaign) {
-    return (
-      <CrmPageContent className="space-y-4 py-3 sm:py-4 lg:py-4">
-        <p className="text-sm text-orange-700">{error || "Campaign not found"}</p>
-      </CrmPageContent>
-    );
-  }
+  const showRecipients = !error && campaign?.status !== "DRAFT";
 
   const hasBody = plain.trim().length > 0 || html.replace(/<[^>]+>/g, " ").trim().length > 0;
   const scheduleReady = sendMode === "now" || (scheduleDate.length > 0 && scheduleTime.length > 0);
@@ -319,39 +387,48 @@ export default function CampaignEditor({ id }: { id: string }) {
   }
 
   return (
-    <CrmPageContent className="space-y-4 py-3 sm:py-4 lg:py-4">
-      <Link href={`${CRM_BASE_PATH}/email-campaigns`} className="text-sm text-ink-muted hover:text-ink">
-        Email campaigns
-      </Link>
-      <CrmPageHeader
-        title={campaign.name}
-        subtitle={
+    <CrmPageContent className="!space-y-3 !py-3 sm:!py-3 lg:!py-3">
+      {loading ? <LoadingSpinner /> : null}
+      {!loading && !campaign ? <p className="text-sm text-orange-700">{error || "Campaign not found"}</p> : null}
+      {campaign ? (
+      <>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+          <h1 className="text-base font-medium text-ink">{campaign.name}</h1>
           <StatusPill
             variant={campaign.status === "SENT" ? "completed" : "new"}
             label={campaign.status === "DRAFT" ? "Draft" : campaign.status === "SENT" ? "Sent" : campaign.status}
           />
-        }
-        actions={
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex items-center gap-2">
-              {locked ? null : (
-                <span className="text-sm text-ink-muted motion-reduce:transition-none transition-opacity duration-200 ease-out">
-                  {saving ? "Saving…" : saved ? "Saved" : ""}
-                </span>
-              )}
-              <PrimaryButton type="button" onClick={send} disabled={!canSend}>
-                {sending ? "Sending…" : sent ? "Sent" : sendMode === "now" ? "Send" : "Schedule"}
-              </PrimaryButton>
-            </div>
-            {error ? (
-              <p className="max-w-sm text-right text-sm text-orange-700 motion-reduce:transition-none transition-opacity duration-200 ease-out">
-                {error}
-              </p>
-            ) : null}
+          {campaign.status === "DRAFT" ? null : (
+            <SlidingPaneTabs
+              id={`campaign-${campaign.id}`}
+              panes={CAMPAIGN_VIEWS}
+              labels={CAMPAIGN_VIEW_LABEL}
+              value={view}
+              onChange={setView}
+            />
+          )}
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-2">
+            {locked ? null : (
+              <span className="text-sm text-ink-muted motion-reduce:transition-none transition-opacity duration-200 ease-out">
+                {saving ? "Saving…" : saved ? "Saved" : ""}
+              </span>
+            )}
+            <PrimaryButton type="button" onClick={send} disabled={!canSend}>
+              {sending ? "Sending…" : sent ? "Sent" : sendMode === "now" ? "Send" : "Schedule"}
+            </PrimaryButton>
           </div>
-        }
-      />
+          {error ? (
+            <p className="max-w-sm text-right text-sm text-orange-700 motion-reduce:transition-none transition-opacity duration-200 ease-out">
+              {error}
+            </p>
+          ) : null}
+        </div>
+      </div>
 
+      {campaign.status === "DRAFT" || view === "email" ? (
       <section className="space-y-6 rounded-xl border border-line bg-surface px-4 py-5 sm:px-5">
         <div role="group" aria-labelledby="email-send-to">
           <p id="email-send-to" className="mb-1.5 text-sm font-semibold text-ink">
@@ -365,6 +442,50 @@ export default function CampaignEditor({ id }: { id: string }) {
               setAudience({ ...audience, selections });
             }}
           />
+          {namedLists.length > 0 ? (
+            <div
+              className={`mt-3 rounded-md border px-3 py-2.5 motion-reduce:transition-none transition-colors duration-200 ease-out ${
+                audience.excludePreviousListSends ? "border-ink" : "border-line"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-ink">Exclude mailed before</p>
+                  <p className="text-xs text-ink-muted">
+                    {namedLists.length === 1
+                      ? `Skips people who already received a send to ${namedLists[0]?.label ?? "this list"}.`
+                      : "Skips people who already received a send to these lists."}
+                  </p>
+                </div>
+                <Toggle
+                  aria-label="Exclude people already mailed to this list"
+                  checked={Boolean(audience.excludePreviousListSends)}
+                  disabled={locked}
+                  onCheckedChange={(checked) => {
+                    setSaved(false);
+                    setAudience({ ...audience, excludePreviousListSends: checked });
+                  }}
+                />
+              </div>
+              <div
+                className={`${FOLD_GRID} ${excludeMailed ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+              >
+                <div className="min-h-0 overflow-hidden">
+                  <p
+                    className={`pt-2 text-xs motion-reduce:transition-none transition-opacity duration-200 ease-out ${
+                      audiencePreviewState === "error" ? "text-orange-700" : "text-ink-muted"
+                    }`}
+                  >
+                    {audiencePreviewState === "error"
+                      ? "Could not check previous sends."
+                      : audiencePreviewState === "loading" || !audiencePreview
+                        ? "Checking previous sends…"
+                        : `${audiencePreview.willSend.toLocaleString()} will be sent. ${audiencePreview.alreadyMailed.toLocaleString()} already mailed to this list.`}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
           <div className="mt-3">
             <TextField
               id="campaign-subject"
@@ -625,6 +746,14 @@ export default function CampaignEditor({ id }: { id: string }) {
           </div>
         </div>
       </section>
+      ) : null}
+      </>
+      ) : null}
+      {showRecipients ? (
+        <div hidden={loading || view !== "recipients"}>
+          <CampaignRecipients campaignId={id} />
+        </div>
+      ) : null}
     </CrmPageContent>
   );
 }

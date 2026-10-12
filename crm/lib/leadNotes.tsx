@@ -174,10 +174,15 @@ export function replaceTempLeadNote(
   return [...notes.filter((note) => note.id !== tempId && note.id !== created.id), created];
 }
 
-export async function resolveNotesThread(leadId: string, conversationId: string | null) {
+export async function resolveNotesThread(
+  leadId: string,
+  conversationId: string | null,
+  customerId?: string,
+) {
   if (conversationId) return { id: conversationId };
   const cachedId = getCachedLeadThread(leadId)?.conversationId;
   if (cachedId) return { id: cachedId };
+  if (customerId) return ensureRecordThread({ customerId });
   return ensureRecordThread({ leadId });
 }
 

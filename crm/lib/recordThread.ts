@@ -10,6 +10,7 @@ import {
 export async function ensureRecordThread(params: {
   leadId?: string;
   jobId?: string;
+  customerId?: string;
 }): Promise<InternalConversationSummary> {
   const cached = getCachedRecordThread(params);
   if (cached) return cached;
@@ -21,12 +22,13 @@ export async function ensureRecordThread(params: {
     kind: "RECORD_THREAD",
     leadId: params.leadId,
     jobId: params.jobId,
+    customerId: params.customerId,
   });
   cacheRecordThread(params, thread);
   return thread;
 }
 
-export function peekRecordThread(params: { leadId?: string; jobId?: string }) {
+export function peekRecordThread(params: { leadId?: string; jobId?: string; customerId?: string }) {
   return getCachedRecordThread(params);
 }
 

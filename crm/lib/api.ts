@@ -965,6 +965,12 @@ export const api = {
   removeLeadTag: (leadId: string, tagId: string) =>
     request<Lead>(`/leads/${leadId}/tags/${tagId}`, { method: "DELETE" }),
 
+  addCustomerTag: (customerId: string, payload: { tagId?: string; name?: string; color?: string }) =>
+    request<{ tags: LeadTag[] }>(`/customers/${customerId}/tags`, { method: "POST", body: JSON.stringify(payload) }),
+
+  removeCustomerTag: (customerId: string, tagId: string) =>
+    request<{ tags: LeadTag[] }>(`/customers/${customerId}/tags/${tagId}`, { method: "DELETE" }),
+
 
 
   listCustomers: (params?: Record<string, string>) => {
@@ -1284,7 +1290,7 @@ export const api = {
   purgeWorkflow: (id: string) =>
     request<{ purged: true }>(`/workflows/${id}/purge`, { method: "POST" }),
 
-  listConversations: (params?: { leadId?: string; jobId?: string; kind?: string }) => {
+  listConversations: (params?: { leadId?: string; jobId?: string; customerId?: string; kind?: string }) => {
     const qs = params ? `?${new URLSearchParams(params)}` : "";
     return request<{ items: InternalConversationSummary[] }>(`/conversations${qs}`);
   },
@@ -1297,6 +1303,7 @@ export const api = {
     title?: string;
     leadId?: string;
     jobId?: string;
+    customerId?: string;
   }) =>
     request<InternalConversationSummary>("/conversations", {
       method: "POST",
@@ -1836,6 +1843,12 @@ export const api = {
   sendCampaign: (id: string) =>
     request<import("@/crm/types/campaigns").CampaignDetail>(`/campaigns/${id}/send`, { method: "POST" }),
 
+  previewCampaignAudience: (id: string, audience: import("@/crm/types/campaigns").CampaignAudience) =>
+    request<{ willSend: number; alreadyMailed: number }>(`/campaigns/${id}/audience-preview`, {
+      method: "POST",
+      body: JSON.stringify({ audience }),
+    }),
+
   previewCampaignSendTimes: (
     id: string,
     body: {
@@ -1861,6 +1874,50 @@ export const api = {
 
   cancelCampaign: (id: string) =>
     request<import("@/crm/types/campaigns").CampaignListRow>(`/campaigns/${id}/cancel`, { method: "POST" }),
+
+  listCampaignRecipients: (
+    id: string,
+    query?: { event?: import("@/crm/types/campaigns").CampaignRecipientEvent; search?: string; page?: number },
+  ) => {
+    const params = new URLSearchParams();
+    if (query?.event) params.set("event", query.event);
+    if (query?.search) params.set("search", query.search);
+    if (query?.page) params.set("page", String(query.page));
+    const qs = params.toString();
+    return request<import("@/crm/types/campaigns").CampaignRecipientPage>(
+      `/campaigns/${id}/recipients${qs ? `?${qs}` : ""}`,
+    );
+  },
+
+  getCampaignRecipient: (recipientId: string) =>
+    request<import("@/crm/types/campaigns").CampaignRecipientDetail>(`/campaigns/recipients/${recipientId}`),
+
+  markCampaignRecipientWon: (
+    recipientId: string,
+    body: { amount: number; surveyLevel?: string; propertyAddress?: string; propertyPostcode?: string },
+  ) =>
+    request<{ leadId: string }>(`/campaigns/recipients/${recipientId}/mark-won`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  moveCampaignRecipientToPaid: (
+    recipientId: string,
+    body: { amount: number; surveyLevel?: string; propertyAddress?: string; propertyPostcode?: string },
+  ) =>
+    request<{ leadId: string; jobId: string }>(`/campaigns/recipients/${recipientId}/move-to-paid`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  sendCampaignRecipientFollowUp: (
+    recipientId: string,
+    body: { subject: string; body: string; htmlBody?: string; mediaUrls?: string[]; replyToMessageId?: string },
+  ) =>
+    request<import("@/crm/types/campaigns").CampaignRecipientMessage>(
+      `/campaigns/recipients/${recipientId}/messages`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
 
 };
 

@@ -41,6 +41,8 @@ export type ContactListRow = {
   name: string;
   customerType: "HOMEBUYER" | "LANDLORD" | "LEGAL" | "COUNCIL" | "TRADE";
   memberCount: number;
+  companyCount?: number;
+  peopleCount?: number;
   createdAt: string;
   updatedAt: string;
 };

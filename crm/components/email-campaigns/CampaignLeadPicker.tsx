@@ -63,6 +63,15 @@ function emailTokens(raw: string): string[] {
     .filter((part) => EMAIL_PATTERN.test(part));
 }
 
+type ContactListCount = { companies: number; people: number };
+
+function contactListTotal(count: ContactListCount): string {
+  const people = count.people === 1 ? "1 person" : `${count.people.toLocaleString()} people`;
+  if (count.companies === 0) return people;
+  const companies = count.companies === 1 ? "1 company" : `${count.companies.toLocaleString()} companies`;
+  return `${companies} · ${people}`;
+}
+
 function selectionTotal(
   selection: CampaignSelection,
   counts: {
@@ -70,15 +79,18 @@ function selectionTotal(
     all: number;
     stages: Record<string, number>;
     sources: Record<string, number>;
-    contactLists: Record<string, number>;
+    contactLists: Record<string, ContactListCount>;
   } | null,
-): number | null {
+): string | null {
   if (!counts) return null;
-  if (selection.kind === "list") return selection.list === "all" ? counts.all : counts.active;
-  if (selection.kind === "stage") return counts.stages[selection.stage] ?? 0;
-  if (selection.kind === "source") return counts.sources[selection.source] ?? 0;
-  if (selection.kind === "contactList") return counts.contactLists[selection.id] ?? null;
-  return 1;
+  if (selection.kind === "list") return String(selection.list === "all" ? counts.all : counts.active);
+  if (selection.kind === "stage") return String(counts.stages[selection.stage] ?? 0);
+  if (selection.kind === "source") return String(counts.sources[selection.source] ?? 0);
+  if (selection.kind === "contactList") {
+    const count = counts.contactLists[selection.id];
+    return count ? contactListTotal(count) : null;
+  }
+  return "1";
 }
 
 function leadLabel(lead: Lead): string {
@@ -138,7 +150,7 @@ export default function CampaignLeadPicker({
     all: number;
     stages: Record<string, number>;
     sources: Record<string, number>;
-    contactLists: Record<string, number>;
+    contactLists: Record<string, ContactListCount>;
   } | null>(null);
   const [namedLists, setNamedLists] = useState<ContactListRow[]>([]);
 
@@ -155,8 +167,13 @@ export default function CampaignLeadPicker({
     ])
       .then(([row, listed]) => {
         if (cancelled) return;
-        const contactLists: Record<string, number> = {};
-        for (const item of listed.items) contactLists[item.id] = item.memberCount;
+        const contactLists: Record<string, ContactListCount> = {};
+        for (const item of listed.items) {
+          contactLists[item.id] = {
+            companies: item.companyCount ?? 0,
+            people: item.peopleCount ?? item.memberCount,
+          };
+        }
         setNamedLists(listed.items);
         setCounts({ ...row, contactLists });
       })
