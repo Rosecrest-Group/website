@@ -628,19 +628,23 @@ export default function LeadDetail({
 
       {lead.stage === "LOST" && (
         <div className="mb-6 rounded-xl border border-line bg-sidebar px-4 py-3 text-sm text-ink">
-          <p className="font-medium">Marked lost</p>
-          <p className="mt-1 text-ink-muted">
-            {lostReasonLabel ?? "No reason given"}
-            {lead.lostReasonNote ? ` — ${lead.lostReasonNote}` : ""}
-          </p>
-          <PrimaryButton
-            type="button"
-            className="mt-3 w-auto"
-            disabled={bringingBack}
-            onClick={() => void bringBack()}
-          >
-            {bringingBack ? "Bringing back…" : "Bring back"}
-          </PrimaryButton>
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="font-medium">Marked lost</p>
+              <p className="mt-0.5 text-ink-muted">
+                {lostReasonLabel ?? "No reason given"}
+                {lead.lostReasonNote ? ` — ${lead.lostReasonNote}` : ""}
+              </p>
+            </div>
+            <PrimaryButton
+              type="button"
+              className="w-auto shrink-0"
+              disabled={bringingBack}
+              onClick={() => void bringBack()}
+            >
+              {bringingBack ? "Bringing back…" : "Bring back"}
+            </PrimaryButton>
+          </div>
           {bringBackError ? <p className="mt-2 text-sm text-red-600">{bringBackError}</p> : null}
         </div>
       )}
