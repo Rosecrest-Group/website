@@ -903,6 +903,9 @@ export const api = {
 
     request<Lead>(`/leads/${id}/mark-lost`, { method: "POST", body: JSON.stringify({ lostReason, lostReasonNote }) }),
 
+  bringLeadBack: (id: string) =>
+    request<Lead>(`/leads/${id}/bring-back`, { method: "POST" }),
+
   markLeadWon: (
     id: string,
     quotedAmount: number,

@@ -166,6 +166,8 @@ export default function LeadDetail({
   const [markingLost, setMarkingLost] = useState(false);
   const [conversationMove, setConversationMove] = useState<"enter" | "return" | null>(null);
   const [conversationError, setConversationError] = useState<string | null>(null);
+  const [bringingBack, setBringingBack] = useState(false);
+  const [bringBackError, setBringBackError] = useState<string | null>(null);
   const [stoppingAutomation, setStoppingAutomation] = useState(false);
   const [moveToPaidConfirmOpen, setMoveToPaidConfirmOpen] = useState(false);
   const [movingToPaid, setMovingToPaid] = useState(false);
@@ -326,6 +328,23 @@ export default function LeadDetail({
       toast.error(message);
     } finally {
       setConversationMove(null);
+    }
+  }
+
+  async function bringBack() {
+    if (bringingBack) return;
+    setBringingBack(true);
+    setBringBackError(null);
+    try {
+      await api.bringLeadBack(id);
+      toast.success("Brought back to Awaiting payment.");
+      reload({ silent: true });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not bring this lead back";
+      setBringBackError(message);
+      toast.error(message);
+    } finally {
+      setBringingBack(false);
     }
   }
 
@@ -503,6 +522,13 @@ export default function LeadDetail({
     lead.stage !== "IN_CONVERSATION" &&
     !lead.cadenceStopped;
   const canMarkLost = lead && lead.stage !== "CONVERTED" && lead.stage !== "LOST";
+  const canBringBack = lead?.stage === "LOST";
+  const broughtBack =
+    Boolean(lead?.lostReason) &&
+    Boolean(lead?.cadenceStopped) &&
+    lead?.stage !== "LOST" &&
+    lead?.stage !== "CONVERTED" &&
+    lead?.stage !== "IN_CONVERSATION";
   const canEnterConversation = Boolean(
     lead &&
       lead.stage !== "CONVERTED" &&
@@ -607,6 +633,24 @@ export default function LeadDetail({
             {lostReasonLabel ?? "No reason given"}
             {lead.lostReasonNote ? ` — ${lead.lostReasonNote}` : ""}
           </p>
+          <PrimaryButton
+            type="button"
+            className="mt-3 w-auto"
+            disabled={bringingBack}
+            onClick={() => void bringBack()}
+          >
+            {bringingBack ? "Bringing back…" : "Bring back"}
+          </PrimaryButton>
+          {bringBackError ? <p className="mt-2 text-sm text-red-600">{bringBackError}</p> : null}
+        </div>
+      )}
+
+      {broughtBack && (
+        <div className="mb-6 rounded-xl border border-line bg-sidebar px-4 py-3 text-sm text-ink">
+          <p className="font-medium">Brought back</p>
+          <p className="mt-1 text-ink-muted">
+            Automation stays off, so the quote chase will not send. Move to paid when they pay.
+          </p>
         </div>
       )}
 
@@ -696,6 +740,10 @@ export default function LeadDetail({
           stoppingAutomation={stoppingAutomation}
           canStopAutomation={Boolean(canStopAutomation)}
           canMarkLost={Boolean(canMarkLost)}
+          canBringBack={Boolean(canBringBack)}
+          bringingBack={bringingBack}
+          bringBackError={bringBackError}
+          onBringBack={() => void bringBack()}
           canEnterConversation={canEnterConversation}
           canReturnToPipeline={canReturnToPipeline}
           returnLabel={returnLabel}
@@ -1096,6 +1144,20 @@ export default function LeadDetail({
               {conversationError && (
                 <p className="text-sm text-red-600">{conversationError}</p>
               )}
+              {canBringBack && (
+                <SecondaryButton
+                  type="button"
+                  size="small"
+                  className="w-full justify-start"
+                  onClick={() => void bringBack()}
+                  disabled={bringingBack}
+                >
+                  {bringingBack ? "Bringing back…" : "Bring back"}
+                </SecondaryButton>
+              )}
+              {bringBackError && canBringBack ? (
+                <p className="text-sm text-red-600">{bringBackError}</p>
+              ) : null}
               {canMarkLost && (
                 <SecondaryButton
                   type="button"

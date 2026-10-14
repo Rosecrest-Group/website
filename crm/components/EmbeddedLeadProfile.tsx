@@ -95,6 +95,10 @@ export default function EmbeddedLeadProfile({
   stoppingAutomation,
   canStopAutomation,
   canMarkLost,
+  canBringBack,
+  bringingBack,
+  bringBackError,
+  onBringBack,
   canEnterConversation,
   canReturnToPipeline,
   returnLabel,
@@ -127,6 +131,10 @@ export default function EmbeddedLeadProfile({
   stoppingAutomation: boolean;
   canStopAutomation: boolean;
   canMarkLost: boolean;
+  canBringBack: boolean;
+  bringingBack: boolean;
+  bringBackError: string | null;
+  onBringBack: () => void;
   canEnterConversation: boolean;
   canReturnToPipeline: boolean;
   returnLabel: string;
@@ -472,6 +480,20 @@ export default function EmbeddedLeadProfile({
                 ) : null}
                 {conversationError ? (
                   <p className="col-span-2 text-sm text-red-600">{conversationError}</p>
+                ) : null}
+                {canBringBack ? (
+                  <SecondaryButton
+                    type="button"
+                    size="small"
+                    className="w-full"
+                    onClick={onBringBack}
+                    disabled={bringingBack}
+                  >
+                    {bringingBack ? "Bringing back…" : "Bring back"}
+                  </SecondaryButton>
+                ) : null}
+                {bringBackError && canBringBack ? (
+                  <p className="col-span-2 text-sm text-red-600">{bringBackError}</p>
                 ) : null}
                 {canMarkLost ? (
                   <SecondaryButton

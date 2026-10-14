@@ -379,6 +379,13 @@ function parseActorAction(
     };
   }
 
+  if (activity.type === "lead.reopened") {
+    return {
+      actor: authorName ? displayActor(activity.author, currentUserId) : "Lead",
+      action: "brought back to Awaiting payment. Automation stays off.",
+    };
+  }
+
   if (activity.type === "stage.changed") {
     const stage = desc.replace(/^Stage (changed to\s+)?/i, "").trim();
     return { actor: "Stage", action: stage ? `moved to ${stage}` : "updated" };
