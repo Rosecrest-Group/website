@@ -62,6 +62,43 @@ export async function generateMetadata({
 
 const portableTextComponents = {
   types: {
+    table: ({
+      value,
+    }: {
+      value: { rows?: { _key: string; cells?: string[] }[] };
+    }) => {
+      const [header, ...body] = value.rows ?? [];
+      if (!header?.cells?.length) return null;
+      return (
+        <div className="my-8 overflow-x-auto">
+          <table className="w-full border-collapse text-left text-base">
+            <thead>
+              <tr>
+                {header.cells.map((cell, index) => (
+                  <th
+                    key={index}
+                    className="border border-[#E5E7EB] bg-[#FBF7F4] px-3 py-2 font-bold text-[#101828]"
+                  >
+                    {cell}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {body.map((row) => (
+                <tr key={row._key}>
+                  {(row.cells ?? []).map((cell, index) => (
+                    <td key={index} className="border border-[#E5E7EB] px-3 py-2 align-top">
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    },
     image: ({ value }: { value: { asset: { _ref: string }; alt?: string; caption?: string } }) => (
       <figure className="my-8">
         <Image
