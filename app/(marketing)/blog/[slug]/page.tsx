@@ -92,7 +92,12 @@ type BodyBlock = PortableTextBlock & { html?: string };
 
 function blockPlainText(block: BodyBlock): string {
   if (block._type !== "block" || !Array.isArray(block.children)) return "";
-  return block.children.map((child) => ("text" in child ? child.text : "")).join("");
+  return block.children
+    .map((child) => {
+      if (!child || typeof child !== "object" || !("text" in child)) return "";
+      return typeof child.text === "string" ? child.text : "";
+    })
+    .join("");
 }
 
 function textBlock(key: string, text: string): BodyBlock {
@@ -141,6 +146,8 @@ function expandPastedHtmlTables(blocks: BodyBlock[]): BodyBlock[] {
         _type: "htmlTable",
         _key: `${block._key}-html-${count}`,
         html: match[0],
+        children: [],
+        markDefs: [],
       });
       last = (match.index ?? 0) + match[0].length;
       count += 1;
