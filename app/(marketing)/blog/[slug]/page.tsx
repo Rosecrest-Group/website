@@ -88,6 +88,72 @@ const htmlTableOptions: sanitizeHtml.IOptions = {
   },
 };
 
+type BodyBlock = PortableTextBlock & { html?: string };
+
+function blockPlainText(block: BodyBlock): string {
+  if (block._type !== "block" || !Array.isArray(block.children)) return "";
+  return block.children.map((child) => ("text" in child ? child.text : "")).join("");
+}
+
+function textBlock(key: string, text: string): BodyBlock {
+  return {
+    _type: "block",
+    _key: key,
+    style: "normal",
+    markDefs: [],
+    children: [{ _type: "span", _key: `${key}-span`, text, marks: [] }],
+  };
+}
+
+/** A pasted `<table>` inside a normal paragraph is stored as text. Render that markup. */
+function expandPastedHtmlTables(blocks: BodyBlock[]): BodyBlock[] {
+  const result: BodyBlock[] = [];
+  let index = 0;
+
+  while (index < blocks.length) {
+    const block = blocks[index];
+    if (block._type !== "block" || !blockPlainText(block).includes("<table")) {
+      result.push(block);
+      index += 1;
+      continue;
+    }
+
+    let end = index;
+    let combined = blockPlainText(block);
+    while (!/<\/table>/i.test(combined) && blocks[end + 1]?._type === "block") {
+      end += 1;
+      combined += `\n${blockPlainText(blocks[end])}`;
+    }
+
+    if (!/<\/table>/i.test(combined)) {
+      result.push(block);
+      index += 1;
+      continue;
+    }
+
+    const tablePattern = /<table[\s\S]*?<\/table>/gi;
+    let last = 0;
+    let count = 0;
+    for (const match of combined.matchAll(tablePattern)) {
+      const before = combined.slice(last, match.index).trim();
+      if (before) result.push(textBlock(`${block._key}-before-${count}`, before));
+      result.push({
+        _type: "htmlTable",
+        _key: `${block._key}-html-${count}`,
+        html: match[0],
+      });
+      last = (match.index ?? 0) + match[0].length;
+      count += 1;
+    }
+
+    const after = combined.slice(last).trim();
+    if (after) result.push(textBlock(`${block._key}-after`, after));
+    index = end + 1;
+  }
+
+  return result;
+}
+
 const portableTextComponents = {
   types: {
     htmlTable: ({ value }: { value: { html?: string } }) => {
@@ -247,7 +313,7 @@ export default async function BlogPostPage({
               `}
             >
               {post.body && (
-                <PortableText value={post.body} components={portableTextComponents} />
+                <PortableText value={expandPastedHtmlTables(post.body)} components={portableTextComponents} />
               )}
             </div>
           </article>
