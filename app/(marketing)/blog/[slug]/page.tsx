@@ -10,6 +10,7 @@ import Footer from "@/components/common/Footer";
 import BlogHero from "@/fragments/blog/BlogHero";
 import { PortableText } from "@portabletext/react";
 import type { PortableTextBlock } from "@portabletext/types";
+import sanitizeHtml from "sanitize-html";
 
 export const revalidate = 60;
 
@@ -60,8 +61,44 @@ export async function generateMetadata({
   };
 }
 
+const htmlTableOptions: sanitizeHtml.IOptions = {
+  allowedTags: [
+    "table",
+    "thead",
+    "tbody",
+    "tfoot",
+    "tr",
+    "th",
+    "td",
+    "caption",
+    "colgroup",
+    "col",
+    "strong",
+    "b",
+    "em",
+    "i",
+    "br",
+    "span",
+    "p",
+  ],
+  allowedAttributes: {
+    th: ["colspan", "rowspan", "scope"],
+    td: ["colspan", "rowspan"],
+    col: ["span"],
+  },
+};
+
 const portableTextComponents = {
   types: {
+    htmlTable: ({ value }: { value: { html?: string } }) => {
+      if (!value.html?.trim()) return null;
+      return (
+        <div
+          className="my-8 overflow-x-auto [&_table]:w-full [&_table]:border-collapse [&_table]:text-left [&_table]:text-base [&_th]:border [&_th]:border-[#E5E7EB] [&_th]:bg-[#FBF7F4] [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-bold [&_th]:text-[#101828] [&_td]:border [&_td]:border-[#E5E7EB] [&_td]:px-3 [&_td]:py-2 [&_td]:align-top"
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(value.html, htmlTableOptions) }}
+        />
+      );
+    },
     table: ({
       value,
     }: {

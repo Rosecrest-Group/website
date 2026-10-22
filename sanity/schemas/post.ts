@@ -49,6 +49,20 @@ export default defineType({
         { type: 'block' },
         { type: 'table' },
         {
+          type: 'object',
+          name: 'htmlTable',
+          title: 'HTML table',
+          fields: [
+            defineField({
+              name: 'html',
+              title: 'HTML',
+              type: 'text',
+              rows: 14,
+              description: 'Paste the table markup, starting with <table>. Use <th> or <strong> for a bold header.',
+            }),
+          ],
+        },
+        {
           type: 'image',
           options: { hotspot: true },
           fields: [
