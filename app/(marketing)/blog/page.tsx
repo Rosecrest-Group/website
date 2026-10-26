@@ -6,8 +6,14 @@ import Image from "next/image";
 import { sourceSans } from "@/lib/fonts";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
 import Footer from "@/components/common/Footer";
+import JsonLd from "@/components/common/JsonLd";
+import PageJsonLd from "@/components/common/PageJsonLd";
+import { getPageMetadata } from "@/lib/page-metadata";
+import { buildItemList } from "@/lib/schema";
 
 export const revalidate = 60;
+
+export const metadata = getPageMetadata("/blog");
 
 interface Post {
   _id: string;
@@ -26,10 +32,21 @@ export default async function BlogPage() {
 
   return (
     <div className="bg-[#FBF7F4]">
+      <PageJsonLd path="/blog" />
+      {posts.length > 0 && (
+        <JsonLd
+          id="blog-posts"
+          data={buildItemList({
+            path: "/blog",
+            name: "News & insights",
+            items: posts.map((post) => ({ name: post.title, url: `/blog/${post.slug}` })),
+          })}
+        />
+      )}
       <JourneyHero>
-        <p className="text-white text-4xl lg:text-5xl tracking-tight leading-tight font-bold">
+        <h1 className="text-white text-4xl lg:text-5xl tracking-tight leading-tight font-bold">
           News & Insights
-        </p>
+        </h1>
         <p
           className={`${sourceSans.className} mt-6 mx-auto text-white/90 text-base lg:text-xl leading-relaxed max-w-2xl`}
         >

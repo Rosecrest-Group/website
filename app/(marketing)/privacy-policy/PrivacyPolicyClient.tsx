@@ -271,7 +271,7 @@ const PrivacyPolicyClient = () => {
         </aside>
 
         {/* Content panel */}
-        <main className="flex-1 min-w-0">
+        <article className="flex-1 min-w-0">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-10 py-10">
             <h2 className="text-2xl lg:text-3xl font-bold text-[#101828] mb-2">
               {active.number}. {active.title.toUpperCase()}
@@ -289,7 +289,7 @@ const PrivacyPolicyClient = () => {
             © {new Date().getFullYear()} Rosecrest Group Ltd. All rights
             reserved.
           </p>
-        </main>
+        </article>
       </div>
     </div>
   );

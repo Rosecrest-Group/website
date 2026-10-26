@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { clearAttribution, getAttribution } from "@/lib/attribution";
 import { sourceSans } from "@/lib/fonts";
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
@@ -84,9 +85,13 @@ const ContactForm = ({
       const res = await fetch("/api/enquiry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          ...values,
+          attribution: getAttribution(title || "Contact form"),
+        }),
       });
       if (!res.ok) throw new Error("Failed");
+      clearAttribution();
 
       // If caller supplied onSuccess, let them handle everything
       // (e.g. close modal then redirect themselves).

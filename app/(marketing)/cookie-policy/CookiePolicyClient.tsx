@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { ChevronDown, ExternalLink } from "lucide-react";
 import { sourceSans } from "@/lib/fonts";
+import { JOURNEY_OPT_OUT_KEY, JOURNEY_STORAGE_KEY } from "@/lib/attribution-session";
+import JourneyOptOut from "@/components/analytics/JourneyOptOut";
 
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -32,6 +34,33 @@ interface CookieProvider {
 // ─── Placed Cookies data ──────────────────────────────────────────────────────
 
 const cookieProviders: CookieProvider[] = [
+  {
+    name: "Rosecrest",
+    usage: "We remember the pages you view on this browser so that, if you enquire, we can see which pages you read on earlier visits. You can turn this off under Consent below.",
+    sharing: "This stays in your browser until you enquire. It is then saved with that enquiry. It is not shared with third parties.",
+    groups: [
+      {
+        label: "Statistics",
+        rows: [
+          {
+            name: JOURNEY_STORAGE_KEY,
+            expiration: "180 days",
+            function: "Remember pages viewed on this browser so an enquiry includes earlier visits",
+          },
+        ],
+      },
+      {
+        label: "Functional",
+        rows: [
+          {
+            name: JOURNEY_OPT_OUT_KEY,
+            expiration: "persistent",
+            function: "Remember that you turned off page history, so we keep respecting it",
+          },
+        ],
+      },
+    ],
+  },
   {
     name: "WordPress",
     usage: "We use WordPress for website development.",
@@ -288,18 +317,7 @@ const sections = [
           </div>
         </div>
 
-        {/* Marketing — toggle (visual only) */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden mb-3">
-          <div className="flex items-center justify-between px-5 py-4 bg-white">
-            <span className="font-semibold text-[#101828] text-base">Marketing</span>
-            <div className="w-5 h-5 border-2 border-gray-300 rounded" />
-          </div>
-          <div className="px-5 pb-4 border-t border-gray-100 bg-white">
-            <p className={`${sourceSans.className} text-sm text-[#4A5565] mt-3`}>
-              The technical storage or access is required to create user profiles to send advertising, or to track the user on a website or across several websites for similar marketing purposes.
-            </p>
-          </div>
-        </div>
+        <JourneyOptOut />
       </>
     ),
   },
@@ -477,7 +495,7 @@ const CookiePolicyClient = () => {
           </div>
         </aside>
 
-        <main className="flex-1 min-w-0">
+        <article className="flex-1 min-w-0">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-10 py-10">
             <h2 className="text-2xl lg:text-3xl font-bold text-[#101828] mb-2">
               {active.number}. {active.title.toUpperCase()}
@@ -495,7 +513,7 @@ const CookiePolicyClient = () => {
             © {new Date().getFullYear()} Rosecrest Group Ltd. All rights
             reserved.
           </p>
-        </main>
+        </article>
       </div>
     </div>
   );

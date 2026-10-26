@@ -85,7 +85,12 @@ const FAQ = ({ questions, subtitle }: FAQProps) => {
                         </div>
                       </div>
                     </AccordionTrigger>
-                    <AccordionContent className="text-gray-600 text-sm lg:text-base pb-6 lg:pb-8 pt-2">
+                    <AccordionContent
+                      forceMount
+                      className={`text-gray-600 text-sm lg:text-base pb-6 lg:pb-8 pt-2 ${
+                        isActive ? "" : "hidden"
+                      }`}
+                    >
                       {question.answer}
                     </AccordionContent>
                   </AccordionItem>

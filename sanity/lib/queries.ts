@@ -20,11 +20,22 @@ export const postBySlugQuery = groq`
     "slug": slug.current,
     excerpt,
     publishedAt,
+    _updatedAt,
     heroImage,
     body,
     seo,
     "author": author->{name, bio, avatar, "slug": slug.current},
     "categories": categories[]->{ title, "slug": slug.current }
+  }
+`
+
+export const postIndexQuery = groq`
+  *[_type == "post" && defined(slug.current)] | order(publishedAt desc) {
+    title,
+    "slug": slug.current,
+    excerpt,
+    publishedAt,
+    _updatedAt
   }
 `
 

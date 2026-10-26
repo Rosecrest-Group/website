@@ -43,6 +43,7 @@ import {
   vsPeriodTrend,
 } from "@/crm/lib/constants";
 import { cn } from "@/lib/utils";
+import { channelLabel } from "@/crm/lib/attribution";
 
 function sourceLabel(source: string) {
   return LEAD_SOURCES.find((item) => item.value === source)?.label ?? source.replace(/_/g, " ");
@@ -165,6 +166,39 @@ export default function CrmAnalytics() {
   const funnelRows = (sales?.funnelBySource ?? []).map((row) => ({
     ...row,
   }));
+
+  const channelRows = (sales?.funnelByChannel ?? []).map((row) => ({ ...row }));
+  const countCell = (value: unknown) => (
+    <span className="text-sm font-medium text-ink tabular-nums">{value as number}</span>
+  );
+  const channelColumns: Column<(typeof channelRows)[number]>[] = [
+    {
+      key: "channel",
+      header: "Channel",
+      render: (_value, row) => (
+        <span className="text-sm font-medium text-ink">{channelLabel(row.channel, row.detail)}</span>
+      ),
+    },
+    { key: "leads", header: "Leads", align: "right", render: countCell },
+    { key: "quoted", header: "Quoted", align: "right", render: countCell },
+    { key: "converted", header: "Won", align: "right", render: countCell },
+    {
+      key: "wonRevenue",
+      header: "Won £",
+      align: "right",
+      render: (value) => (
+        <span className="text-sm font-medium text-ink tabular-nums">{pounds(value as number)}</span>
+      ),
+    },
+    {
+      key: "conversionRate",
+      header: "Conv %",
+      align: "right",
+      render: (value) => (
+        <span className="text-sm font-medium text-ink tabular-nums">{value as number}%</span>
+      ),
+    },
+  ];
 
   const funnelColumns: Column<(typeof funnelRows)[number]>[] = [
     {
@@ -589,6 +623,18 @@ export default function CrmAnalytics() {
           onRowClick={(row) =>
             router.push(`/crm/leads?source=${encodeURIComponent(String(row.source))}`)
           }
+          emptyMessage="No leads in this period"
+        />
+
+        <Table
+          title={`Leads by channel · ${periodShort}`}
+          columns={channelColumns}
+          data={channelRows}
+          getRowKey={(row) => `${row.channel}:${row.detail ?? ""}`}
+          onRowClick={(row) => {
+            const channel = row.channel === "LEAD_PROVIDER" || row.channel === "NOT_TRACKED" ? "NONE" : row.channel;
+            router.push(`/crm/leads?channel=${channel}`);
+          }}
           emptyMessage="No leads in this period"
         />
 

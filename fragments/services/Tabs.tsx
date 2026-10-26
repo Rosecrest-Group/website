@@ -184,6 +184,86 @@ const tradeServices = [
   },
 ];
 
+const tabServices: Record<Tab, typeof surveyServices> = {
+  survey: surveyServices,
+  trade: tradeServices,
+};
+
+const ServiceTabsView = ({
+  activeTab,
+  setTab,
+}: {
+  activeTab: Tab;
+  setTab?: (tab: Tab) => void;
+}) => {
+  return (
+    <section className="relative -mt-64 lg:-mt-64 px-4 lg:px-8 pb-16 lg:pb-24 z-20">
+      <div className="max-w-7xl mx-auto bg-white rounded-4xl p-8 overflow-hidden">
+
+        {/* Tab selector */}
+        <Reveal animation="fade-up" duration={500}>
+          <div className="flex gap-6 lg:gap-12 mb-10 items-center justify-center z-80">
+            {(["survey", "trade"] as Tab[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setTab?.(tab)}
+                className="flex flex-col items-center gap-2 cursor-pointer"
+              >
+                <span className="text-xl md:text-3xl font-semibold text-[#151515] transition-colors duration-200">
+                  {tab === "survey" ? "Survey Services" : "Trade Services"}
+                </span>
+                <span
+                  className={`block w-[110%] h-1.5 rounded-t-lg transition-colors duration-200 ${
+                    activeTab === tab ? "bg-[#262A6F]" : "bg-gray-200"
+                  }`}
+                />
+              </button>
+            ))}
+          </div>
+        </Reveal>
+
+        {/* Cards grid. Both tabs render so every service link is in the HTML */}
+        <Reveal animation="fade-up" duration={600} delay={100} threshold={0.05}>
+          {(["survey", "trade"] as Tab[]).map((tab) => {
+            const list = tabServices[tab];
+            return (
+              <div
+                key={tab}
+                className={`grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-10 ${
+                  activeTab === tab ? "" : "hidden"
+                }`}
+              >
+                {list.map((service, index) => {
+                  const isLastOdd =
+                    list.length % 2 !== 0 && index === list.length - 1;
+                  return (
+                    <div
+                      key={index}
+                      className={isLastOdd ? "sm:col-span-2 sm:w-1/2 sm:mx-auto" : ""}
+                    >
+                      <ServiceCard
+                        icon={service.icon}
+                        title={service.title}
+                        description={service.description}
+                        href={service.href}
+                        iconBgColor={service.iconBgColor}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </Reveal>
+
+      </div>
+    </section>
+  );
+};
+
+/** Server-rendered stand-in while search params resolve; shows the default tab. */
+export const ServiceTabsFallback = () => <ServiceTabsView activeTab="survey" />;
+
 const ServiceTabs = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -201,63 +281,7 @@ const ServiceTabs = () => {
     [router, searchParams]
   );
 
-  const activeServices =
-    activeTab === "survey" ? surveyServices : tradeServices;
-
-  return (
-    <section className="relative -mt-64 lg:-mt-64 px-4 lg:px-8 pb-16 lg:pb-24 z-20">
-      <div className="max-w-7xl mx-auto bg-white rounded-4xl p-8 overflow-hidden">
-
-        {/* Tab selector */}
-        <Reveal animation="fade-up" duration={500}>
-          <div className="flex gap-6 lg:gap-12 mb-10 items-center justify-center z-80">
-            {(["survey", "trade"] as Tab[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setTab(tab)}
-                className="flex flex-col items-center gap-2 cursor-pointer"
-              >
-                <span className="text-xl md:text-3xl font-semibold text-[#151515] transition-colors duration-200">
-                  {tab === "survey" ? "Survey Services" : "Trade Services"}
-                </span>
-                <span
-                  className={`block w-[110%] h-1.5 rounded-t-lg transition-colors duration-200 ${
-                    activeTab === tab ? "bg-[#262A6F]" : "bg-gray-200"
-                  }`}
-                />
-              </button>
-            ))}
-          </div>
-        </Reveal>
-
-        {/* Cards grid */}
-        <Reveal animation="fade-up" duration={600} delay={100} threshold={0.05}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-10">
-            {activeServices.map((service, index) => {
-              const isLastOdd =
-                activeServices.length % 2 !== 0 &&
-                index === activeServices.length - 1;
-              return (
-                <div
-                  key={index}
-                  className={isLastOdd ? "sm:col-span-2 sm:w-1/2 sm:mx-auto" : ""}
-                >
-                  <ServiceCard
-                    icon={service.icon}
-                    title={service.title}
-                    description={service.description}
-                    href={service.href}
-                    iconBgColor={service.iconBgColor}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </Reveal>
-
-      </div>
-    </section>
-  );
+  return <ServiceTabsView activeTab={activeTab} setTab={setTab} />;
 };
 
 export default ServiceTabs;

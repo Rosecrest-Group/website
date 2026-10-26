@@ -28,9 +28,9 @@ const HomebuyerClient = () => {
   return (
     <div>
       <JourneyHero>
-        <p className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
+        <h1 className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
           Buying a property?
-        </p>
+        </h1>
         <p className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
           Choose the Right Survey in 60 Seconds
         </p>

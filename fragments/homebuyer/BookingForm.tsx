@@ -22,6 +22,7 @@ import {
   Circle,
   PoundSterling,
 } from "lucide-react";
+import { clearAttribution, getAttribution } from "@/lib/attribution";
 import { sourceSans } from "@/lib/fonts";
 import PostcodeFieldHint from "@/components/homebuyer/PostcodeFieldHint";
 import { reportDeliveryStep } from "@/lib/surveyReportTiming";
@@ -172,6 +173,7 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
         ...values,
         surveyingFees: totalPrice,
         isExpressTurnaround: values.expressReportDelivery === "yes",
+        attribution: getAttribution("Survey booking form"),
       };
       const res = await fetch("/api/booking", {
         method: "POST",
@@ -179,6 +181,7 @@ const BookingForm = ({ surveyLevel, surveyTitle }: BookingFormProps) => {
         body: JSON.stringify(valuesWithPrice),
       });
       if (!res.ok) throw new Error("Failed");
+      clearAttribution();
       setIsSubmitSuccessful(true);
     } catch {
       setSubmitError(true);

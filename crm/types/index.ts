@@ -588,6 +588,86 @@ export interface Lead {
   assignedTo?: { id: string; fullName: string; email: string } | null;
   stageLabel?: string;
   tags?: LeadTag[];
+  /** How a website lead found us; null for leads with no recorded website journey. */
+  attribution?: Pick<LeadAttribution, "channel" | "channelDetail"> | null;
+}
+
+export type AttributionChannel =
+  | "AI_ASSISTANT"
+  | "ORGANIC_SEARCH"
+  | "PAID_SEARCH"
+  | "ORGANIC_SOCIAL"
+  | "PAID_SOCIAL"
+  | "EMAIL"
+  | "REFERRAL"
+  | "OTHER_CAMPAIGN"
+  | "DIRECT";
+
+export interface AttributionUtm {
+  source?: string | null;
+  medium?: string | null;
+  campaign?: string | null;
+  content?: string | null;
+  term?: string | null;
+}
+
+/** One browser visit included with an enquiry. */
+export interface AttributionVisit {
+  channel: AttributionChannel;
+  channelDetail: string | null;
+  referrer: string | null;
+  landingUrl: string;
+  startedAt: string | null;
+  utm: AttributionUtm;
+  pages: { path: string; title: string; at: string }[];
+}
+
+/**
+ * One website enquiry. `visits` lists every browser visit sent with it.
+ * Older rows have no `visits` and count as a single visit.
+ */
+export interface AttributionTouch {
+  channel: AttributionChannel;
+  channelDetail: string | null;
+  referrer: string | null;
+  landingUrl: string;
+  firstSeenAt: string | null;
+  utm: AttributionUtm;
+  pages: { path: string; title: string; at: string }[];
+  visits?: AttributionVisit[];
+  form: { name: string; path: string; submittedAt: string };
+  receivedAt: string;
+}
+
+export interface LeadAttribution {
+  channel: AttributionChannel;
+  channelDetail: string | null;
+  referrer: string | null;
+  landingUrl: string | null;
+  firstSeenAt: string | null;
+  utm: AttributionUtm;
+  clickIds: Record<string, string>;
+  formName: string | null;
+  formPath: string | null;
+  pageViews: number;
+  touchCount: number;
+  /** Browser visits across every enquiry. Absent on responses from before visit history. */
+  visitCount?: number;
+  /** Source of the most recent visit, when the API sends it. */
+  latestChannel?: AttributionChannel | null;
+  latestChannelDetail?: string | null;
+  touches: AttributionTouch[];
+  createdAt: string;
+}
+
+export interface ChannelFunnelRow {
+  channel: AttributionChannel | "LEAD_PROVIDER" | "NOT_TRACKED";
+  detail: string | null;
+  leads: number;
+  quoted: number;
+  converted: number;
+  wonRevenue: number;
+  conversionRate: number;
 }
 
 export type PipelineSlice =
@@ -831,6 +911,7 @@ export interface LeadDetail extends Lead {
   activities: Activity[];
   messages: Message[];
   journey: CadenceStep[];
+  attribution?: LeadAttribution | null;
   cadenceRun?: CadenceRunInfo | null;
   nextWorkflowStep?: NextWorkflowStep | null;
   job?: Job | null;
@@ -1053,6 +1134,7 @@ export interface DashboardSales {
     conversionRate: number;
     roi: number | null;
   }[];
+  funnelByChannel?: ChannelFunnelRow[];
   speedToLead?: { cohort: string; leads: number; converted: number; conversionRate: number }[];
   recentLeads?: Lead[];
   totalAcquisitionCost30d?: number;

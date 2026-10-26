@@ -6,7 +6,6 @@ import type { LeadDetail as LeadDetailType, SurveyType } from "@/crm/types";
 import {
   BEDROOM_BAND_LABELS,
   INTAKE_DOCUMENT_TYPE_LABELS,
-  LEAD_SOURCES,
   LEAD_STAGE_LABELS,
   formatPropertyValueLabel,
   intakeMessageLabel,
@@ -22,6 +21,7 @@ import StatusPill, { leadStageToPillVariant } from "@/crm/components/ui/StatusPi
 import CopyValue, { EditValueButton } from "@/crm/components/ui/CopyValue";
 import LeadTags from "@/crm/components/LeadTags";
 import LeadWorkflowASend from "@/crm/components/LeadWorkflowASend";
+import LeadAttributionPanel from "@/crm/components/LeadAttributionPanel";
 
 function formatRelative(dateStr: string) {
   const d = new Date(dateStr);
@@ -161,9 +161,6 @@ export default function EmbeddedLeadProfile({
     ? `${customer.firstName[0]}${customer.lastName[0]}`
     : "??";
   const name = customer ? `${customer.firstName} ${customer.lastName}` : "Lead";
-  const sourceLabel =
-    LEAD_SOURCES.find((item) => item.value === lead.source)?.label ?? lead.source;
-
   const stats = [
     {
       label: "Survey",
@@ -355,24 +352,7 @@ export default function EmbeddedLeadProfile({
             </CrmPanel>
           ) : null}
 
-          <CrmPanel title="Lead origin">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between gap-2">
-                <span className="text-ink-muted">Source</span>
-                <span className="text-right font-medium text-ink">{sourceLabel}</span>
-              </div>
-              <div className="flex justify-between gap-2">
-                <span className="text-ink-muted">Source ref</span>
-                <span className="text-right font-medium text-ink">{lead.sourceRef ?? "—"}</span>
-              </div>
-              <div className="flex justify-between gap-2">
-                <span className="text-ink-muted">Received</span>
-                <span className="text-right font-medium text-ink">
-                  {formatRelative(lead.createdAt)}
-                </span>
-              </div>
-            </div>
-          </CrmPanel>
+          <LeadAttributionPanel lead={lead} received={formatRelative(lead.createdAt)} />
         </div>
 
         <div className="min-w-0 space-y-5">

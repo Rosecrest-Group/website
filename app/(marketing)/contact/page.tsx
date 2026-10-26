@@ -12,6 +12,7 @@ import {
 } from "@/lib/constants";
 import { Phone, Mail, MapPin } from "lucide-react";
 import { getPageMetadata } from "@/lib/page-metadata";
+import PageJsonLd from "@/components/common/PageJsonLd";
 
 export const metadata = getPageMetadata("/contact");
 
@@ -56,10 +57,11 @@ const SocialIcon = ({ label }: { label: string }) => {
 const Page = () => {
   return (
     <div>
+      <PageJsonLd path="/contact" />
       <JourneyHero>
-        <p className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
+        <h1 className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
           Contact Rosecrest
-        </p>
+        </h1>
         <p
           className={`${sourceSans.className} mt-4 mx-auto text-white text-base lg:text-xl leading-relaxed max-w-3xl`}
         >

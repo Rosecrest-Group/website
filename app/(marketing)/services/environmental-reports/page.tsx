@@ -6,6 +6,7 @@ import EnvironmentalWhoNeeds from "@/fragments/environmental-reports/Environment
 import EnvironmentalWhyChoose from "@/fragments/environmental-reports/EnvironmentalWhyChoose";
 import EnvironmentalMoreInfo from "@/fragments/environmental-reports/EnvironmentalMoreInfo";
 import { getPageMetadata } from "@/lib/page-metadata";
+import PageJsonLd from "@/components/common/PageJsonLd";
 
 
 export const metadata = getPageMetadata("/services/environmental-reports");
@@ -13,10 +14,11 @@ export const metadata = getPageMetadata("/services/environmental-reports");
 const Page = () => {
   return (
     <div>
+      <PageJsonLd path="/services/environmental-reports" />
       <JourneyHero>
-        <p className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
+        <h1 className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
           Environmental Reports
-        </p>
+        </h1>
         <p className={`${sourceSans.className} mt-10 mx-auto text-white text-xl lg:text-2xl leading-relaxed`}>
           Professional. Insightful. Risk-Aware.
         </p>

@@ -10,7 +10,6 @@ import {
   BEDROOM_BAND_LABELS,
   CRM_BASE_PATH,
   INTAKE_DOCUMENT_TYPE_LABELS,
-  LEAD_SOURCES,
   LEAD_STAGE_LABELS,
   LOST_REASON_OPTIONS,
   returnToPipelineLabel,
@@ -48,6 +47,8 @@ import LeadTags from "@/crm/components/LeadTags";
 import LeadWorkflowASend from "@/crm/components/LeadWorkflowASend";
 import SurveyTypeSelect from "@/crm/components/SurveyTypeSelect";
 import EmbeddedLeadProfile from "@/crm/components/EmbeddedLeadProfile";
+import LeadAttributionPanel from "@/crm/components/LeadAttributionPanel";
+import LeadJourney from "@/crm/components/LeadJourney";
 import EditLeadDetailsModal from "@/crm/components/EditLeadDetailsModal";
 import { useCrmTopBar } from "@/crm/lib/crmTopBarContext";
 import { filterLeadThreadActivities } from "@/crm/lib/threadActivities";
@@ -57,6 +58,10 @@ import { canMutateLeads, canSkipWorkflowWait } from "@/crm/lib/rbac";
 import { doneTopProgress, startTopProgress } from "@/crm/lib/topProgress";
 import { prefetchLeadThreadWithActivities } from "@/crm/lib/loadLeadThread";
 import { leadToTaskLabel } from "@/crm/lib/taskForm";
+
+const LEAD_PANES = [...THREAD_PANES, "journey"] as const;
+type LeadPane = (typeof LEAD_PANES)[number];
+const LEAD_PANE_LABEL: Record<LeadPane, string> = { ...THREAD_PANE_LABEL, journey: "Journey" };
 
 function leadsListHref(): string {
   return storedListFiltersHref(
@@ -152,10 +157,11 @@ export default function LeadDetail({
   const [lead, setLead] = useState<LeadDetailType | null>(() => getCachedLead(id));
   const [loading, setLoading] = useState(() => !getCachedLead(id));
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState<ThreadPane>(initialPane ?? "messages");
+  const [activeTab, setActiveTab] = useState<LeadPane>(initialPane ?? "messages");
   const [noteTargetMessage, setNoteTargetMessage] = useState<Message | null>(null);
   const [notesMounted, setNotesMounted] = useState(initialPane === "internal");
   const [activityMounted, setActivityMounted] = useState(initialPane === "activity");
+  const [journeyMounted, setJourneyMounted] = useState(false);
   const [messagesMaximized, setMessagesMaximized] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
@@ -1099,16 +1105,14 @@ export default function LeadDetail({
             </CrmPanel>
           ) : null}
 
-          <CrmPanel title="Lead origin">
-            <div className="space-y-2 text-sm">
-              <Row
-                label="Source"
-                value={LEAD_SOURCES.find((item) => item.value === lead.source)?.label ?? lead.source}
-              />
-              <Row label="Source ref" value={lead.sourceRef ?? "—"} />
-              <Row label="Received" value={formatRelative(lead.createdAt)} />
-            </div>
-          </CrmPanel>
+          <LeadAttributionPanel
+            lead={lead}
+            received={formatRelative(lead.createdAt)}
+            onViewJourney={() => {
+              setJourneyMounted(true);
+              setActiveTab("journey");
+            }}
+          />
 
           <CrmPanel title="Quick actions">
             <div className="flex flex-col gap-2">
@@ -1203,12 +1207,13 @@ export default function LeadDetail({
                 <div className="flex min-w-0 items-center gap-2">
                   <SlidingPaneTabs
                     id="lead-pane-tabs"
-                    panes={THREAD_PANES}
-                    labels={THREAD_PANE_LABEL}
+                    panes={LEAD_PANES}
+                    labels={LEAD_PANE_LABEL}
                     value={activeTab}
                     onChange={(pane) => {
                       if (pane === "internal") setNotesMounted(true);
                       if (pane === "activity") setActivityMounted(true);
+                      if (pane === "journey") setJourneyMounted(true);
                       setActiveTab(pane);
                     }}
                   />
@@ -1235,7 +1240,7 @@ export default function LeadDetail({
               </div>
             </div>
             <div className="relative min-h-0 flex-1 overflow-hidden">
-              <SlidingPane panes={THREAD_PANES} pane="messages" active={activeTab}>
+              <SlidingPane panes={LEAD_PANES} pane="messages" active={activeTab}>
                 <LeadMessageThread
                   leadId={lead.id}
                   customerName={
@@ -1270,7 +1275,7 @@ export default function LeadDetail({
               </SlidingPane>
               {notesMounted ? (
                 <SlidingPane
-                  panes={THREAD_PANES}
+                  panes={LEAD_PANES}
                   pane="internal"
                   active={activeTab}
                   slideInOnMount
@@ -1288,7 +1293,7 @@ export default function LeadDetail({
               ) : null}
               {activityMounted ? (
                 <SlidingPane
-                  panes={THREAD_PANES}
+                  panes={LEAD_PANES}
                   pane="activity"
                   active={activeTab}
                   slideInOnMount
@@ -1305,6 +1310,11 @@ export default function LeadDetail({
                     framed={false}
                     className="h-full min-h-0 flex-1"
                   />
+                </SlidingPane>
+              ) : null}
+              {journeyMounted ? (
+                <SlidingPane panes={LEAD_PANES} pane="journey" active={activeTab} slideInOnMount>
+                  <LeadJourney lead={lead} className="h-full flex-1" />
                 </SlidingPane>
               ) : null}
             </div>
@@ -1663,15 +1673,6 @@ export default function LeadDetail({
   }
 
   return <CrmPageContent className="!pt-3 sm:!pt-4 lg:!pt-4">{detailBody}</CrmPageContent>;
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-2">
-      <span className="text-(--color-tc-30)">{label}</span>
-      <span className="text-right font-medium text-(--color-tc-40)">{value}</span>
-    </div>
-  );
 }
 
 function LeadDetailBreadcrumb({ name, returnCampaignId }: { name?: string; returnCampaignId?: string }) {

@@ -12,17 +12,19 @@ import RecentWork from "@/fragments/councils/RecentWork";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
 import { sourceSans } from "@/lib/fonts";
 import { getPageMetadata } from "@/lib/page-metadata";
+import PageJsonLd from "@/components/common/PageJsonLd";
 
 export const metadata = getPageMetadata("/councils");
 
 const Page = () => {
   return (
     <div>
+      <PageJsonLd path="/councils" />
       <JourneyHero>
         <div className="text-center">
-          <p className="text-white text-3xl lg:text-5xl tracking-tight leading-16 sm:w-3/5 mx-auto">
+          <h1 className="text-white text-3xl lg:text-5xl tracking-tight leading-16 sm:w-3/5 mx-auto">
             Inspection, Reporting & Remediation Services for Councils
-          </p>
+          </h1>
           <p
             className={`${sourceSans.className} mt-4 mx-auto text-white text-base lg:text-xl leading-relaxed max-w-4xl`}
           >

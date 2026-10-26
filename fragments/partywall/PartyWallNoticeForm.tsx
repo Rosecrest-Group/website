@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { clearAttribution, getAttribution } from "@/lib/attribution";
 import { sourceSans } from "@/lib/fonts";
 import { PARTY_WALL_CONSENT_TEXT } from "@/lib/party-wall/consent";
 import {
@@ -258,10 +259,12 @@ export default function PartyWallNoticeForm() {
           technicalDrawingsFileName: technicalDrawingsFile.name,
           landRegistryBase64,
           technicalDrawingsBase64,
+          attribution: getAttribution("Party wall notice generator"),
         }),
       });
 
       if (!res.ok) throw new Error("Failed");
+      clearAttribution();
       router.push("/thank-you");
     } catch {
       setSubmitError(true);

@@ -19,9 +19,9 @@ const ServicesHero = () => {
 
       {/* Content */}
       <div className="relative z-10 rounded-4xl w-full pt-44 lg:pt-56 pb-72 lg:pb-80 text-center px-4">
-        <div className="text-white text-4xl lg:text-7xl tracking-tight leading-[100%]">
+        <h1 className="text-white text-4xl lg:text-7xl tracking-tight leading-[100%]">
           Our Comprehensive Services
-        </div>
+        </h1>
         <p className="mt-10 lg:w-[50%] mx-auto text-[#E5E7EB] text-base lg:text-xl leading-relaxed">
           Explore our professional surveying and specialist trade services,
           designed to give you clarity and confidence in your property

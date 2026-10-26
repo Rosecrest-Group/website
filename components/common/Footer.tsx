@@ -72,6 +72,7 @@ const Footer: React.FC<FooterProps> = ({ quickLinks }) => {
     { label: "About Rosecrest", href: "/about" },
     { label: "Areas we cover", href: "/areas-we-cover" },
     { label: "Blog", href: "/blog" },
+    { label: "Guides", href: "/guides" },
     { label: "Contact", href: "/contact" },
     { label: "FAQs", href: "/faqs" },
   ];

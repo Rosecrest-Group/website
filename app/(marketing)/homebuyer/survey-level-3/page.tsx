@@ -8,6 +8,7 @@ import { sourceSans } from "@/lib/fonts";
 import { getPageMetadata } from "@/lib/page-metadata";
 import { surveyReportTiming } from "@/lib/surveyReportTiming";
 import { Home } from "lucide-react";
+import PageJsonLd from "@/components/common/PageJsonLd";
 
 
 export const metadata = getPageMetadata("/homebuyer/survey-level-3");
@@ -15,6 +16,7 @@ export const metadata = getPageMetadata("/homebuyer/survey-level-3");
 const Page = () => {
   return (
     <div>
+      <PageJsonLd path="/homebuyer/survey-level-3" />
       <SurveysHaeder>
         <div className="flex items-start justify-between my-8 px-1">
           <div className="flex items-start gap-4">
@@ -25,9 +27,9 @@ const Page = () => {
 
             {/* Title and Badge */}
             <div className="flex flex-col items-start">
-              <h3 className="text-xl lg:text-[48px] leading-9 font-bold text-gray-900 mb-4">
+              <h1 className="text-xl lg:text-[48px] leading-9 font-bold text-gray-900 mb-4">
                 RICS Level 3 Survey: Building Survey
-              </h3>
+              </h1>
               <p
                 className={`px-4 py-1 rounded-full text-sm w-fit h-9 flex justify-center items-center  font-medium bg-[#F3E8FF] text-[#8200DB] ${sourceSans.className}`}
               >

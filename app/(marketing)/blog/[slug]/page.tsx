@@ -11,6 +11,9 @@ import BlogHero from "@/fragments/blog/BlogHero";
 import { PortableText } from "@portabletext/react";
 import type { PortableTextBlock } from "@portabletext/types";
 import sanitizeHtml from "sanitize-html";
+import JsonLd from "@/components/common/JsonLd";
+import { buildMetadata } from "@/lib/page-metadata";
+import { breadcrumbTrail, buildBlogPosting, buildBreadcrumbList } from "@/lib/schema";
 
 export const revalidate = 60;
 
@@ -20,6 +23,7 @@ interface Post {
   slug: string;
   excerpt?: string;
   publishedAt: string;
+  _updatedAt?: string;
   heroImage?: {
     asset: { _ref: string };
     alt?: string;
@@ -48,17 +52,15 @@ export async function generateMetadata({
     return { title: "Post not found | Rosecrest Group" };
   }
 
-  return {
+  return buildMetadata({
+    path: `/blog/${post.slug}`,
     title: post.seo?.metaTitle || post.title,
-    description: post.seo?.metaDescription || post.excerpt,
-    openGraph: {
-      title: post.seo?.metaTitle || post.title,
-      description: post.seo?.metaDescription || post.excerpt,
-      images: post.heroImage
-        ? [urlFor(post.heroImage).width(1200).format("webp").url()]
-        : [],
-    },
-  };
+    description: post.seo?.metaDescription || post.excerpt || "",
+    ogImage: post.heroImage
+      ? urlFor(post.heroImage).width(1200).format("webp").url()
+      : undefined,
+    type: "article",
+  });
 }
 
 const htmlTableOptions: sanitizeHtml.IOptions = {
@@ -245,6 +247,22 @@ export default async function BlogPostPage({
 
   return (
     <div className="bg-[#FBF7F4] min-h-screen">
+      <JsonLd
+        id="blog-post"
+        data={[
+          buildBlogPosting({
+            title: post.title,
+            slug: post.slug,
+            datePublished: post.publishedAt,
+            dateModified: post._updatedAt,
+            description: post.seo?.metaDescription || post.excerpt,
+            imageUrl: post.heroImage
+              ? urlFor(post.heroImage).width(1200).format("webp").url()
+              : undefined,
+          }),
+          buildBreadcrumbList(breadcrumbTrail(`/blog/${post.slug}`, post.title)),
+        ]}
+      />
       <BlogHero>
         <p>Blog</p>
       </BlogHero>

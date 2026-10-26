@@ -1,69 +1,23 @@
-import { MetadataRoute } from "next";
+import type { MetadataRoute } from "next";
+import { guides } from "@/lib/guides";
+import { absoluteUrl } from "@/lib/page-metadata";
+import { getBlogPosts, staticPublicPaths } from "@/lib/site-index";
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://rosecrestgroupltd.co.uk";
+export const revalidate = 3600;
 
-  return [
-    // Core pages
-    { url: baseUrl, lastModified: new Date() },
-    { url: `${baseUrl}/about`, lastModified: new Date() },
-    { url: `${baseUrl}/contact`, lastModified: new Date() },
-    { url: `${baseUrl}/faqs`, lastModified: new Date() },
-    { url: `${baseUrl}/areas-we-cover`, lastModified: new Date() },
-    { url: `${baseUrl}/request-inspection`, lastModified: new Date() },
-    { url: `${baseUrl}/privacy-policy`, lastModified: new Date() },
-    { url: `${baseUrl}/cookie-policy`, lastModified: new Date() },
-    { url: `${baseUrl}/thank-you`, lastModified: new Date() },
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const now = new Date();
+  const guideUpdated = new Map(guides.map((guide) => [`/guides/${guide.slug}`, guide.updated]));
 
-    // Sectors
-    { url: `${baseUrl}/homebuyer`, lastModified: new Date() },
-    { url: `${baseUrl}/homebuyer/survey-level-1`, lastModified: new Date() },
-    { url: `${baseUrl}/homebuyer/survey-level-2`, lastModified: new Date() },
-    { url: `${baseUrl}/homebuyer/survey-level-3`, lastModified: new Date() },
-    { url: `${baseUrl}/landlord`, lastModified: new Date() },
-    { url: `${baseUrl}/legal`, lastModified: new Date() },
-    { url: `${baseUrl}/councils`, lastModified: new Date() },
+  const pages = staticPublicPaths().map((path) => ({
+    url: absoluteUrl(path),
+    lastModified: guideUpdated.has(path) ? new Date(guideUpdated.get(path)!) : now,
+  }));
 
-    // Services hub
-    { url: `${baseUrl}/services`, lastModified: new Date() },
+  const posts = (await getBlogPosts()).map((post) => ({
+    url: absoluteUrl(`/blog/${post.slug}`),
+    lastModified: new Date(post._updatedAt ?? post.publishedAt ?? now),
+  }));
 
-    // Survey services
-    { url: `${baseUrl}/services/damp-mould`, lastModified: new Date() },
-    { url: `${baseUrl}/services/epc`, lastModified: new Date() },
-    {
-      url: `${baseUrl}/services/environmental-reports`,
-      lastModified: new Date(),
-    },
-    { url: `${baseUrl}/services/party-wall`, lastModified: new Date() },
-    {
-      url: `${baseUrl}/services/party-wall/notice-generator`,
-      lastModified: new Date(),
-    },
-    { url: `${baseUrl}/services/housing-disrepair`, lastModified: new Date() },
-    { url: `${baseUrl}/services/cpr-35-reports`, lastModified: new Date() },
-    { url: `${baseUrl}/services/stock-condition`, lastModified: new Date() },
-    {
-      url: `${baseUrl}/services/assocrics-mentoring`,
-      lastModified: new Date(),
-    },
-    {
-      url: `${baseUrl}/services/thermographic-surveys`,
-      lastModified: new Date(),
-    },
-
-    // Trade services
-    { url: `${baseUrl}/services/carpentry`, lastModified: new Date() },
-    { url: `${baseUrl}/services/carpet-cleaning`, lastModified: new Date() },
-    { url: `${baseUrl}/services/deep-cleaning`, lastModified: new Date() },
-    { url: `${baseUrl}/services/handyman`, lastModified: new Date() },
-    { url: `${baseUrl}/services/house-clearance`, lastModified: new Date() },
-    {
-      url: `${baseUrl}/services/painting-decorating`,
-      lastModified: new Date(),
-    },
-    { url: `${baseUrl}/services/plastering`, lastModified: new Date() },
-    { url: `${baseUrl}/services/plumbing`, lastModified: new Date() },
-    { url: `${baseUrl}/services/tiling`, lastModified: new Date() },
-
-  ];
+  return [...pages, ...posts];
 }

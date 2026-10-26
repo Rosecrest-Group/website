@@ -7,6 +7,7 @@ import { prefetchLead } from "@/crm/lib/leadDetailCache";
 import { prefetchLeadThreadWithActivities } from "@/crm/lib/loadLeadThread";
 import { getListPageCache, setListPageCache } from "@/crm/lib/listPageCache";
 import { usePersistedListFilters } from "@/crm/lib/usePersistedListFilters";
+import { ATTRIBUTION_CHANNEL_FILTER_OPTIONS, channelLabel } from "@/crm/lib/attribution";
 import type { Lead, LeadStage, Paginated, SurveyType } from "@/crm/types";
 import {
   BEDROOM_BAND_LABELS,
@@ -40,10 +41,10 @@ const ALL_LEADS_STAGE = "ALL";
 
 const PAGE_SIZE = 10;
 
-type LeadListFilters = { stage: string; source: string; page: string };
+type LeadListFilters = { stage: string; source: string; channel: string; page: string };
 
-const LEAD_LIST_FILTER_DEFAULTS: LeadListFilters = { stage: "", source: "", page: "" };
-const LEAD_LIST_FILTER_KEYS = ["stage", "source", "page"] as const;
+const LEAD_LIST_FILTER_DEFAULTS: LeadListFilters = { stage: "", source: "", channel: "", page: "" };
+const LEAD_LIST_FILTER_KEYS = ["stage", "source", "channel", "page"] as const;
 
 function pageFromFilter(value: string): number {
   const parsed = Number.parseInt(value, 10);
@@ -57,6 +58,7 @@ function pageToFilter(page: number): string {
 const LEAD_LIST_FILTER_ALLOW = {
   stage: [...STAGES, ALL_LEADS_STAGE],
   source: LEAD_SOURCES.map((s) => s.value),
+  channel: ATTRIBUTION_CHANNEL_FILTER_OPTIONS.map((c) => c.value),
 };
 
 function formatTimeAgo(dateStr: string) {
@@ -90,7 +92,7 @@ export default function LeadsList({
     defaults: LEAD_LIST_FILTER_DEFAULTS,
     allow: LEAD_LIST_FILTER_ALLOW,
   });
-  const { stage, source } = filters;
+  const { stage, source, channel } = filters;
   const page = pageFromFilter(filters.page);
   const initialDataRef = useRef(initialData);
   useEffect(() => {
@@ -122,7 +124,7 @@ export default function LeadsList({
   useEffect(() => {
     if (!filtersReady) return;
 
-    if (!search && !stage && !source && page === 1) {
+    if (!search && !stage && !source && !channel && page === 1) {
       const cached =
         getListPageCache<LeadsListInitialData>("leads:default") ?? initialDataRef.current;
       if (cached) {
@@ -147,6 +149,7 @@ export default function LeadsList({
     if (search) params.search = search;
     if (stage) params.stage = stage;
     if (source) params.source = source;
+    if (channel) params.channel = channel;
     const timer = setTimeout(() => {
       setLoading(true);
       api
@@ -155,7 +158,7 @@ export default function LeadsList({
           setLeads(res.items);
           setTotal(res.total);
           setError("");
-          if (!search && !stage && !source && page === 1) {
+          if (!search && !stage && !source && !channel && page === 1) {
             setListPageCache("leads:default", res);
           }
         })
@@ -163,7 +166,7 @@ export default function LeadsList({
         .finally(() => setLoading(false));
     }, search ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [filtersReady, search, stage, source, page]);
+  }, [filtersReady, search, stage, source, channel, page]);
 
   useEffect(() => {
     return () => {
@@ -185,6 +188,11 @@ export default function LeadsList({
   function handleSourceChange(value: string) {
     setLoading(true);
     setFilters({ source: value, page: "" });
+  }
+
+  function handleChannelChange(value: string) {
+    setLoading(true);
+    setFilters({ channel: value, page: "" });
   }
 
   function warmLead(leadId: string) {
@@ -258,6 +266,15 @@ export default function LeadsList({
       ),
     },
     {
+      key: "attribution",
+      header: "Channel",
+      render: (_value, row) => (
+        <span className="text-sm text-ink-muted">
+          {row.attribution ? channelLabel(row.attribution.channel, row.attribution.channelDetail) : "—"}
+        </span>
+      ),
+    },
+    {
       key: "createdAt",
       header: "Created",
       render: (value) => (
@@ -298,6 +315,18 @@ export default function LeadsList({
                 {LEAD_SOURCES.map((s) => (
                   <option key={s.value} value={s.value}>
                     {s.label}
+                  </option>
+                ))}
+              </SelectField>
+              <SelectField
+                variant="filter"
+                value={channel}
+                onChange={(e) => handleChannelChange(e.target.value)}
+              >
+                <option value="">All channels</option>
+                {ATTRIBUTION_CHANNEL_FILTER_OPTIONS.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
                   </option>
                 ))}
               </SelectField>

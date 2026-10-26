@@ -16,6 +16,7 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { clearAttribution, getAttribution } from "@/lib/attribution";
 import {
   Select,
   SelectContent,
@@ -184,6 +185,7 @@ const BookingModal = ({
         ...values,
         surveyingFees: totalPrice,
         isExpressTurnaround: values.expressReportDelivery === "yes",
+        attribution: getAttribution("Survey booking pop-up"),
       };
       const res = await fetch("/api/booking", {
         method: "POST",
@@ -191,6 +193,7 @@ const BookingModal = ({
         body: JSON.stringify(valuesWithPrice),
       });
       if (!res.ok) throw new Error("Failed");
+      clearAttribution();
     } catch {
       setSubmitError(true);
     }

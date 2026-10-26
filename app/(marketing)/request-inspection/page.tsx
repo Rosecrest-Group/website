@@ -3,16 +3,18 @@ import ContactForm from "@/components/common/ContactForm";
 import JourneyHero from "@/fragments/journeys/JourneyHero";
 import { sourceSans } from "@/lib/fonts";
 import { getPageMetadata } from "@/lib/page-metadata";
+import PageJsonLd from "@/components/common/PageJsonLd";
 
 export const metadata = getPageMetadata("/request-inspection");
 
 const Page = () => {
   return (
     <div>
+      <PageJsonLd path="/request-inspection" />
       <JourneyHero height="min-h-80 md:min-h-80">
-        <p className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
+        <h1 className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
           Request an Inspection
-        </p>
+        </h1>
         <p
           className={`${sourceSans.className} mt-4 mx-auto text-white text-base lg:text-xl leading-relaxed max-w-3xl`}
         >

@@ -4,16 +4,18 @@ import PartyWallNoticeForm from "@/fragments/partywall/PartyWallNoticeForm";
 import { sourceSans } from "@/lib/fonts";
 import { Reveal } from "@/components/common/Reveal";
 import { getPageMetadata } from "@/lib/page-metadata";
+import PageJsonLd from "@/components/common/PageJsonLd";
 
 export const metadata = getPageMetadata("/services/party-wall/notice-generator");
 
 const PartyWallGeneratorPage = () => {
   return (
     <div>
+      <PageJsonLd path="/services/party-wall/notice-generator" />
       <JourneyHero>
-        <p className="text-white text-4xl lg:text-5xl tracking-tight leading-tight font-bold">
+        <h1 className="text-white text-4xl lg:text-5xl tracking-tight leading-tight font-bold">
           Party Wall Notice Generator
-        </p>
+        </h1>
         <p className={`${sourceSans.className} mt-4 mx-auto text-white/90 text-base lg:text-xl leading-relaxed max-w-2xl`}>
           Complete the form below to generate your Party Wall notice. We
           prepare the document from the information you supply and email it

@@ -1,6 +1,7 @@
 import Navbar from "@/components/common/Navbar";
 import EnquiryModal from "@/components/common/EnquiryModal";
 import GoogleTagManagerRoot from "@/components/analytics/GoogleTagManagerRoot";
+import AttributionTracker from "@/components/analytics/AttributionTracker";
 
 export default function MarketingSiteChrome({
   children,
@@ -10,6 +11,7 @@ export default function MarketingSiteChrome({
   return (
     <>
       <GoogleTagManagerRoot />
+      <AttributionTracker />
       <noscript>
         <iframe
           src="https://www.googletagmanager.com/ns.html?id=GTM-KWX4BX6S"
@@ -19,7 +21,7 @@ export default function MarketingSiteChrome({
         />
       </noscript>
       <Navbar />
-      <div className="grow">{children}</div>
+      <main className="grow">{children}</main>
       <EnquiryModal />
     </>
   );

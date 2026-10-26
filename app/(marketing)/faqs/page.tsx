@@ -5,6 +5,7 @@ import { sourceSans } from "@/lib/fonts";
 import { getPageMetadata } from "@/lib/page-metadata";
 import { getAllFAQCategories } from "@/lib/faqs";
 import JsonLd from "@/components/common/JsonLd";
+import PageJsonLd from "@/components/common/PageJsonLd";
 import { buildFAQPage } from "@/lib/schema";
 
 export const metadata = getPageMetadata("/faqs");
@@ -18,12 +19,13 @@ const Page = () => {
 
   return (
     <div>
+      <PageJsonLd path="/faqs" />
       <JsonLd data={buildFAQPage(allQuestions)} id="faqs" />
 
       <JourneyHero>
-        <p className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
+        <h1 className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
           Frequently Asked Questions
-        </p>
+        </h1>
         <p
           className={`${sourceSans.className} mt-4 mx-auto text-white text-base lg:text-xl leading-relaxed max-w-3xl`}
         >

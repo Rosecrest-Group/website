@@ -33,9 +33,9 @@ const Hero = () => {
 
         {/* Heading — slides in from left */}
         <Reveal animation="fade-right" duration={700} delay={150}>
-          <div className="text-white text-4xl lg:text-7xl tracking-tight leading-[100%]">
+          <h1 className="text-white text-4xl lg:text-7xl tracking-tight leading-[100%]">
             What do you need help with today?
-          </div>
+          </h1>
         </Reveal>
 
         {/* Subtext — slides in from right */}

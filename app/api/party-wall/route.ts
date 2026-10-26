@@ -12,6 +12,7 @@ const CRM_INTAKE_URL = `${config.crmApiUrl.replace(/\/$/, "")}/intake/leads/PART
 type PartyWallRequestBody = PartyWallFormValues & {
   landRegistryBase64?: string;
   technicalDrawingsBase64?: string;
+  attribution?: unknown;
 };
 
 export async function POST(req: Request) {
@@ -37,6 +38,7 @@ export async function POST(req: Request) {
       postcode: extractUkPostcode(primaryAddress),
       message,
       marketingOptIn: true,
+      attribution: body.attribution,
       consent: {
         timestamp: new Date().toISOString(),
         source: "party_wall_tool",

@@ -10,6 +10,13 @@ export function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  if (pathname.endsWith(".md")) {
+    const withoutExt = pathname.slice(0, -3);
+    const url = request.nextUrl.clone();
+    url.pathname = withoutExt === "" || withoutExt === "/index" ? "/md" : `/md${withoutExt}`;
+    return NextResponse.rewrite(url);
+  }
+
   const hideSiteChrome =
 
     pathname.startsWith("/studio") || pathname.startsWith("/crm");

@@ -9,18 +9,20 @@ import LegalServices from "@/fragments/legal/LegalServices";
 import MLATestimonials from "@/fragments/legal/MLATestimonials";
 import { sourceSans } from "@/lib/fonts";
 import { getPageMetadata } from "@/lib/page-metadata";
+import PageJsonLd from "@/components/common/PageJsonLd";
 
 export const metadata = getPageMetadata("/legal");
 
 const Page = () => {
   return (
     <div>
+      <PageJsonLd path="/legal" />
       <JourneyHero>
         <div className="text-center">
-          <p className="text-white text-3xl lg:text-5xl tracking-tight leading-16 sm:w-3/5 mx-auto mt-4">
+          <h1 className="text-white text-3xl lg:text-5xl tracking-tight leading-16 sm:w-3/5 mx-auto mt-4">
             Independent Property Inspection and Expert Reporting for Legal
             Matters
-          </p>
+          </h1>
           <p
             className={`${sourceSans.className} mt-4 mx-auto text-white text-base lg:text-xl leading-relaxed max-w-5xl`}
           >

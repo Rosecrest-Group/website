@@ -3,16 +3,18 @@ import { sourceSans } from "@/lib/fonts";
 import Footer from "@/components/common/Footer";
 import { getPageMetadata } from "@/lib/page-metadata";
 import PrivacyPolicyClient from "./PrivacyPolicyClient";
+import PageJsonLd from "@/components/common/PageJsonLd";
 
 export const metadata = getPageMetadata("/privacy-policy");
 
 const Page = () => {
   return (
     <div className="bg-[#FBF7F4]">
+      <PageJsonLd path="/privacy-policy" />
       <JourneyHero>
-        <p className="text-white text-4xl lg:text-5xl tracking-tight leading-tight font-bold">
+        <h1 className="text-white text-4xl lg:text-5xl tracking-tight leading-tight font-bold">
           Privacy Policy
-        </p>
+        </h1>
         <p
           className={`${sourceSans.className} mt-6 mx-auto text-white/90 text-base lg:text-xl leading-relaxed max-w-2xl`}
         >

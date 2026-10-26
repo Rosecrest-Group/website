@@ -34,6 +34,7 @@ export async function POST(req: Request) {
           ? quotedAmount
           : undefined,
       isExpressTurnaround: body.isExpressTurnaround === true,
+      attribution: body.attribution,
     };
 
     console.log("📋 Booking → CRM payload:", JSON.stringify(payload, null, 2));

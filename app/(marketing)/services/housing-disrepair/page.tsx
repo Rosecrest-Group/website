@@ -4,6 +4,7 @@ import HousingDisrepairIncludes from "@/fragments/housing-disrepair/HousingInclu
 import JourneyHero from "@/fragments/journeys/JourneyHero";
 import { sourceSans } from "@/lib/fonts";
 import { getPageMetadata } from "@/lib/page-metadata";
+import PageJsonLd from "@/components/common/PageJsonLd";
 
 
 export const metadata = getPageMetadata("/services/housing-disrepair");
@@ -11,10 +12,11 @@ export const metadata = getPageMetadata("/services/housing-disrepair");
 const Page = () => {
   return (
     <div>
+      <PageJsonLd path="/services/housing-disrepair" />
       <JourneyHero>
-        <p className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
+        <h1 className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
           Housing Disrepair Surveys
-        </p>
+        </h1>
         <p
           className={`${sourceSans.className} mt-10 mx-auto text-white text-xl lg:text-2xl leading-relaxed`}
         >
