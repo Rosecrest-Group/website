@@ -28,12 +28,12 @@ import type {
   SalesIgniterOpportunity,
 } from "@/crm/types";
 import { cn } from "@/lib/utils";
+import { emailPreviewText } from "@/crm/lib/messageFormatting";
 
 const PAGE_SIZE = 10;
 
 function messagePreview(body?: string): string {
-  const text = (body ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  return text.length > 80 ? `${text.slice(0, 80)}…` : text || "No preview";
+  return emailPreviewText(body ?? "") || "No preview";
 }
 
 function channelIcon(type?: string) {

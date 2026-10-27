@@ -246,6 +246,44 @@ export function prepareEmailHtmlForThread(body: string): string {
   return html.trim() || "<p></p>";
 }
 
+const PREVIEW_ENTITIES: Record<string, string> = {
+  nbsp: " ",
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  "#39": "'",
+  "#x27": "'",
+};
+
+/**
+ * One-line text for list previews (inbox rows, notes). Outlook/Hotmail emails carry CSS in
+ * `<style>`, Word XML in conditional comments and a `<title>` in `<head>`; plain tag stripping
+ * left all of that as visible "text", so drop those blocks whole before removing tags.
+ * Regex-only (no sanitizer or DOM) because it runs for every row in a list.
+ */
+export function emailPreviewText(body: string, maxLength = 80): string {
+  // Plain-text emails often contain <https://...>; only treat the body as markup when it is.
+  const isMarkup = isHtmlContent(body) || /<(?:style|head|!--)/i.test(body);
+  const text = (isMarkup ? stripPreviewMarkup(body) : body).replace(/\s+/g, " ").trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
+}
+
+function stripPreviewMarkup(body: string): string {
+  return body
+    .replace(/<!--[\s\S]*?(?:-->|$)/g, " ")
+    .replace(/<(head|style|script|title|xml|noscript)\b[\s\S]*?(?:<\/\1\s*>|$)/gi, " ")
+    .replace(/<\/?(?:p|div|br|li|tr|td|th|h[1-6]|blockquote|table)\b[^>]*>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (entity, name: string) => {
+      const known = PREVIEW_ENTITIES[name.toLowerCase()];
+      if (known) return known;
+      const code = /^#x/i.test(name) ? parseInt(name.slice(2), 16) : /^#/.test(name) ? Number(name.slice(1)) : NaN;
+      return Number.isFinite(code) ? String.fromCodePoint(code) : entity;
+    });
+}
+
 export function htmlToPlainText(html: string): string {
   const sanitized = sanitizeEmailHtml(html);
   if (typeof document !== "undefined") {

@@ -5,17 +5,14 @@ import { setCachedConversationThread } from "@/crm/lib/conversationMessageCache"
 import { getCachedLeadThread, setCachedLeadThread } from "@/crm/lib/leadMessageCache";
 import { ensureRecordThread } from "@/crm/lib/recordThread";
 import { linkifyText } from "@/crm/lib/formatMessageBody";
+import { emailPreviewText } from "@/crm/lib/messageFormatting";
 import type { InternalMessageItem, Message } from "@/crm/types";
 
 export const NOTE_MENTION_REGEX = /@([a-zA-Z0-9._-]+)/g;
 
 export function messagePreviewSnippet(message: Message): string {
   if (message.subject?.trim()) return message.subject.trim();
-  return message.body
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 80);
+  return emailPreviewText(message.body);
 }
 
 export function insertMentionToken(

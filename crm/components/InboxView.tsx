@@ -35,7 +35,7 @@ import SlidingPaneTabs, {
 import { api } from "@/crm/lib/api";
 import { formatInboxListTime, messageTimestamp } from "@/crm/lib/formatChatTime";
 import { getCachedLead, prefetchLead, setCachedLead } from "@/crm/lib/leadDetailCache";
-import { isHtmlContent } from "@/crm/lib/messageFormatting";
+import { emailPreviewText } from "@/crm/lib/messageFormatting";
 import { useInfiniteScroll } from "@/crm/lib/useInfiniteScroll";
 import { MESSAGE_FIRST_PAGE_SIZE } from "@/crm/lib/leadMessageCache";
 import { prefetchLeadThreadWithActivities } from "@/crm/lib/loadLeadThread";
@@ -70,10 +70,8 @@ const REFRESH_MS = 20_000;
 const WARM_PREFETCH_COUNT = 3;
 
 function messagePreview(body: string, channel: string): string {
-  const text =
-    channel === "EMAIL" && isHtmlContent(body)
-      ? body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
-      : body.trim();
+  if (channel === "EMAIL") return emailPreviewText(body);
+  const text = body.trim();
   return text.length > 80 ? `${text.slice(0, 80)}…` : text;
 }
 
