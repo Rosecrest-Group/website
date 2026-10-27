@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { sanityFetch } from "@/sanity/lib/client";
@@ -5,7 +6,9 @@ import { allPostsQuery } from "@/sanity/lib/queries";
 import { urlFor } from "@/sanity/lib/image";
 import { sourceSans } from "@/lib/fonts";
 import Footer from "@/components/common/Footer";
-import { Home, ArrowRight, Phone } from "lucide-react";
+import ContactForm from "@/components/common/ContactForm";
+import { PHONE, PHONE_HREF, EMAIL, EMAIL_HREF } from "@/lib/constants";
+import { Home, ArrowRight, Phone, Mail } from "lucide-react";
 
 interface Post {
   _id: string;
@@ -17,6 +20,11 @@ interface Post {
     alt?: string;
   };
 }
+
+export const metadata: Metadata = {
+  title: "Page Not Found | Rosecrest",
+  robots: { index: false },
+};
 
 export default async function NotFound() {
   let recentPosts: Post[] = [];
@@ -67,8 +75,8 @@ export default async function NotFound() {
         </div>
       </section>
 
-      {/* Quick Links + Posts */}
-      <section className="max-w-7xl mx-auto px-4 py-16 lg:py-24 w-full flex-1">
+      {/* Quick Links + Enquiry Form */}
+      <section className="max-w-7xl mx-auto px-4 pt-16 lg:pt-24 w-full">
         <div className="grid lg:grid-cols-3 gap-12">
           {/* Quick Links */}
           <div>
@@ -88,49 +96,79 @@ export default async function NotFound() {
                 </li>
               ))}
             </ul>
+
+            <div className="mt-8 rounded-2xl bg-[#262A6F] text-white p-6">
+              <p className="font-bold mb-1">Prefer to talk?</p>
+              <p className={`${sourceSans.className} text-sm text-white/70 mb-4`}>
+                Our team can point you to the right survey or service.
+              </p>
+              <a
+                href={PHONE_HREF}
+                className="flex items-center gap-2 text-sm font-semibold hover:text-[#DBB38E] transition-colors mb-2"
+              >
+                <Phone className="w-4 h-4 text-[#DBB38E]" />
+                {PHONE}
+              </a>
+              <a
+                href={EMAIL_HREF}
+                className="flex items-center gap-2 text-sm font-semibold hover:text-[#DBB38E] transition-colors break-all"
+              >
+                <Mail className="w-4 h-4 shrink-0 text-[#DBB38E]" />
+                {EMAIL}
+              </a>
+            </div>
           </div>
 
-          {/* Recent Posts */}
-          <div className="lg:col-span-2">
-            <h2 className="text-lg font-bold text-[#101828] mb-6">
-              Latest from the blog
-            </h2>
-            {recentPosts.length === 0 ? (
-              <p className={`${sourceSans.className} text-[#6A7282] text-sm`}>
-                No posts available right now.
-              </p>
-            ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {recentPosts.map((post) => (
-                  <Link
-                    key={post._id}
-                    href={`/blog/${post.slug}`}
-                    className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow"
-                  >
-                    {post.heroImage && (
-                      <div className="relative h-40 w-full">
-                        <Image
-                          src={urlFor(post.heroImage).width(400).format("webp").url()}
-                          alt={post.heroImage.alt ?? post.title}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      </div>
-                    )}
-                    <div className="p-4">
-                      <p className={`${sourceSans.className} text-xs text-[#6A7282] mb-1.5`}>
-                        {post.publishedAt?.slice(0, 10)}
-                      </p>
-                      <h3 className="font-bold text-[#101828] text-sm leading-snug group-hover:text-[#262A6F] transition-colors line-clamp-2">
-                        {post.title}
-                      </h3>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
+          {/* Enquiry Form */}
+          <div className="lg:col-span-2 border border-gray-100 rounded-4xl">
+            <ContactForm
+              title="Can't find what you're looking for?"
+              subtitle="Tell us what you need and the right member of our team will get back to you."
+              submitLabel="Send Enquiry"
+            />
           </div>
         </div>
+      </section>
+
+      {/* Recent Posts */}
+      <section className="max-w-7xl mx-auto px-4 py-16 lg:py-24 w-full flex-1">
+        <h2 className="text-lg font-bold text-[#101828] mb-6">
+          Latest from the blog
+        </h2>
+        {recentPosts.length === 0 ? (
+          <p className={`${sourceSans.className} text-[#6A7282] text-sm`}>
+            No posts available right now.
+          </p>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {recentPosts.map((post) => (
+              <Link
+                key={post._id}
+                href={`/blog/${post.slug}`}
+                className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow"
+              >
+                {post.heroImage && (
+                  <div className="relative h-40 w-full">
+                    <Image
+                      src={urlFor(post.heroImage).width(400).format("webp").url()}
+                      alt={post.heroImage.alt ?? post.title}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                )}
+                <div className="p-4">
+                  <p className={`${sourceSans.className} text-xs text-[#6A7282] mb-1.5`}>
+                    {post.publishedAt?.slice(0, 10)}
+                  </p>
+                  <h3 className="font-bold text-[#101828] text-sm leading-snug group-hover:text-[#262A6F] transition-colors line-clamp-2">
+                    {post.title}
+                  </h3>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
 
       <Footer />
