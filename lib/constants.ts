@@ -12,6 +12,15 @@ export const REGISTERED_OFFICE = {
   note: "This address is for company registration and correspondence purposes. Visits are by appointment only.",
 };
 
+// ─── Directory and review listings ────────────────────────────────────────────
+// Used as schema.org `sameAs` so search engines and assistants can tie these third-party
+// profiles to this site. Add Google Business Profile, Companies House etc. as they're confirmed.
+
+export const PROFILE_LINKS = [
+  "https://www.ricsfirms.com/office/251716/Rosecrest-Group-Ltd",
+  "https://uk.trustpilot.com/review/rosecrestgroupltd.co.uk",
+];
+
 // ─── Social Links ─────────────────────────────────────────────────────────────
 
 export const SOCIAL_LINKS = [

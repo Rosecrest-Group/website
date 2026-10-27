@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test:api": "npm test --prefix api",
     "test:e2e": "playwright test",
-    "migrate:wordpress": "tsx scripts/migrate-wordpress-to-sanity.ts"
+    "migrate:wordpress": "tsx scripts/migrate-wordpress-to-sanity.ts",
+    "indexnow": "tsx scripts/indexnow.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

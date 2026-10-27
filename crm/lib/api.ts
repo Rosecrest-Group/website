@@ -12,6 +12,8 @@ import type {
 
   Customer,
 
+  DashboardAiCrawlers,
+
   DashboardFinance,
 
   DashboardOps,
@@ -399,6 +401,9 @@ export const api = {
 
   getDashboard: (period: DashboardPeriod = "30d") =>
     request<DashboardSales>(`/dashboards/sales?period=${period}`),
+
+  getDashboardAiCrawlers: (period: DashboardPeriod = "30d") =>
+    request<DashboardAiCrawlers>(`/dashboards/ai-crawlers?period=${period}`),
 
   getDashboardOps: () => request<DashboardOps>("/dashboards/ops"),
 

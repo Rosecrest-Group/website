@@ -1,6 +1,6 @@
 import { absoluteUrl, pageMetadata, siteConfig } from "@/lib/page-metadata";
 import { getFAQsForRoute, type FAQItem } from "@/lib/faqs";
-import { EMAIL, PHONE, SOCIAL_LINKS } from "@/lib/constants";
+import { EMAIL, PHONE, PROFILE_LINKS, SOCIAL_LINKS } from "@/lib/constants";
 import { london, m25Areas } from "@/lib/coverage";
 import {
   getService,
@@ -34,7 +34,7 @@ const ORG_DATA = {
     postalCode: "WC2H 9JQ",
     addressCountry: "GB",
   },
-  sameAs: SOCIAL_LINKS.map((link) => link.href),
+  sameAs: [...SOCIAL_LINKS.map((link) => link.href), ...PROFILE_LINKS],
 };
 
 const providerRef = { "@id": ORGANIZATION_ID };
@@ -159,6 +159,47 @@ export function buildFAQPage(items: FAQItem[]) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Person — a named author (Sanity `author` document) who works for Rosecrest.
+// ─────────────────────────────────────────────────────────────
+
+export type SchemaAuthor = {
+  name: string;
+  bio?: string;
+  jobTitle?: string;
+  /** Post-nominals or qualifications, e.g. "MRICS". */
+  credentials?: string[];
+  /** RICS directory entry, LinkedIn and other profiles of this person. */
+  profileLinks?: string[];
+};
+
+const RICS = {
+  "@type": "Organization",
+  name: "Royal Institution of Chartered Surveyors",
+  url: "https://www.rics.org",
+};
+
+export function buildPerson(author: SchemaAuthor) {
+  const credentials = author.credentials?.filter(Boolean) ?? [];
+  const isRicsMember = credentials.some((credential) => /RICS/i.test(credential));
+  return {
+    "@type": "Person",
+    name: author.name,
+    ...(author.jobTitle && { jobTitle: author.jobTitle }),
+    ...(author.bio && { description: author.bio }),
+    worksFor: providerRef,
+    ...(credentials.length > 0 && {
+      hasCredential: credentials.map((credential) => ({
+        "@type": "EducationalOccupationalCredential",
+        name: credential,
+        ...(/RICS/i.test(credential) && { recognizedBy: RICS }),
+      })),
+    }),
+    ...(isRicsMember && { memberOf: RICS }),
+    ...(author.profileLinks?.length && { sameAs: author.profileLinks }),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
 // BlogPosting / Article + BreadcrumbList
 // ─────────────────────────────────────────────────────────────
 
@@ -169,6 +210,8 @@ export function buildBlogPosting(opts: {
   dateModified?: string;
   imageUrl?: string;
   description?: string;
+  /** Falls back to the firm when the post has no named author. */
+  author?: SchemaAuthor | null;
 }) {
   const url = absoluteUrl(`/blog/${opts.slug}`);
   return {
@@ -182,7 +225,7 @@ export function buildBlogPosting(opts: {
     ...(opts.imageUrl && { image: opts.imageUrl }),
     ...(opts.description && { description: opts.description }),
     inLanguage: "en-GB",
-    author: providerRef,
+    author: opts.author?.name ? buildPerson(opts.author) : providerRef,
     publisher: providerRef,
   };
 }

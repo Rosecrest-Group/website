@@ -1019,6 +1019,25 @@ export type DashboardPeriod =
   | "90d"
   | "all_time";
 
+/** GET /dashboards/ai-crawlers — AI and search crawler requests to the public website. */
+export interface DashboardAiCrawlers {
+  period: DashboardPeriod;
+  total: number;
+  bots: {
+    bot: string;
+    operator: string;
+    purpose: "training" | "search" | "user";
+    hits: number;
+    /** `.md` twins plus pages answered as Markdown via `Accept: text/markdown`. */
+    markdown: number;
+    html: number;
+    /** llms.txt, robots.txt, the sitemap and /api/ai. */
+    other: number;
+    lastSeen: string | null;
+  }[];
+  topPaths: { path: string; hits: number }[];
+}
+
 export interface DashboardComparison {
   label: string;
   leads: number;

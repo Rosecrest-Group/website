@@ -13,7 +13,12 @@ import type { PortableTextBlock } from "@portabletext/types";
 import sanitizeHtml from "sanitize-html";
 import JsonLd from "@/components/common/JsonLd";
 import { buildMetadata } from "@/lib/page-metadata";
-import { breadcrumbTrail, buildBlogPosting, buildBreadcrumbList } from "@/lib/schema";
+import {
+  breadcrumbTrail,
+  buildBlogPosting,
+  buildBreadcrumbList,
+  type SchemaAuthor,
+} from "@/lib/schema";
 
 export const revalidate = 60;
 
@@ -33,6 +38,7 @@ interface Post {
     metaTitle?: string;
     metaDescription?: string;
   };
+  author?: SchemaAuthor | null;
 }
 
 export async function generateStaticParams() {
@@ -256,6 +262,7 @@ export default async function BlogPostPage({
             datePublished: post.publishedAt,
             dateModified: post._updatedAt,
             description: post.seo?.metaDescription || post.excerpt,
+            author: post.author,
             imageUrl: post.heroImage
               ? urlFor(post.heroImage).width(1200).format("webp").url()
               : undefined,
@@ -301,6 +308,14 @@ export default async function BlogPostPage({
               {post.excerpt && (
                 <p className={`${sourceSans.className} text-lg lg:text-xl text-[#4A5565] leading-relaxed`}>
                   {post.excerpt}
+                </p>
+              )}
+
+              {post.author?.name && (
+                <p className={`${sourceSans.className} mt-5 text-sm text-[#4A5565]`}>
+                  By <span className="font-semibold text-[#101828]">{post.author.name}</span>
+                  {post.author.credentials?.length ? ` ${post.author.credentials.join(", ")}` : ""}
+                  {post.author.jobTitle ? `, ${post.author.jobTitle}` : ""}
                 </p>
               )}
             </header>

@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/crm/lib/api";
-import type { DashboardPeriod, DashboardSales } from "@/crm/types";
+import type { DashboardAiCrawlers, DashboardPeriod, DashboardSales } from "@/crm/types";
+import { formatRelativeTime } from "@/crm/lib/workflowExecution";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
 import StatsCard from "@/crm/components/admin/StatsCard";
@@ -65,6 +66,12 @@ function SourceIcon({ source }: { source?: string }) {
   }
   return <Tag className={cls} aria-hidden />;
 }
+
+const CRAWLER_PURPOSE_LABELS: Record<string, string> = {
+  training: "training",
+  search: "search index",
+  user: "fetched for a user",
+};
 
 function pounds(value: number, digits = 0) {
   return `£${value.toFixed(digits)}`;
@@ -155,6 +162,56 @@ export default function CrmAnalytics() {
         setLoading(false);
       });
   }, [period]);
+
+  // Loaded on its own so a crawler-report failure never blanks the sales analytics.
+  const [crawlers, setCrawlers] = useState<DashboardAiCrawlers | null>(null);
+  const [crawlersError, setCrawlersError] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getDashboardAiCrawlers(period)
+      .then((data) => {
+        if (cancelled) return;
+        setCrawlers(data);
+        setCrawlersError(false);
+      })
+      .catch((error) => {
+        console.error(error);
+        if (!cancelled) setCrawlersError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [period]);
+
+  const crawlerColumns: Column<DashboardAiCrawlers["bots"][number]>[] = [
+    {
+      key: "bot",
+      header: "Crawler",
+      render: (_value, row) => (
+        <span className="text-sm font-medium text-ink">
+          {row.bot}
+          <span className="ml-1.5 text-xs font-normal text-ink-muted">
+            {row.operator} · {CRAWLER_PURPOSE_LABELS[row.purpose] ?? row.purpose}
+          </span>
+        </span>
+      ),
+    },
+    { key: "hits", header: "Requests", align: "right", render: (value) => countCell(value) },
+    { key: "markdown", header: "Markdown", align: "right", render: (value) => countCell(value) },
+    { key: "html", header: "HTML", align: "right", render: (value) => countCell(value) },
+    { key: "other", header: "llms/robots/API", align: "right", render: (value) => countCell(value) },
+    {
+      key: "lastSeen",
+      header: "Last seen",
+      align: "right",
+      render: (value) => (
+        <span className="text-sm text-ink-muted tabular-nums">
+          {value ? formatRelativeTime(value as string) : "—"}
+        </span>
+      ),
+    },
+  ];
 
   const isRefreshing = sales !== null && loadedPeriod !== period;
 
@@ -636,6 +693,18 @@ export default function CrmAnalytics() {
             router.push(`/crm/leads?channel=${channel}`);
           }}
           emptyMessage="No leads in this period"
+        />
+
+        <Table
+          title={`AI crawlers · ${periodShort}${crawlers ? ` · ${crawlers.total} requests` : ""}`}
+          columns={crawlerColumns}
+          data={crawlers?.bots ?? []}
+          getRowKey={(row) => row.bot}
+          emptyMessage={
+            crawlersError
+              ? "Crawler activity couldn't be loaded"
+              : "No AI or search crawler requests in this period"
+          }
         />
 
         <Table

@@ -19,11 +19,19 @@ export async function GET(
   const body = await renderPageMarkdown(htmlPath, new URL(request.url).origin);
   if (!body) return notFound();
 
+  // A page URL answered as Markdown via `Accept: text/markdown` (see proxy.ts) must not be
+  // cached by a CDN: Next overwrites Vary on the HTML response, so a shared cache could
+  // otherwise hand this Markdown to a browser. `.md` URLs are unambiguous and stay cacheable.
+  const negotiated = request.headers.get("x-markdown-negotiated") === "1";
+
   return new Response(body, {
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
-      "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400",
+      "Cache-Control": negotiated
+        ? "private, max-age=3600"
+        : "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400",
       Link: `<${absoluteUrl(htmlPath)}>; rel="canonical"`,
+      Vary: "Accept",
     },
   });
 }

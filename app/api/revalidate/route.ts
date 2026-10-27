@@ -1,5 +1,6 @@
 import { revalidatePath } from 'next/cache'
-import { type NextRequest, NextResponse } from 'next/server'
+import { after, type NextRequest, NextResponse } from 'next/server'
+import { submitToIndexNow } from '@/lib/indexnow'
 import { parseBody } from 'next-sanity/webhook'
 
 const secret = process.env.SANITY_REVALIDATE_SECRET
@@ -20,9 +21,19 @@ export async function POST(req: NextRequest) {
     }
 
     revalidatePath('/blog')
+    const changed = ['/blog']
 
     if (body._type === 'post' && body.slug?.current) {
       revalidatePath(`/blog/${body.slug.current}`)
+      changed.push(`/blog/${body.slug.current}`)
+    }
+
+    // Tell Bing and other IndexNow engines once the response is sent. Dev builds never ping.
+    if (process.env.NODE_ENV === 'production') {
+      after(async () => {
+        const result = await submitToIndexNow(changed).catch((err: unknown) => ({ error: String(err) }))
+        console.log('IndexNow:', JSON.stringify(result))
+      })
     }
 
     return NextResponse.json({

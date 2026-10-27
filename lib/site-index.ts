@@ -1,7 +1,5 @@
 import { sanityFetch } from "@/sanity/lib/client";
 import { postIndexQuery } from "@/sanity/lib/queries";
-import { guides } from "@/lib/guides";
-import { pageMetadata } from "@/lib/page-metadata";
 
 export type BlogPostSummary = {
   title: string;
@@ -11,13 +9,7 @@ export type BlogPostSummary = {
   _updatedAt?: string;
 };
 
-/** Every indexable path that isn't a blog post. */
-export function staticPublicPaths(): string[] {
-  return [
-    ...Object.keys(pageMetadata),
-    ...guides.map((guide) => `/guides/${guide.slug}`),
-  ];
-}
+export { staticPublicPaths } from "@/lib/public-paths";
 
 export async function getBlogPosts(): Promise<BlogPostSummary[]> {
   try {

@@ -1,3 +1,5 @@
+import { after } from "next/server";
+import { detectCrawler, recordCrawl } from "@/lib/ai-crawlers";
 import { EMAIL, PHONE } from "@/lib/constants";
 import { checkCoverage, london, m25Areas } from "@/lib/coverage";
 import { guides } from "@/lib/guides";
@@ -74,6 +76,14 @@ function serviceJson(service: CatalogService) {
 
 export function GET(request: Request) {
   const params = new URL(request.url).searchParams;
+  const crawler = detectCrawler(request.headers.get("user-agent"));
+  if (crawler) {
+    // A user-initiated fetch can carry someone's postcode; log that one was given, not what it was.
+    const logged = new URLSearchParams(params);
+    if (logged.has("postcode")) logged.set("postcode", "given");
+    const query = logged.toString() || undefined;
+    after(() => recordCrawl(crawler, { path: "/api/ai", kind: "api", query }));
+  }
   const q = params.get("q")?.trim() ?? "";
   const category = params.get("category") as ServiceCategory | null;
   const audience = params.get("audience") as Audience | null;

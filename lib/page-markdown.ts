@@ -2,9 +2,7 @@ import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
 import { EMAIL, PHONE } from "@/lib/constants";
 import { absoluteUrl, markdownPath, siteConfig } from "@/lib/page-metadata";
-import { staticPublicPaths } from "@/lib/site-index";
-
-const BLOG_POST_PATH = /^\/blog\/[a-z0-9]+(?:-[a-z0-9]+)*$/;
+import { isPublicPagePath } from "@/lib/public-paths";
 
 /** HTML path for a `/md/...` request, or null when it isn't a public page. */
 export function resolveHtmlPath(segments: string[]): string | null {
@@ -12,8 +10,7 @@ export function resolveHtmlPath(segments: string[]): string | null {
   const path = parts.length === 0 || (parts.length === 1 && parts[0] === "index")
     ? "/"
     : `/${parts.join("/")}`;
-  if (staticPublicPaths().includes(path) || BLOG_POST_PATH.test(path)) return path;
-  return null;
+  return isPublicPagePath(path) ? path : null;
 }
 
 function decodeEntities(text: string): string {
@@ -37,10 +34,39 @@ function linkTarget(href: string): string | null {
   if (!href.startsWith("/")) return null;
   const [pathOnly] = href.split(/[?#]/);
   const clean = pathOnly.replace(/\/$/, "") || "/";
-  if (staticPublicPaths().includes(clean) || BLOG_POST_PATH.test(clean)) {
+  if (isPublicPagePath(clean)) {
     return `${siteConfig.url}${markdownPath(clean)}`;
   }
   return `${siteConfig.url}${href}`;
+}
+
+const BLOCK_TAGS = [
+  "address", "article", "aside", "blockquote", "dd", "div", "dl", "dt", "fieldset", "figcaption",
+  "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "li", "main",
+  "nav", "ol", "p", "pre", "section", "table", "ul",
+];
+const BLOCK_SELECTOR = BLOCK_TAGS.join(",");
+const LAYOUT_CLASS = /(?:^|\s)(?:[\w-]+:)*(?:inline-)?(?:flex|grid)(?=\s|$)/;
+const SEPARATOR = /^[•·|/–—-]$/;
+
+/**
+ * A flex or grid `<div>`/`<p>` laid out from inline children (chips, badges, label/value pairs).
+ * The browser spaces them with `gap`, but as HTML text they touch, so Turndown would run them together.
+ */
+function isInlineItemRow(node: HTMLElement): boolean {
+  if (!["DIV", "P"].includes(node.nodeName)) return false;
+  if (!LAYOUT_CLASS.test(node.getAttribute("class") ?? "")) return false;
+  let items = 0;
+  for (const child of Array.from(node.childNodes)) {
+    if (child.nodeType === 3 && child.textContent?.trim()) return false;
+    if (child.nodeType !== 1) continue;
+    const element = child as HTMLElement;
+    if (BLOCK_TAGS.includes(element.nodeName.toLowerCase()) || element.querySelector(BLOCK_SELECTOR)) {
+      return false;
+    }
+    if (element.textContent?.trim()) items += 1;
+  }
+  return items >= 2;
 }
 
 function createTurndown(): TurndownService {
@@ -63,6 +89,22 @@ function createTurndown(): TurndownService {
       const heading = first.match(/^#+\s+/)?.[0] ?? "";
       const label = first.slice(heading.length);
       return `\n\n${heading}[${label}](${target})\n\n${rest.join("\n\n")}\n\n`;
+    },
+  });
+  service.addRule("inlineItemRow", {
+    filter: (node) => isInlineItemRow(node),
+    replacement: (content, node) => {
+      const items = Array.from(node.childNodes)
+        .filter((child) => child.nodeType === 1)
+        .map((child) => {
+          const wrapper = child.ownerDocument!.createElement("div");
+          wrapper.appendChild(child.cloneNode(true));
+          return service.turndown(wrapper).replace(/\s+/g, " ").trim();
+        })
+        .filter((item) => item && !SEPARATOR.test(item));
+      if (items.length < 2) return `\n\n${content}\n\n`;
+      if (items.length === 2) return `\n\n${items.join(" — ")}\n\n`;
+      return `\n\n${items.map((item) => `-   ${item}`).join("\n")}\n\n`;
     },
   });
   service.addRule("caption", {

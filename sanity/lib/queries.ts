@@ -24,7 +24,7 @@ export const postBySlugQuery = groq`
     heroImage,
     body,
     seo,
-    "author": author->{name, bio, avatar, "slug": slug.current},
+    "author": author->{name, bio, avatar, "slug": slug.current, jobTitle, credentials, profileLinks},
     "categories": categories[]->{ title, "slug": slug.current }
   }
 `
