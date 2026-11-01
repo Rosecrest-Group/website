@@ -83,12 +83,12 @@ export default function Home() {
           />
           <div className="absolute inset-y-0 left-0 w-1/3 bg-linear-to-r from-navy-deep to-transparent" />
         </div>
-        <div className="mx-auto w-full max-w-[1440px] px-gutter pb-14 pt-14 md:pb-24 md:pt-24">
+        <div className="mx-auto w-full max-w-[1440px] px-gutter pb-12 pt-10 md:pb-16 md:pt-14">
           <div className="flex flex-col gap-[22px] lg:w-1/2 lg:pr-12">
-            <h1 className="text-balance text-[38px] font-extrabold leading-[1.04] md:text-[clamp(38px,4.4vw,62px)]">
+            <h1 className="text-balance text-[38px] font-extrabold leading-[1.04] md:text-[clamp(38px,3.8vw,54px)]">
               RICS-regulated surveyors for London and the M25
             </h1>
-            <p className="text-xl text-navy-soft">
+            <p className="text-lg text-navy-soft md:text-xl">
               Surveys, inspections and expert reports, each carried out by our qualified and experienced surveyors. Tell
               us who you are and we’ll take you straight to the right service.
             </p>
