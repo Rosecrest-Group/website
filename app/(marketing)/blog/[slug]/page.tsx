@@ -467,6 +467,14 @@ export default async function BlogPostPage({
                 href={`/blog/${related.slug}`}
                 meta={formatDate(related.publishedAt)}
                 title={related.title}
+                image={
+                  related.heroImage
+                    ? {
+                        src: urlFor(related.heroImage).width(700).format("webp").url(),
+                        alt: related.heroImage.alt ?? related.title,
+                      }
+                    : undefined
+                }
               />
             ))}
           </div>
