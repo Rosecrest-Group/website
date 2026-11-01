@@ -101,7 +101,13 @@ export default async function NotFound() {
         </div>
       </section>
 
-      <Section tone="white">
+      <CallbackSection
+        eyebrow="Can’t find what you’re looking for?"
+        intro="Tell us what you need and the right member of our team will get back to you."
+        formName="404 page call back"
+      />
+
+      <Section tone="mist">
         <SectionHeading eyebrow="News & Insights" title="Latest from the blog" />
         {recentPosts.length === 0 ? (
           <p className="text-body">No posts available right now.</p>
@@ -129,12 +135,6 @@ export default async function NotFound() {
           View all articles and guides →
         </TextLink>
       </Section>
-
-      <CallbackSection
-        eyebrow="Can’t find what you’re looking for?"
-        intro="Tell us what you need and the right member of our team will get back to you."
-        formName="404 page call back"
-      />
     </>
   );
 }
