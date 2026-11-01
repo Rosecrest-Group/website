@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Building2, Check, Home as HomeIcon, KeyRound, Phone, Scale } from "lucide-react";
 import { getPageMetadata } from "@/lib/page-metadata";
 import { PHONE, PHONE_HREF } from "@/lib/constants";
@@ -65,13 +66,26 @@ export default function Home() {
     <>
       <PageJsonLd path="/" />
 
-      {/* Hero: who we are, one contact action */}
-      <section id="start" className="bg-mist">
-        <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-[22px] px-gutter pb-16 pt-14">
+      {/* Hero: who we are, one contact action, over the cover photo from the previous site */}
+      <section id="start" className="relative isolate overflow-hidden bg-navy-deep text-white">
+        <Image
+          src="/assets/images/landing-hero.png"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="-z-20 object-cover object-[70%_center]"
+        />
+        {/* Navy wash, heavier on the text side so the copy stays readable over the lit house. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 -z-10 bg-navy-deep/75 lg:bg-transparent lg:bg-linear-to-r lg:from-navy-deep/90 lg:via-navy-deep/70 lg:to-navy-deep/25"
+        />
+        <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-[22px] px-gutter pb-20 pt-16 md:pb-28 md:pt-24">
           <h1 className="max-w-[900px] text-[38px] font-extrabold leading-[1.04] md:text-[clamp(38px,4.4vw,62px)]">
             RICS-regulated surveyors for London and the M25
           </h1>
-          <p className="max-w-[680px] text-xl text-body">
+          <p className="max-w-[680px] text-xl text-navy-soft">
             Surveys, inspections and expert reports, each carried out by our qualified and experienced surveyors. Tell
             us who you are and we’ll take you straight to the right service.
           </p>
@@ -80,8 +94,11 @@ export default function Home() {
               <Phone aria-hidden="true" className="h-5 w-5" />
               Call {PHONE}
             </ButtonLink>
-            <span className="text-[15px] text-body">
-              Mon to Fri, 8am to 5pm · or <TextLink href="#callback">request a call back</TextLink>
+            <span className="text-[15px] text-navy-soft">
+              Mon to Fri, 8am to 5pm · or{" "}
+              <a href="#callback" className="font-bold text-white underline underline-offset-4 hover:text-white">
+                request a call back
+              </a>
             </span>
           </div>
         </div>
