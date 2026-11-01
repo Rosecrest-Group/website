@@ -66,41 +66,55 @@ export default function Home() {
     <>
       <PageJsonLd path="/" />
 
-      {/* Hero: who we are, one contact action, over the cover photo from the previous site */}
+      {/*
+        Hero: who we are, one contact action. The text sits on solid navy and the cover photo
+        from the previous site fills the right-hand side (a band under the text on phones),
+        so the photo never sits behind the words.
+      */}
       <section id="start" className="relative isolate overflow-hidden bg-navy-deep text-white">
-        <Image
-          src="/assets/images/landing-hero.png"
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="-z-20 object-cover object-[70%_center]"
-        />
-        {/* Navy wash, heavier on the text side so the copy stays readable over the lit house. */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 -z-10 bg-navy-deep/75 lg:bg-transparent lg:bg-linear-to-r lg:from-navy-deep/90 lg:via-navy-deep/70 lg:to-navy-deep/25"
-        />
-        <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-[22px] px-gutter pb-20 pt-16 md:pb-28 md:pt-24">
-          <h1 className="max-w-[900px] text-[38px] font-extrabold leading-[1.04] md:text-[clamp(38px,4.4vw,62px)]">
-            RICS-regulated surveyors for London and the M25
-          </h1>
-          <p className="max-w-[680px] text-xl text-navy-soft">
-            Surveys, inspections and expert reports, each carried out by our qualified and experienced surveyors. Tell
-            us who you are and we’ll take you straight to the right service.
-          </p>
-          <div className="flex flex-wrap items-center gap-x-[22px] gap-y-3.5">
-            <ButtonLink href={PHONE_HREF} size="lg">
-              <Phone aria-hidden="true" className="h-5 w-5" />
-              Call {PHONE}
-            </ButtonLink>
-            <span className="text-[15px] text-navy-soft">
-              Mon to Fri, 8am to 5pm · or{" "}
-              <a href="#callback" className="font-bold text-white underline underline-offset-4 hover:text-white">
-                request a call back
-              </a>
-            </span>
+        <div aria-hidden="true" className="absolute inset-y-0 right-0 -z-10 hidden w-[50%] lg:block">
+          <Image
+            src="/assets/images/landing-hero.png"
+            alt=""
+            fill
+            priority
+            sizes="50vw"
+            className="object-cover object-center"
+          />
+          <div className="absolute inset-y-0 left-0 w-1/3 bg-linear-to-r from-navy-deep to-transparent" />
+        </div>
+        <div className="mx-auto w-full max-w-[1440px] px-gutter pb-14 pt-14 md:pb-24 md:pt-24">
+          <div className="flex flex-col gap-[22px] lg:w-1/2 lg:pr-12">
+            <h1 className="text-balance text-[38px] font-extrabold leading-[1.04] md:text-[clamp(38px,4.4vw,62px)]">
+              RICS-regulated surveyors for London and the M25
+            </h1>
+            <p className="text-xl text-navy-soft">
+              Surveys, inspections and expert reports, each carried out by our qualified and experienced surveyors. Tell
+              us who you are and we’ll take you straight to the right service.
+            </p>
+            <div className="flex flex-wrap items-center gap-x-[22px] gap-y-3.5">
+              <ButtonLink href={PHONE_HREF} size="lg">
+                <Phone aria-hidden="true" className="h-5 w-5" />
+                Call {PHONE}
+              </ButtonLink>
+              <span className="text-[15px] text-navy-soft">
+                Mon to Fri, 8am to 5pm · or{" "}
+                <a href="#callback" className="font-bold text-white underline underline-offset-4 hover:text-white">
+                  request a call back
+                </a>
+              </span>
+            </div>
           </div>
+        </div>
+        <div className="relative h-56 sm:h-72 lg:hidden">
+          <Image
+            src="/assets/images/landing-hero.png"
+            alt=""
+            fill
+            sizes="100vw"
+            className="object-cover object-[center_40%]"
+          />
+          <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1/3 bg-linear-to-b from-navy-deep to-transparent" />
         </div>
       </section>
 
