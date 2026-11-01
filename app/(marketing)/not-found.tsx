@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
+import { ArrowRight, Mail, Phone } from "lucide-react";
 import { sanityFetch } from "@/sanity/lib/client";
 import { allPostsQuery } from "@/sanity/lib/queries";
 import { urlFor } from "@/sanity/lib/image";
-import { sourceSans } from "@/lib/fonts";
-import Footer from "@/components/common/Footer";
-import ContactForm from "@/components/common/ContactForm";
+import CallbackSection from "@/components/site/CallbackSection";
+import { ButtonLink, Eyebrow, Section, SectionHeading, TextLink } from "@/components/site/primitives";
+import { StoryCard, formatDate } from "@/components/site/articles/ArticleParts";
 import { PHONE, PHONE_HREF, EMAIL, EMAIL_HREF } from "@/lib/constants";
-import { Home, ArrowRight, Phone, Mail } from "lucide-react";
 
 interface Post {
   _id: string;
@@ -26,6 +25,15 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
+const QUICK_LINKS = [
+  { label: "Homebuyer surveys", href: "/homebuyer" },
+  { label: "Services", href: "/services" },
+  { label: "Guides", href: "/guides" },
+  { label: "Areas we cover", href: "/areas-we-cover" },
+  { label: "About Rosecrest", href: "/about" },
+  { label: "Contact us", href: "/contact" },
+];
+
 export default async function NotFound() {
   let recentPosts: Post[] = [];
   try {
@@ -35,143 +43,98 @@ export default async function NotFound() {
     // fail silently — posts are non-critical
   }
 
-  const quickLinks = [
-    { label: "Homebuyer", href: "/homebuyer" },
-    { label: "Services", href: "/services" },
-    { label: "Areas We Cover", href: "/areas-we-cover" },
-    { label: "About Rosecrest", href: "/about" },
-    { label: "Contact Us", href: "/contact" },
-  ];
-
   return (
-    <div className="bg-[#FBF7F4] min-h-screen flex flex-col">
-      {/* Hero */}
-      <section className="bg-[#262A6F] text-white py-36 px-4 text-center">
-        <p className={`${sourceSans.className} text-[#DBB38E] text-sm font-semibold uppercase tracking-widest mb-4`}>
-          404 — Page Not Found
-        </p>
-        <h1 className="text-4xl lg:text-5xl font-bold tracking-tight leading-tight mb-6">
-          This page doesn&apos;t exist
-        </h1>
-        <p className={`${sourceSans.className} text-white/80 text-lg max-w-xl mx-auto mb-10`}>
-          It may have been moved or removed. Use the links below to find what
-          you&apos;re looking for, or head back to the homepage.
-        </p>
-        <div className="flex flex-wrap justify-center gap-3">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 bg-[#DBB38E] hover:bg-[#c9a07c] text-[#101828] font-semibold px-6 py-3 rounded-full transition-colors text-sm"
-          >
-            <Home className="w-4 h-4" />
-            Back to Homepage
-          </Link>
-          <Link
-            href="/contact"
-            className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-6 py-3 rounded-full transition-colors text-sm border border-white/20"
-          >
-            <Phone className="w-4 h-4" />
-            Contact Us
-          </Link>
-        </div>
-      </section>
-
-      {/* Quick Links + Enquiry Form */}
-      <section className="max-w-7xl mx-auto px-4 pt-16 lg:pt-24 w-full">
-        <div className="grid lg:grid-cols-3 gap-12">
-          {/* Quick Links */}
-          <div>
-            <h2 className="text-lg font-bold text-[#101828] mb-6">
-              Popular pages
-            </h2>
-            <ul className="space-y-2">
-              {quickLinks.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className={`${sourceSans.className} flex items-center justify-between group px-4 py-3 bg-white rounded-xl border border-gray-100 hover:border-[#262A6F] hover:shadow-sm transition-all text-sm text-[#101828]`}
-                  >
-                    {link.label}
-                    <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#262A6F] transition-colors" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-8 rounded-2xl bg-[#262A6F] text-white p-6">
-              <p className="font-bold mb-1">Prefer to talk?</p>
-              <p className={`${sourceSans.className} text-sm text-white/70 mb-4`}>
-                Our team can point you to the right survey or service.
+    <>
+      <section className="bg-mist text-ink">
+        <div className="mx-auto w-full max-w-[1440px] px-gutter py-16 md:py-24">
+          <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:gap-16">
+            <div className="flex flex-col gap-5">
+              <Eyebrow>404, page not found</Eyebrow>
+              <h1 className="text-[38px] font-extrabold leading-[1.04] md:text-[54px]">This page doesn’t exist</h1>
+              <p className="max-w-[640px] text-xl text-body">
+                It may have been moved or removed. Use the links below to find what you’re looking for, or head back
+                to the homepage.
               </p>
-              <a
-                href={PHONE_HREF}
-                className="flex items-center gap-2 text-sm font-semibold hover:text-[#DBB38E] transition-colors mb-2"
-              >
-                <Phone className="w-4 h-4 text-[#DBB38E]" />
-                {PHONE}
-              </a>
-              <a
-                href={EMAIL_HREF}
-                className="flex items-center gap-2 text-sm font-semibold hover:text-[#DBB38E] transition-colors break-all"
-              >
-                <Mail className="w-4 h-4 shrink-0 text-[#DBB38E]" />
-                {EMAIL}
-              </a>
+              <div className="flex flex-wrap items-center gap-3.5">
+                <ButtonLink href="/">Back to the homepage</ButtonLink>
+                <ButtonLink href="/contact" variant="outline">
+                  Contact us
+                </ButtonLink>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3.5">
+              <b className="text-sm uppercase tracking-[0.06em] text-muted-ink">Popular pages</b>
+              <ul className="m-0 grid list-none gap-2.5 p-0 sm:grid-cols-2 lg:grid-cols-1">
+                {QUICK_LINKS.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="group flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3 text-base font-semibold text-ink no-underline transition-colors hover:border-teal hover:text-ink"
+                    >
+                      {link.label}
+                      <ArrowRight
+                        aria-hidden="true"
+                        className="h-4 w-4 text-line-strong transition-colors group-hover:text-teal"
+                      />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-2 flex flex-col gap-2 rounded-[18px] bg-navy p-6 text-white">
+                <b className="font-display text-xl">Prefer to talk?</b>
+                <p className="text-[15px] text-navy-soft">Our team can point you to the right survey or service.</p>
+                <a href={PHONE_HREF} className="flex items-center gap-2 font-bold text-white no-underline hover:text-white">
+                  <Phone aria-hidden="true" className="h-4 w-4 text-teal-line" />
+                  {PHONE}
+                </a>
+                <a
+                  href={EMAIL_HREF}
+                  className="flex items-center gap-2 break-all font-bold text-white no-underline hover:text-white"
+                >
+                  <Mail aria-hidden="true" className="h-4 w-4 shrink-0 text-teal-line" />
+                  {EMAIL}
+                </a>
+              </div>
             </div>
           </div>
-
-          {/* Enquiry Form */}
-          <div className="lg:col-span-2 border border-gray-100 rounded-4xl">
-            <ContactForm
-              title="Can't find what you're looking for?"
-              subtitle="Tell us what you need and the right member of our team will get back to you."
-              submitLabel="Send Enquiry"
-            />
-          </div>
         </div>
       </section>
 
-      {/* Recent Posts */}
-      <section className="max-w-7xl mx-auto px-4 py-16 lg:py-24 w-full flex-1">
-        <h2 className="text-lg font-bold text-[#101828] mb-6">
-          Latest from the blog
-        </h2>
+      <Section tone="white">
+        <SectionHeading eyebrow="News & Insights" title="Latest from the blog" />
         {recentPosts.length === 0 ? (
-          <p className={`${sourceSans.className} text-[#6A7282] text-sm`}>
-            No posts available right now.
-          </p>
+          <p className="text-body">No posts available right now.</p>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid gap-[18px] md:grid-cols-2 lg:grid-cols-3">
             {recentPosts.map((post) => (
-              <Link
+              <StoryCard
                 key={post._id}
                 href={`/blog/${post.slug}`}
-                className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow"
-              >
-                {post.heroImage && (
-                  <div className="relative h-40 w-full">
-                    <Image
-                      src={urlFor(post.heroImage).width(400).format("webp").url()}
-                      alt={post.heroImage.alt ?? post.title}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                )}
-                <div className="p-4">
-                  <p className={`${sourceSans.className} text-xs text-[#6A7282] mb-1.5`}>
-                    {post.publishedAt?.slice(0, 10)}
-                  </p>
-                  <h3 className="font-bold text-[#101828] text-sm leading-snug group-hover:text-[#262A6F] transition-colors line-clamp-2">
-                    {post.title}
-                  </h3>
-                </div>
-              </Link>
+                meta={formatDate(post.publishedAt)}
+                title={post.title}
+                image={
+                  post.heroImage
+                    ? {
+                        src: urlFor(post.heroImage).width(700).format("webp").url(),
+                        alt: post.heroImage.alt ?? post.title,
+                      }
+                    : undefined
+                }
+              />
             ))}
           </div>
         )}
-      </section>
+        <TextLink href="/guides" className="self-start">
+          View all articles and guides →
+        </TextLink>
+      </Section>
 
-      <Footer />
-    </div>
+      <CallbackSection
+        eyebrow="Can’t find what you’re looking for?"
+        intro="Tell us what you need and the right member of our team will get back to you."
+        formName="404 page call back"
+      />
+    </>
   );
 }

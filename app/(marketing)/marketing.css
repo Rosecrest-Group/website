@@ -132,10 +132,82 @@
   }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Rosecrest marketing design tokens.
+   Use as Tailwind utilities: text-ink, bg-mist, border-line, font-display…
+   ───────────────────────────────────────────────────────────── */
+@theme {
+  --color-ink: #1b2a4a;
+  --color-body: #3a4a66;
+  --color-muted-ink: #5b6b84;
+  --color-teal: #0b7a70;
+  --color-teal-dark: #08564f;
+  --color-teal-tint: #e3f5f1;
+  --color-teal-line: #bfe3da;
+  --color-mist: #f4f7fa;
+  --color-mist-soft: #fbfcfe;
+  --color-field: #f8fafc;
+  --color-line: #e2e8f0;
+  --color-line-strong: #cbd5e1;
+  --color-navy: #1b2a4a;
+  --color-navy-deep: #0f1e38;
+  --color-navy-line: #22345a;
+  --color-navy-field: #16284a;
+  --color-navy-field-line: #2e4166;
+  --color-navy-text: #c9d4e3;
+  --color-navy-soft: #d5deea;
+  --color-navy-muted: #9fb0c8;
+
+  --shadow-card: 0 30px 60px -40px rgba(15, 30, 56, 0.45);
+  --shadow-menu: 0 30px 60px -30px rgba(15, 30, 56, 0.4);
+  --shadow-pop: 0 20px 40px -20px rgba(15, 30, 56, 0.35);
+}
+
+/* Inline so the next/font variables resolve on the element that uses them. */
+@theme inline {
+  --font-display: var(--font-schibsted), system-ui, sans-serif;
+  --font-body: var(--font-figtree), system-ui, sans-serif;
+}
+
+/* Side gutter used by every section: 16px on phones, up to 120px at 1440. */
+@utility px-gutter {
+  padding-inline: clamp(16px, 8.34vw, 120px);
+}
+
+/* In the base layer so utility classes (font-body, tracking-normal…) can override. */
+@layer base {
+  .rc-site {
+    font-family: var(--font-figtree), system-ui, sans-serif;
+    color: var(--color-ink);
+    font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .rc-site h1,
+  .rc-site h2,
+  .rc-site h3,
+  .rc-site h4 {
+    font-family: var(--font-schibsted), system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  .rc-site .rc-prose a,
+  .rc-site a.rc-link {
+    color: var(--color-teal);
+    font-weight: 700;
+  }
+
+  .rc-site .rc-prose a:hover,
+  .rc-site a.rc-link:hover {
+    color: var(--color-teal-dark);
+  }
+}
+
 .blog-content .wp-block-rank-math-toc-block {
   background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-left: 4px solid #dbb38e;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #0b7a70;
   border-radius: 12px;
   padding: 1.5rem 1.75rem;
   margin: 2rem 0 2.5rem;
@@ -146,7 +218,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #101828;
+  color: #1b2a4a;
   margin: 0 0 1rem 0;
 }
 
@@ -165,7 +237,7 @@
 }
 
 .blog-content .wp-block-rank-math-toc-block nav a {
-  color: #262a6f;
+  color: #0b7a70;
   font-weight: 500;
   text-decoration: none;
   font-size: 0.95rem;
@@ -176,7 +248,7 @@
 }
 
 .blog-content .wp-block-rank-math-toc-block nav a:hover {
-  border-bottom-color: #dbb38e;
+  border-bottom-color: #0b7a70;
 }
 
 .blog-content .wp-block-spacer {

@@ -1,42 +1,35 @@
-import Footer from "@/components/common/Footer";
-import ContactForm from "@/components/common/ContactForm";
-import JourneyHero from "@/fragments/journeys/JourneyHero";
-import { sourceSans } from "@/lib/fonts";
 import { getPageMetadata } from "@/lib/page-metadata";
 import PageJsonLd from "@/components/common/PageJsonLd";
+import EnquiryForm from "@/components/site/contact/EnquiryForm";
+import { Breadcrumbs } from "@/components/site/primitives";
 
 export const metadata = getPageMetadata("/request-inspection");
 
-const Page = () => {
+export default function RequestInspectionPage() {
   return (
-    <div>
+    <>
       <PageJsonLd path="/request-inspection" />
-      <JourneyHero height="min-h-80 md:min-h-80">
-        <h1 className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
-          Request an Inspection
-        </h1>
-        <p
-          className={`${sourceSans.className} mt-4 mx-auto text-white text-base lg:text-xl leading-relaxed max-w-3xl`}
-        >
-          Not sure which service you need? Provide a few details and our team
-          will guide you on the most appropriate next step.
-        </p>
-      </JourneyHero>
 
-      {/* Contact form */}
-      <section className="py-8 lg:py-12 px-4 bg-white">
-        <div className="max-w-6xl mx-auto bg-[#FBF7F4] px-8 lg:px-45 py-18 rounded-4xl">
-          <ContactForm
-            title="Fill the form below correctly"
-            subtitle="Tell us a little about your situation and we'll direct your enquiry to the appropriate team member."
-            submitLabel="Submit"
-          />
+      <section className="bg-mist text-ink">
+        <div className="mx-auto w-full max-w-[1440px] px-gutter pb-16 pt-4 md:pb-24">
+          <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Request an inspection" }]} />
+          <div className="mt-10 grid items-start gap-10 md:mt-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:gap-16">
+            <div className="flex flex-col gap-4">
+              <h1 className="text-[38px] font-extrabold leading-[1.04] md:text-[52px]">Request an inspection</h1>
+              <p className="text-xl text-body">
+                Not sure which service you need? Provide a few details and our team will guide you on the most
+                appropriate next step.
+              </p>
+            </div>
+            <EnquiryForm
+              title="Fill in the form below"
+              intro="Tell us a little about your situation and we’ll direct your enquiry to the appropriate team member."
+              submitLabel="Submit"
+              formName="Request an inspection form"
+            />
+          </div>
         </div>
       </section>
-
-      <Footer />
-    </div>
+    </>
   );
-};
-
-export default Page;
+}

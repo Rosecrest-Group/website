@@ -1,26 +1,39 @@
 import { sanityFetch } from "@/sanity/lib/client";
 import { postBySlugQuery, postSlugsQuery, allPostsQuery } from "@/sanity/lib/queries";
 import { urlFor } from "@/sanity/lib/image";
-import { sourceSans } from "@/lib/fonts";
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
-import Footer from "@/components/common/Footer";
-import BlogHero from "@/fragments/blog/BlogHero";
-import { PortableText } from "@portabletext/react";
+import {
+  PortableText,
+  type PortableTextBlockComponent,
+  type PortableTextComponents,
+} from "@portabletext/react";
 import type { PortableTextBlock } from "@portabletext/types";
 import sanitizeHtml from "sanitize-html";
 import JsonLd from "@/components/common/JsonLd";
-import { buildMetadata } from "@/lib/page-metadata";
+import CallbackSection from "@/components/site/CallbackSection";
+import { Eyebrow, Section, TextLink } from "@/components/site/primitives";
 import {
-  breadcrumbTrail,
-  buildBlogPosting,
-  buildBreadcrumbList,
-  type SchemaAuthor,
-} from "@/lib/schema";
+  ARTICLE_BODY_CLASS,
+  ARTICLE_CALLOUT_CLASS,
+  ARTICLE_FAQ_CLASS,
+  ArticleHero,
+  ArticleShell,
+  ArticleTable,
+  AsideCard,
+  Byline,
+  StoryCard,
+  formatDate,
+  slugify,
+  type TocItem,
+} from "@/components/site/articles/ArticleParts";
+import { buildMetadata } from "@/lib/page-metadata";
+import { buildBlogPosting, buildBreadcrumbList, type SchemaAuthor } from "@/lib/schema";
+import { cn } from "@/lib/utils";
 
 export const revalidate = 60;
+
+type SanityImage = { asset: { _ref: string }; alt?: string };
 
 interface Post {
   _id: string;
@@ -29,16 +42,14 @@ interface Post {
   excerpt?: string;
   publishedAt: string;
   _updatedAt?: string;
-  heroImage?: {
-    asset: { _ref: string };
-    alt?: string;
-  };
+  heroImage?: SanityImage;
   body?: PortableTextBlock[];
   seo?: {
     metaTitle?: string;
     metaDescription?: string;
   };
-  author?: SchemaAuthor | null;
+  author?: (SchemaAuthor & { avatar?: SanityImage }) | null;
+  categories?: { title?: string; slug?: string }[] | null;
 }
 
 export async function generateStaticParams() {
@@ -169,72 +180,179 @@ function expandPastedHtmlTables(blocks: BodyBlock[]): BodyBlock[] {
   return result;
 }
 
-const portableTextComponents = {
-  types: {
-    htmlTable: ({ value }: { value: { html?: string } }) => {
-      if (!value.html?.trim()) return null;
-      return (
-        <div
-          className="my-8 overflow-x-auto [&_table]:w-full [&_table]:border-collapse [&_table]:text-left [&_table]:text-base [&_th]:border [&_th]:border-[#E5E7EB] [&_th]:bg-[#FBF7F4] [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-bold [&_th]:text-[#101828] [&_td]:border [&_td]:border-[#E5E7EB] [&_td]:px-3 [&_td]:py-2 [&_td]:align-top"
-          dangerouslySetInnerHTML={{ __html: sanitizeHtml(value.html, htmlTableOptions) }}
-        />
-      );
+// ─────────────────────────────────────────────────────────────
+// Body layout: heading anchors, the sidebar contents, and the
+// "Quick answers" and FAQ blocks drawn as in the design.
+// ─────────────────────────────────────────────────────────────
+
+const HEADING_LEVEL: Record<string, number> = { h2: 2, h3: 3, h4: 4 };
+const TOC_HEADING = /^\s*table of contents\s*:?\s*$/i;
+const CALLOUT_HEADING = /^\s*(quick answers?|in short|key (points|takeaways)|at a glance)\b/i;
+const FAQ_HEADING = /^\s*(faqs?|frequently asked questions)\b/i;
+
+type Segment = { kind: "plain" | "callout" | "faq"; blocks: BodyBlock[] };
+
+function headingLevel(block: BodyBlock) {
+  return block._type === "block" && block.style ? (HEADING_LEVEL[block.style] ?? 0) : 0;
+}
+
+function prepareBody(body: BodyBlock[]) {
+  const expanded = expandPastedHtmlTables(body).map((block, i) =>
+    block._key ? block : { ...block, _key: `block-${i}` },
+  );
+
+  // The sidebar replaces any "Table of Contents" heading and link list pasted into the body.
+  const blocks: BodyBlock[] = [];
+  const breaks = new Set<string>();
+  for (let i = 0; i < expanded.length; i++) {
+    const block = expanded[i];
+    if (headingLevel(block) && TOC_HEADING.test(blockPlainText(block)) && expanded[i + 1]?.listItem) {
+      while (expanded[i + 1]?.listItem) i += 1;
+      if (expanded[i + 1]) breaks.add(expanded[i + 1]._key!);
+      continue;
+    }
+    blocks.push(block);
+  }
+
+  const ids = new Map<string, string>();
+  const used = new Set<string>();
+  const headings: { level: number; id: string; label: string }[] = [];
+  for (const block of blocks) {
+    const level = headingLevel(block);
+    if (!level) continue;
+    const label = blockPlainText(block).trim();
+    const base = slugify(label) || "section";
+    let id = base;
+    for (let n = 2; used.has(id); n++) id = `${base}-${n}`;
+    used.add(id);
+    ids.set(block._key!, id);
+    headings.push({ level, id, label });
+  }
+
+  // Contents list: the highest heading level used at least twice.
+  const tocLevel = [2, 3, 4].find((level) => headings.filter((h) => h.level === level).length >= 2);
+  const toc: TocItem[] = tocLevel
+    ? headings.filter((h) => h.level === tocLevel).map(({ id, label }) => ({ id, label }))
+    : [];
+
+  const segments: Segment[] = [];
+  let current: Segment | null = null;
+  let currentLevel = 0;
+  for (const block of blocks) {
+    const level = headingLevel(block);
+    const text = level ? blockPlainText(block) : "";
+    // A box ends at the next heading of the same or higher level; the quick-answers box also
+    // ends at an image or table, or where a pasted table of contents was taken out.
+    if (current && current.kind !== "plain") {
+      if (level && level <= currentLevel) current = null;
+      else if (current.kind === "callout" && (block._type !== "block" || breaks.has(block._key!))) current = null;
+    }
+    if (level && (CALLOUT_HEADING.test(text) || FAQ_HEADING.test(text))) {
+      current = { kind: FAQ_HEADING.test(text) ? "faq" : "callout", blocks: [] };
+      currentLevel = level;
+      segments.push(current);
+    } else if (!current) {
+      current = { kind: "plain", blocks: [] };
+      segments.push(current);
+    }
+    current.blocks.push(block);
+  }
+
+  return { segments, toc, ids };
+}
+
+function buildComponents(ids: Map<string, string>): PortableTextComponents {
+  const heading = (Tag: "h2" | "h3" | "h4"): PortableTextBlockComponent => {
+    const Heading: PortableTextBlockComponent = ({ children, value }) => (
+      <Tag id={value._key ? ids.get(value._key) : undefined}>{children}</Tag>
+    );
+    return Heading;
+  };
+
+  return {
+    block: { h2: heading("h2"), h3: heading("h3"), h4: heading("h4") },
+    types: {
+      htmlTable: ({ value }: { value: { html?: string } }) => {
+        if (!value.html?.trim()) return null;
+        return (
+          <div
+            className={cn(
+              "not-prose my-[18px] overflow-x-auto rounded-2xl border border-line bg-white",
+              "[&_table]:w-full [&_table]:min-w-[560px] [&_table]:border-collapse [&_table]:text-left [&_table]:text-[15px] [&_table]:leading-[1.5]",
+              "[&_th]:px-5 [&_th]:py-3.5 [&_th]:text-left [&_th]:align-top [&_th]:font-bold",
+              "[&_thead_th]:bg-navy [&_thead_th]:text-white [&_tbody_th]:border-t [&_tbody_th]:border-line [&_tbody_th]:text-ink",
+              "[&_td]:border-t [&_td]:border-line [&_td]:px-5 [&_td]:py-3.5 [&_td]:align-top [&_td]:text-body",
+              "[&_td:first-child]:font-bold [&_td:first-child]:text-ink [&_tbody_tr:nth-child(even)]:bg-mist-soft",
+              "[&_p]:m-0",
+            )}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(value.html, htmlTableOptions) }}
+          />
+        );
+      },
+      table: ({ value }: { value: { rows?: { _key: string; cells?: string[] }[] } }) => {
+        const [header, ...body] = value.rows ?? [];
+        if (!header?.cells?.length) return null;
+        return (
+          <ArticleTable
+            className="my-[18px]"
+            columns={header.cells}
+            rows={body.map((row) => row.cells ?? [])}
+            rowHeadings={false}
+          />
+        );
+      },
+      image: ({ value }: { value: { asset: { _ref: string }; alt?: string; caption?: string } }) => (
+        <figure className="my-8">
+          <Image
+            src={urlFor(value).width(1200).format("webp").url()}
+            alt={value.alt || ""}
+            width={1200}
+            height={675}
+            sizes="(max-width: 1024px) 100vw, 60vw"
+            className="m-0 h-auto w-full rounded-[22px]"
+          />
+          {value.caption && (
+            <figcaption className="mt-2 text-center text-sm text-muted-ink">{value.caption}</figcaption>
+          )}
+        </figure>
+      ),
     },
-    table: ({
-      value,
-    }: {
-      value: { rows?: { _key: string; cells?: string[] }[] };
-    }) => {
-      const [header, ...body] = value.rows ?? [];
-      if (!header?.cells?.length) return null;
-      return (
-        <div className="my-8 overflow-x-auto">
-          <table className="w-full border-collapse text-left text-base">
-            <thead>
-              <tr>
-                {header.cells.map((cell, index) => (
-                  <th
-                    key={index}
-                    className="border border-[#E5E7EB] bg-[#FBF7F4] px-3 py-2 font-bold text-[#101828]"
-                  >
-                    {cell}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {body.map((row) => (
-                <tr key={row._key}>
-                  {(row.cells ?? []).map((cell, index) => (
-                    <td key={index} className="border border-[#E5E7EB] px-3 py-2 align-top">
-                      {cell}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
+  };
+}
+
+/** Sidebar card and call-back pre-selection, picked from what the post is about. */
+function topicFor(post: Post) {
+  const text = `${post.title} ${post.slug}`;
+  if (/party[\s-]?wall/i.test(text)) {
+    return {
+      needs: ["Party wall"],
+      card: {
+        eyebrow: "Party wall surveyors",
+        title: "Free initial consultation",
+        text: "Professional notice preparation, neighbour liaison and ongoing support throughout your building project.",
+        href: "/request-inspection",
+        cta: "Book a free consultation",
+      },
+    };
+  }
+  const needs = /damp|mould|condensation/i.test(text)
+    ? ["Damp, Mould and Condensation Survey"]
+    : /expert[\s-]?witness|cpr/i.test(text)
+      ? ["CPR 35 expert witness report"]
+      : /disrepair/i.test(text)
+        ? ["Housing disrepair survey"]
+        : undefined;
+  return {
+    needs,
+    card: {
+      eyebrow: "Speak to our advisors",
+      title: "Not sure what you need?",
+      text: "Tell us what’s happening and we’ll name the right service, with the fee and turnaround, before you commit.",
+      href: "#callback",
+      cta: "Request a call back",
     },
-    image: ({ value }: { value: { asset: { _ref: string }; alt?: string; caption?: string } }) => (
-      <figure className="my-8">
-        <Image
-          src={urlFor(value).width(1200).format("webp").url()}
-          alt={value.alt || ""}
-          width={1200}
-          height={675}
-          className="rounded-2xl"
-        />
-        {value.caption && (
-          <figcaption className="text-center text-sm text-[#6A7282] mt-2">
-            {value.caption}
-          </figcaption>
-        )}
-      </figure>
-    ),
-  },
-};
+  };
+}
 
 export default async function BlogPostPage({
   params,
@@ -249,10 +367,28 @@ export default async function BlogPostPage({
 
   if (!post) notFound();
 
-  const relatedPosts = (allPosts ?? []).filter((p) => p.slug !== slug).slice(0, 5);
+  const relatedPosts = (allPosts ?? []).filter((p) => p.slug !== slug).slice(0, 3);
+  const { segments, toc, ids } = prepareBody((post.body ?? []) as BodyBlock[]);
+  const components = buildComponents(ids);
+  const topic = topicFor(post);
+
+  const published = formatDate(post.publishedAt);
+  const updated = formatDate(post._updatedAt);
+  const author = post.author;
+  const authorName = author?.name
+    ? `${author.name}${author.credentials?.length ? ` ${author.credentials.join(", ")}` : ""}${
+        author.jobTitle ? `, ${author.jobTitle}` : ""
+      }`
+    : undefined;
+  const meta = [
+    published && `Published ${published}`,
+    updated && updated !== published && `Updated ${updated}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <div className="bg-[#FBF7F4] min-h-screen">
+    <>
       <JsonLd
         id="blog-post"
         data={[
@@ -267,147 +403,80 @@ export default async function BlogPostPage({
               ? urlFor(post.heroImage).width(1200).format("webp").url()
               : undefined,
           }),
-          buildBreadcrumbList(breadcrumbTrail(`/blog/${post.slug}`, post.title)),
+          buildBreadcrumbList([
+            { name: "Home", path: "/" },
+            { name: "Guides", path: "/guides" },
+            { name: post.title, path: `/blog/${post.slug}` },
+          ]),
         ]}
       />
-      <BlogHero>
-        <p>Blog</p>
-      </BlogHero>
 
-      <div className="max-w-7xl mx-auto px-4 py-16">
-        <div className="grid lg:grid-cols-[1fr_320px] gap-12 items-start">
-          <article>
-            <Link
-              href="/blog"
-              className={`${sourceSans.className} inline-flex items-center gap-1.5 text-sm text-[#262A6F] hover:text-[#262A6F]/80 mb-8 transition-colors`}
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Back to News & Insights
-            </Link>
+      <ArticleHero
+        breadcrumbs={[{ label: "Home", href: "/" }, { label: "Guides", href: "/guides" }, { label: post.title }]}
+        eyebrow={post.categories?.find((c) => c?.title)?.title ?? "Guides and property advice"}
+        title={post.title}
+        intro={post.excerpt}
+        byline={
+          authorName || meta ? (
+            <Byline
+              avatarUrl={author?.avatar ? urlFor(author.avatar).width(104).height(104).url() : undefined}
+              name={authorName}
+              meta={meta}
+            />
+          ) : undefined
+        }
+      />
 
-            {/* Article Header */}
-            <header className="mb-10">
-              <div className="flex items-center gap-3 mb-5">
-                <span className="w-8 h-[2px] bg-[#DBB38E]" />
-                <time 
-                  dateTime={post.publishedAt}
-                  className={`${sourceSans.className} text-sm font-medium text-[#6A7282] uppercase tracking-wider`}
-                >
-                  {new Date(post.publishedAt).toLocaleDateString('en-GB', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  })}
-                </time>
-              </div>
+      <ArticleShell toc={toc} aside={<AsideCard {...topic.card} />}>
+        {post.heroImage && (
+          <div className="relative mb-8 h-[240px] overflow-hidden rounded-[22px] bg-mist md:h-[340px]">
+            <Image
+              src={urlFor(post.heroImage).width(1200).format("webp").url()}
+              alt={post.heroImage.alt ?? post.title}
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 60vw"
+              className="object-cover"
+            />
+          </div>
+        )}
 
-              <h1 className="text-3xl lg:text-5xl font-bold text-[#101828] leading-tight mb-6">
-                {post.title}
-              </h1>
-
-              {post.excerpt && (
-                <p className={`${sourceSans.className} text-lg lg:text-xl text-[#4A5565] leading-relaxed`}>
-                  {post.excerpt}
-                </p>
-              )}
-
-              {post.author?.name && (
-                <p className={`${sourceSans.className} mt-5 text-sm text-[#4A5565]`}>
-                  By <span className="font-semibold text-[#101828]">{post.author.name}</span>
-                  {post.author.credentials?.length ? ` ${post.author.credentials.join(", ")}` : ""}
-                  {post.author.jobTitle ? `, ${post.author.jobTitle}` : ""}
-                </p>
-              )}
-            </header>
-
-            {post.heroImage && (
-              <div className="relative h-64 lg:h-96 w-full rounded-2xl overflow-hidden mb-10 shadow-sm">
-                <Image
-                  src={urlFor(post.heroImage).width(1200).format("webp").url()}
-                  alt={post.heroImage.alt ?? post.title}
-                  fill
-                  className="object-cover"
-                  priority
-                />
-              </div>
-            )}
-
+        <article className={cn("blog-content", ARTICLE_BODY_CLASS)}>
+          {segments.map((segment, i) => (
             <div
-              className={`${sourceSans.className} blog-content prose prose-lg max-w-none text-[#4A5565]
-                prose-headings:text-[#262A6F] prose-headings:font-bold prose-headings:tracking-tight
-                prose-h2:text-3xl lg:prose-h2:text-4xl prose-h2:mt-12 prose-h2:mb-5
-                prose-h3:text-2xl lg:prose-h3:text-3xl prose-h3:mt-10 prose-h3:mb-4
-                prose-h4:text-2xl lg:prose-h4:text-3xl prose-h4:mt-10 prose-h4:mb-4
-                prose-h5:text-xl prose-h5:mt-8 prose-h5:mb-3
-                prose-p:leading-relaxed prose-p:mb-5
-                prose-a:text-[#262A6F] prose-a:font-medium prose-a:underline prose-a:underline-offset-4 prose-a:decoration-[#DBB38E] prose-a:decoration-2 hover:prose-a:decoration-[#262A6F]
-                prose-strong:text-[#101828] prose-strong:font-semibold
-                prose-ul:my-5 prose-ul:pl-6 prose-ol:my-5 prose-ol:pl-6
-                prose-li:my-2 prose-li:marker:text-[#DBB38E]
-                prose-blockquote:border-l-4 prose-blockquote:border-[#DBB38E]
-                prose-blockquote:bg-white prose-blockquote:py-3 prose-blockquote:px-5
-                prose-blockquote:rounded-r-xl prose-blockquote:not-italic
-                prose-blockquote:text-[#262A6F] prose-blockquote:font-medium
-                prose-img:rounded-2xl prose-img:shadow-sm
-                prose-hr:border-[#E5E7EB] prose-hr:my-10
-              `}
-            >
-              {post.body && (
-                <PortableText value={expandPastedHtmlTables(post.body)} components={portableTextComponents} />
+              key={segment.blocks[0]?._key ?? i}
+              className={cn(
+                i === 0 && "[&>:first-child]:mt-0",
+                segment.kind === "callout" && ARTICLE_CALLOUT_CLASS,
+                segment.kind === "faq" && ARTICLE_FAQ_CLASS,
               )}
+            >
+              <PortableText value={segment.blocks} components={components} />
             </div>
-          </article>
+          ))}
+        </article>
+      </ArticleShell>
 
-          {relatedPosts.length > 0 && (
-            <aside className="sticky top-8">
-              <h2 className="text-sm font-bold text-[#101828] uppercase tracking-widest mb-5">
-                More Stories
-              </h2>
-              <ul className="space-y-5">
-                {relatedPosts.map((related) => (
-                  <li key={related._id}>
-                    <Link
-                      href={`/blog/${related.slug}`}
-                      className="group flex gap-3 items-start"
-                    >
-                      {related.heroImage ? (
-                        <div className="relative w-20 h-16 rounded-xl overflow-hidden shrink-0">
-                          <Image
-                            src={urlFor(related.heroImage).width(160).format("webp").url()}
-                            alt={related.heroImage.alt ?? related.title}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-20 h-16 rounded-xl bg-[#E5E7EB] shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className={`${sourceSans.className} text-xs text-[#6A7282] mb-1`}>
-                          {related.publishedAt?.slice(0, 10)}
-                        </p>
-                        <p className="text-sm font-semibold text-[#101828] leading-snug line-clamp-2 group-hover:text-[#262A6F] transition-colors">
-                          {related.title}
-                        </p>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+      {relatedPosts.length > 0 && (
+        <Section tone="mist">
+          <Eyebrow>More stories</Eyebrow>
+          <div className="grid gap-[18px] md:grid-cols-2 lg:grid-cols-3">
+            {relatedPosts.map((related) => (
+              <StoryCard
+                key={related._id}
+                href={`/blog/${related.slug}`}
+                meta={formatDate(related.publishedAt)}
+                title={related.title}
+              />
+            ))}
+          </div>
+          <TextLink href="/guides" className="self-start">
+            View all articles →
+          </TextLink>
+        </Section>
+      )}
 
-              <Link
-                href="/blog"
-                className={`${sourceSans.className} inline-flex items-center gap-1.5 text-sm text-[#262A6F] hover:text-[#262A6F]/80 mt-7 transition-colors font-medium`}
-              >
-                View all articles
-                <ChevronLeft className="w-4 h-4 rotate-180" />
-              </Link>
-            </aside>
-          )}
-        </div>
-      </div>
-
-      <Footer />
-    </div>
+      <CallbackSection formName={`Article call back: ${post.title}`} defaultNeeds={topic.needs} />
+    </>
   );
 }

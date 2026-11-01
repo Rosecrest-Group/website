@@ -245,6 +245,24 @@ export const pageMetadata: Record<string, PageMeta> = {
     description:
       "Plain-English comparisons from Rosecrest's surveyors: Level 1 vs 2 vs 3 surveys, homebuyer surveys vs mortgage valuations, party wall awards, damp and HHSRS.",
   },
+  "/guides/level-2-vs-level-3-survey": {
+    name: "Level 2 vs Level 3 survey",
+    title: "Level 2 or Level 3 Survey? A Guide for London Buyers",
+    description:
+      "The two most common RICS surveys compared in plain English: what each inspection covers, what the report tells you, how long it takes and what it costs.",
+  },
+  "/guides/awaabs-law": {
+    name: "Awaab's Law explained",
+    title: "Awaab's Law Explained: Deadlines and Phase 2 | Rosecrest",
+    description:
+      "Awaab's Law sets legal deadlines for social landlords in England to fix hazards. Phase 1 and 2 timescales, and what is proposed for private landlords.",
+  },
+  "/guides/hhsrs": {
+    name: "HHSRS explained",
+    title: "HHSRS Explained: Hazards, Ratings & Inspections | Rosecrest",
+    description:
+      "How hazards are rated under the revised Housing Health and Safety Rating System in England since 23 June 2026, and what an HHSRS inspection involves.",
+  },
   "/complaints-procedure": {
     name: "Complaints procedure",
     title: "Complaints Procedure | Rosecrest Group Ltd",

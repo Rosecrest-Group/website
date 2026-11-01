@@ -1,13 +1,11 @@
 import { sanityFetch } from "@/sanity/lib/client";
 import { allPostsQuery } from "@/sanity/lib/queries";
 import { urlFor } from "@/sanity/lib/image";
-import Link from "next/link";
-import Image from "next/image";
-import { sourceSans } from "@/lib/fonts";
-import JourneyHero from "@/fragments/journeys/JourneyHero";
-import Footer from "@/components/common/Footer";
 import JsonLd from "@/components/common/JsonLd";
 import PageJsonLd from "@/components/common/PageJsonLd";
+import CallbackSection from "@/components/site/CallbackSection";
+import { PageHero, TextLink } from "@/components/site/primitives";
+import { StoryCard, formatDate } from "@/components/site/articles/ArticleParts";
 import { getPageMetadata } from "@/lib/page-metadata";
 import { buildItemList } from "@/lib/schema";
 
@@ -31,7 +29,7 @@ export default async function BlogPage() {
   const posts: Post[] = (await sanityFetch<Post[]>(allPostsQuery)) ?? [];
 
   return (
-    <div className="bg-[#FBF7F4]">
+    <>
       <PageJsonLd path="/blog" />
       {posts.length > 0 && (
         <JsonLd
@@ -43,65 +41,49 @@ export default async function BlogPage() {
           })}
         />
       )}
-      <JourneyHero>
-        <h1 className="text-white text-4xl lg:text-5xl tracking-tight leading-tight font-bold">
-          News & Insights
-        </h1>
-        <p
-          className={`${sourceSans.className} mt-6 mx-auto text-white/90 text-base lg:text-xl leading-relaxed max-w-2xl`}
-        >
-          Property advice, industry updates and guidance from the Rosecrest
-          team.
-        </p>
-      </JourneyHero>
 
-      <section className="max-w-7xl mx-auto px-4 py-16 lg:py-24">
-        {posts.length === 0 ? (
-          <p className={`${sourceSans.className} text-center text-[#4A5565]`}>
-            No posts yet. Check back soon.
+      <PageHero
+        breadcrumbs={[{ label: "Home", href: "/" }, { label: "News & Insights" }]}
+        eyebrow="Articles"
+        title="News & Insights"
+        intro={<p>Property advice, industry updates and guidance from the Rosecrest team.</p>}
+        className="[&>div]:pb-12 md:[&>div]:pb-[72px]"
+      />
+
+      <section className="bg-mist text-ink">
+        <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-9 px-gutter pb-14 md:pb-20">
+          {posts.length === 0 ? (
+            <p className="text-lg text-body">No posts yet. Check back soon.</p>
+          ) : (
+            <div className="grid gap-[18px] md:grid-cols-2">
+              {posts.map((post) => (
+                <StoryCard
+                  key={post._id}
+                  href={`/blog/${post.slug}`}
+                  meta={formatDate(post.publishedAt)}
+                  title={post.title}
+                  text={post.excerpt}
+                  size="lg"
+                  headingLevel="h2"
+                  image={
+                    post.heroImage
+                      ? {
+                          src: urlFor(post.heroImage).width(900).format("webp").url(),
+                          alt: post.heroImage.alt ?? post.title,
+                        }
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+          )}
+          <p className="text-lg text-body">
+            Looking for survey and compliance guides? <TextLink href="/guides">See all guides →</TextLink>
           </p>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {posts.map((post) => (
-              <Link
-                key={post._id}
-                href={`/blog/${post.slug}`}
-                className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow"
-              >
-                {post.heroImage && (
-                  <div className="relative h-48 w-full">
-                    <Image
-                      src={urlFor(post.heroImage).width(800).format("webp").url()}
-                      alt={post.heroImage.alt ?? post.title}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                )}
-                <div className="p-6">
-                  <p
-                    className={`${sourceSans.className} text-xs text-[#6A7282] mb-2`}
-                  >
-                    {post.publishedAt?.slice(0, 10)}
-                  </p>
-                  <h2 className="font-bold text-[#101828] text-lg mb-3 leading-snug group-hover:text-[#262A6F] transition-colors">
-                    {post.title}
-                  </h2>
-                  {post.excerpt && (
-                    <p
-                      className={`${sourceSans.className} text-[#4A5565] text-sm line-clamp-3`}
-                    >
-                      {post.excerpt}
-                    </p>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+        </div>
       </section>
 
-      <Footer />
-    </div>
+      <CallbackSection formName="Blog page call back" />
+    </>
   );
 }

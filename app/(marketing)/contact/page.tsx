@@ -1,172 +1,102 @@
-import Footer from "@/components/common/Footer";
-import ContactForm from "@/components/common/ContactForm";
-import JourneyHero from "@/fragments/journeys/JourneyHero";
-import { sourceSans } from "@/lib/fonts";
-import {
-  PHONE,
-  PHONE_HREF,
-  EMAIL,
-  EMAIL_HREF,
-  REGISTERED_OFFICE,
-  SOCIAL_LINKS,
-} from "@/lib/constants";
-import { Phone, Mail, MapPin } from "lucide-react";
 import { getPageMetadata } from "@/lib/page-metadata";
+import { EMAIL, EMAIL_HREF, PHONE, PHONE_HREF, REGISTERED_OFFICE, SOCIAL_LINKS } from "@/lib/constants";
 import PageJsonLd from "@/components/common/PageJsonLd";
+import EnquiryForm from "@/components/site/contact/EnquiryForm";
+import { Breadcrumbs, Eyebrow } from "@/components/site/primitives";
 
 export const metadata = getPageMetadata("/contact");
 
-// ─── Social icon map ──────────────────────────────────────────────────────────
-const SocialIcon = ({ label }: { label: string }) => {
-  if (label === "Instagram")
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.8}
-        className="w-5 h-5"
-      >
-        <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-        <circle cx="12" cy="12" r="4" />
-        <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none" />
-      </svg>
-    );
-  if (label === "X")
-    return (
-      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.738l7.73-8.835L2.5 2.25h6.944l4.262 5.632L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" />
-      </svg>
-    );
-  if (label === "LinkedIn")
-    return (
-      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-        <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z" />
-        <circle cx="4" cy="4" r="2" />
-      </svg>
-    );
-  if (label === "Facebook")
-    return (
-      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-        <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />
-      </svg>
-    );
-  return null;
-};
+// Design order: LinkedIn, Facebook, Instagram.
+const SOCIALS = ["LinkedIn", "Facebook", "Instagram"]
+  .map((label) => SOCIAL_LINKS.find((s) => s.label === label))
+  .filter((s): s is (typeof SOCIAL_LINKS)[number] => Boolean(s));
 
-const Page = () => {
+function ContactRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div>
-      <PageJsonLd path="/contact" />
-      <JourneyHero>
-        <h1 className="text-white text-4xl lg:text-5xl tracking-tight leading-16">
-          Contact Rosecrest
-        </h1>
-        <p
-          className={`${sourceSans.className} mt-4 mx-auto text-white text-base lg:text-xl leading-relaxed max-w-3xl`}
-        >
-          If you have an enquiry, need to request an inspection, or would like
-          to discuss your requirements, our team will be happy to assist.
-        </p>
-      </JourneyHero>
+    <div className="flex flex-col gap-1 border-t border-line py-[18px]">
+      <b className="text-[13px] uppercase tracking-[0.06em] text-muted-ink">{label}</b>
+      {children}
+    </div>
+  );
+}
 
-      {/* Main content */}
-      <section className="py-10 lg:py-16 px-4 bg-white">
-        <div className="max-w-7xl mx-auto bg-[#FBF7F4] rounded-4xl p-6 lg:p-10">
-          <div className="grid lg:grid-cols-[0.6fr_0.4fr] gap-8 lg:gap-12 items-start">
-            {/* Left — Form */}
-            <div className="bg-white rounded-3xl p-6 lg:p-8 order-2 lg:order-1">
-              <ContactForm
-                title="Send an Enquiry"
-                subtitle="Provide a few details about your enquiry and our team will guide you on the most appropriate next step."
-                submitLabel="Submit Enquiry"
-              />
+export default function ContactPage() {
+  return (
+    <>
+      <PageJsonLd path="/contact" />
+
+      <section className="bg-mist text-ink">
+        <div className="mx-auto w-full max-w-[1440px] px-gutter pb-16 pt-4 md:pb-24">
+          <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Contact" }]} />
+          <div className="mt-10 flex flex-col gap-12 md:mt-14">
+            <div className="flex max-w-[820px] flex-col gap-4">
+              <Eyebrow>Talk to us</Eyebrow>
+              <h1 className="text-[38px] font-extrabold leading-[1.04] md:text-[52px]">Contact Rosecrest</h1>
+              <p className="text-xl text-body">
+                If you have an enquiry, need to request an inspection, or would like to discuss your requirements, our
+                trusted advisors will be happy to assist.
+              </p>
             </div>
 
-            {/* Right — Speak With Us */}
-            <div className="bg-white rounded-3xl p-6 lg:p-8 lg:py-17 space-y-8 order-1 lg:order-2">
-              <h2 className="text-2xl font-bold text-[#101828]">
-                Speak With Us
-              </h2>
+            <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:gap-12">
+              <EnquiryForm
+                title="Send an enquiry"
+                intro="Provide a few details about your enquiry and our team will guide you on the most appropriate next step."
+                submitLabel="Submit enquiry"
+                formName="Contact page enquiry"
+              />
 
-              {/* Telephone */}
-              <div>
-                <p className="font-semibold text-[#DBB38E] text-sm mb-2">
-                  Telephone
-                </p>
-                <a
-                  href={PHONE_HREF}
-                  className={`${sourceSans.className} flex items-center gap-2 text-[#4A5565] hover:text-[#262A6F] transition-colors text-sm`}
-                >
-                  <Phone className="w-4 h-4 text-[#262A6F] shrink-0" />
-                  {PHONE}
-                </a>
-              </div>
-
-              {/* Email */}
-              <div>
-                <p className="font-semibold text-[#DBB38E] text-sm mb-2">
-                  Email
-                </p>
-                <a
-                  href={EMAIL_HREF}
-                  className={`${sourceSans.className} flex items-center gap-2 text-[#4A5565] hover:text-[#262A6F] transition-colors text-sm`}
-                >
-                  <Mail className="w-4 h-4 text-[#262A6F] shrink-0" />
-                  {EMAIL}
-                </a>
-              </div>
-
-              {/* Registered Office */}
-              <div>
-                <p className="font-semibold text-[#DBB38E] text-sm mb-2">
-                  Registered Office
-                </p>
-                <div
-                  className={`${sourceSans.className} flex items-start gap-2 text-[#4A5565] text-sm`}
-                >
-                  <MapPin className="w-4 h-4 text-[#262A6F] shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-[#101828]">
-                      {REGISTERED_OFFICE.name}
-                    </p>
-                    <p>{REGISTERED_OFFICE.line1}</p>
-                    <p className="mb-2">{REGISTERED_OFFICE.line2}</p>
-                    <p className="text-[#6A7282] text-xs leading-relaxed">
-                      {REGISTERED_OFFICE.note}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Social */}
-              <div>
-                <p className="font-semibold text-[#101828] text-sm mb-3">
-                  Connect With Us
-                </p>
-                <div className="flex items-center gap-4">
-                  {SOCIAL_LINKS.map((s) => (
-                    <a
-                      key={s.label}
-                      href={s.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={s.label}
-                      className="text-[#64748B] hover:text-[#262A6F] transition-colors"
-                    >
-                      <SocialIcon label={s.label} />
-                    </a>
-                  ))}
-                </div>
+              <div className="flex flex-col rounded-3xl border border-line bg-white px-6 pb-3.5 pt-7 md:px-8 md:pt-8">
+                <h2 className="mb-[18px] text-[24px] font-extrabold leading-[1.15] md:text-[28px]">Speak with us</h2>
+                <ContactRow label="Telephone">
+                  <a href={PHONE_HREF} className="text-xl font-bold text-ink no-underline hover:text-teal">
+                    {PHONE}
+                  </a>
+                </ContactRow>
+                <ContactRow label="Email">
+                  <a
+                    href={EMAIL_HREF}
+                    className="break-all text-[17px] font-semibold text-teal no-underline hover:text-teal-dark"
+                  >
+                    {EMAIL}
+                  </a>
+                </ContactRow>
+                <ContactRow label="Opening hours">
+                  <span className="text-[17px]">Mon to Fri, 8am to 5pm</span>
+                  <span className="text-[15px] text-muted-ink">
+                    Calls are answered by our trusted advisors, who will point you to the right service.
+                  </span>
+                </ContactRow>
+                <ContactRow label="Registered office">
+                  <address className="text-[17px] not-italic">
+                    {REGISTERED_OFFICE.name}
+                    <br />
+                    {REGISTERED_OFFICE.line1}
+                    <br />
+                    {REGISTERED_OFFICE.line2}
+                  </address>
+                  <span className="text-[15px] text-muted-ink">{REGISTERED_OFFICE.note}</span>
+                </ContactRow>
+                <ContactRow label="Connect with us">
+                  <span className="mt-1.5 flex flex-wrap gap-2.5">
+                    {SOCIALS.map((s) => (
+                      <a
+                        key={s.label}
+                        href={s.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full border border-line px-3.5 py-2 text-sm font-bold text-ink no-underline hover:border-teal hover:text-ink"
+                      >
+                        {s.label}
+                      </a>
+                    ))}
+                  </span>
+                </ContactRow>
               </div>
             </div>
           </div>
         </div>
       </section>
-
-      <Footer />
-    </div>
+    </>
   );
-};
-
-export default Page;
+}

@@ -1,12 +1,17 @@
 // ─────────────────────────────────────────────────────────────
-// Single source of truth for all FAQ content.
-// Used by:
-//   1. The /faqs page (renders all categories grouped by section)
-//   2. Service/sector pages with their own FAQ blocks
-//   3. FAQPage JSON-LD schema (auto-generated from the same data)
+// FAQPage JSON-LD text for the marketing pages that do not emit
+// their own FAQPage.
 //
-// Editing any answer here updates both the rendered UI AND the
-// schema simultaneously, so they can never drift apart.
+// buildPageSchema (lib/schema.ts, rendered by PageJsonLd) adds a
+// FAQPage block from getFAQsForRoute(path). Each list below is a
+// plain-text copy of the FAQs rendered on that page (link text kept,
+// markup dropped), so it MUST be updated whenever the page's visible
+// FAQ wording changes: Google treats FAQ structured data that does
+// not match the visible page as spam.
+//
+// Pages that emit their own FAQPage (e.g. /faqs, /legal, /councils,
+// /services/stock-condition, the trade pages and the guides) must not
+// be listed here, so every page carries exactly one FAQPage.
 // ─────────────────────────────────────────────────────────────
 
 export interface FAQItem {
@@ -14,322 +19,334 @@ export interface FAQItem {
   answer: string;
 }
 
-export interface FAQCategory {
-  id: FAQCategoryId;
-  title: string;
-  questions: FAQItem[];
-}
+const routeFAQs: Record<string, FAQItem[]> = {
+  // Mirrors SURVEY_FAQ in components/site/homebuyer/survey-sections.tsx
+  // plus the areas question on app/(marketing)/homebuyer/page.tsx.
+  "/homebuyer": [
+    {
+      question: "What is the difference between a Level 2 and a Level 3 survey?",
+      answer:
+        "A Level 2 (Homebuyer Survey) is a visual inspection for modern and conventional properties, with condition ratings showing the urgency of any defects. A Level 3 (Building Survey) is an in-depth inspection for older, altered or non-standard buildings, with a detailed analysis of defects, what may happen if repairs are not addressed, and optional estimated repair costs.",
+    },
+    {
+      question: "How long does a survey take?",
+      answer:
+        "The duration of the survey depends on the size of the property. A Level 1 typically takes 1–2 hours and a Level 3 typically 2–3 hours. Larger or more complex properties take longer.",
+    },
+    {
+      question: "When will I receive my report?",
+      answer:
+        "As standard, a Level 1 report is delivered within 2 working days, a Level 2 within 3–5 working days and a Level 3 within 5–7 working days of the inspection. Need it sooner? Choose the Express 48-Hour Report option when you check availability and get your fixed price.",
+    },
+    {
+      question: "Will I receive photographs in my report?",
+      answer:
+        "Yes. Your report includes photographs of the defects identified during the inspection, with the surveyor’s explanation of each one.",
+    },
+    {
+      question: "Can you survey vacant or tenanted properties?",
+      answer: "Yes. We arrange access with the estate agent, seller or managing agent.",
+    },
+    {
+      question: "Why do you need the number of bedrooms?",
+      answer:
+        "Your price is based on the property type and size. Choose the bedrooms and you’ll see your exact price before you book.",
+    },
+    {
+      question: "Can the surveyor tell me whether to buy the property?",
+      answer:
+        "No. Our surveyors cannot advise whether to proceed with or withdraw from the purchase. As section 8 of our Terms of Engagement puts it: “The report is intended to assist decision-making only. The decision to proceed, renegotiate, or withdraw from a purchase is the Client’s responsibility.”",
+    },
+    {
+      question: "Which areas do you cover?",
+      answer:
+        "We carry out RICS surveys across London and areas within the M25. Check your postcode on our areas we cover page.",
+    },
+  ],
 
-export type FAQCategoryId =
-  | "general"
-  | "surveys"
-  | "damp"
-  | "cpr35"
-  | "partyWall"
-  | "epc"
-  | "trades"
-  | "pricing"
-  | "assocrics"
-  | "thermographic";
+  "/landlord": [
+    {
+      question: "What does a damp and mould survey involve?",
+      answer:
+        "Thermal imaging, moisture readings and photos, with a written report giving the likely cause where the evidence allows, and recommendations. Where the evidence isn’t conclusive, the report says so and recommends next steps. Damp and mould surveys →",
+    },
+    {
+      question: "Does Awaab’s Law apply to private landlords?",
+      answer:
+        "Not yet. It applies to councils and housing associations. A consultation on extending it to private rented tenancies runs until 18 December 2026. Your existing duties on repair, fitness for habitation and HHSRS already apply.",
+    },
+    {
+      question: "What is an HHSRS assessment?",
+      answer:
+        "A formal assessment of hazards in a home under the Housing Health and Safety Rating System, the system councils use to enforce housing standards. The report sets out the hazards found and what needs attention. HHSRS guide →",
+    },
+    {
+      question: "A tenant has sent a letter of claim. What now?",
+      answer:
+        "Speak to your solicitor early. The pre-action protocol gives you 20 working days to respond, and an independent disrepair survey puts the facts on record. Housing disrepair surveys →",
+    },
+    {
+      question: "Do I need an EPC to let a property?",
+      answer:
+        "Yes. A valid Energy Performance Certificate is needed before you let a home, and it is valid for 10 years. Energy Performance Certificates →",
+    },
+    {
+      question: "Can you treat mould and arrange repairs as well as report?",
+      answer:
+        "Yes. Mould treatment is £25 per m² (work out your cost), and remedial work can be arranged through our trusted trade network. If we’re instructed as an expert witness on a property, we don’t quote for or carry out repairs or mould treatment on it as part of, or alongside, that instruction.",
+    },
+  ],
 
-// ─────────────────────────────────────────────────────────────
-// Categories
-// ─────────────────────────────────────────────────────────────
-export const faqs: Record<FAQCategoryId, FAQCategory> = {
-  general: {
-    id: "general",
-    title: "General FAQs",
-    questions: [
-      {
-        question: "Who are Rosecrest Group Ltd?",
-        answer:
-          "Rosecrest Group Ltd is a RICS-regulated property services firm delivering professional inspection, surveying, compliance and trade services across London and the M25 corridor. We work with homeowners, landlords, housing associations, local authorities, solicitors and commercial clients.",
-      },
-      {
-        question: "What areas do you cover?",
-        answer:
-          "We cover all 33 London boroughs and areas within or close to the M25, including parts of Surrey, Kent, Hertfordshire and Essex. If your property is near or outside the M25 boundary, please contact us to confirm availability.",
-      },
-      {
-        question: "Are you insured and accredited?",
-        answer:
-          "Yes. We are regulated by RICS, hold Constructionline Gold accreditation, are SafeContractor approved, and carry comprehensive professional indemnity insurance.",
-      },
-      {
-        question: "How do I book a survey or inspection?",
-        answer:
-          "You can book online through our website, call us directly on 020 4576 5317, or submit an enquiry via our contact page. We will confirm availability, scope and pricing before confirming your appointment.",
-      },
-    ],
-  },
+  "/services/damp-mould": [
+    {
+      question: "Do you carry out damp and mould testing?",
+      answer:
+        "Yes. The Damp, Mould and Condensation Survey uses thermal imaging and moisture readings alongside a visual inspection of the affected areas. Readings are indicative, so we consider them together with the building and how the home is used.",
+    },
+    {
+      question: "What’s included in a Damp & Mould Condition Report?",
+      answer:
+        "The affected areas, the conditions observed, contributing factors, photographs and recommendations for onward action. We aim to identify the likely cause; where the evidence isn’t conclusive, the report says so and recommends next steps.",
+    },
+    {
+      question: "Can you carry out remedial works as well as reports?",
+      answer:
+        "Yes. Mould treatment is £25 per m² + VAT, subject to exact measurement, and other remedial work can be arranged through our trusted trade network. If we’re instructed as an expert witness on a property, we don’t quote for or carry out repairs or mould treatment on it as part of, or alongside, that instruction.",
+    },
+    {
+      question: "Can you remove black mould?",
+      answer:
+        "Yes. Black mould removal is part of our mould treatment: we treat the mould, clean the area and apply a stain block. Mould can return if the cause stays, so we recommend a Damp, Mould and Condensation Survey first, then fixing the cause, then a recheck.",
+    },
+    {
+      question: "Is mould treatment the same as wall injection or insulation?",
+      answer:
+        "No. We treat mould on the surface. Injection and cavity insulation address different problems and aren’t part of this service.",
+    },
+    {
+      question: "Is a condensation survey different from a damp survey?",
+      answer:
+        "Our Damp, Mould and Condensation Survey covers both. Condensation, penetrating damp and rising damp can look alike on a wall but need different fixes, so the survey looks for the likely cause before any work is recommended.",
+    },
+    {
+      question: "Who is responsible for mould in a rented property?",
+      answer:
+        "Landlords must keep a rented home fit for human habitation, which includes serious damp and inadequate ventilation (Landlord and Tenant Act 1985, s9A), and keep the structure and exterior in repair (s11). Tenants should report damp or mould to their landlord in writing. General guidance, not legal advice.",
+    },
+    {
+      question: "What should I do about mould in a council house?",
+      answer:
+        "Report it to the council or housing association in writing. Since 27 October 2025, Awaab’s Law has required social landlords to investigate damp and mould within set timescales. We carry out Damp, Mould and Condensation Surveys for councils and housing associations. General guidance, not legal advice.",
+    },
+    {
+      question: "How much does a damp survey cost in London?",
+      answer:
+        "The Damp, Mould and Condensation Survey is a fixed £450. Where treatment is appropriate, mould removal is £25 per m² + VAT, subject to exact measurement.",
+    },
+    {
+      question: "How quickly can you inspect?",
+      answer: "Tell us if a tenant complaint or deadline is involved and we’ll offer the earliest date we can.",
+    },
+  ],
 
-  surveys: {
-    id: "surveys",
-    title: "RICS Level 2 & 3 Home Surveys",
-    questions: [
-      {
-        question: "What is the difference between a Level 2 and a Level 3 survey?",
-        answer:
-          "A Level 2 (HomeBuyer Report) is suitable for conventional properties in good condition. A Level 3 (Building Survey) provides an in-depth analysis suitable for older, extended, or non-standard properties.",
-      },
-      {
-        question: "How long does a survey take?",
-        answer:
-          "A Level 1 survey typically takes 1–2 hours on site. A Level 2 survey typically takes 2–3 hours. A Level 3 can take half a day or more depending on the size and complexity of the property.",
-      },
-      {
-        question: "When will I receive my report?",
-        answer:
-          "A Level 1 Condition Report is delivered within 2 working days of the inspection. A Level 2 HomeBuyer Report is delivered within 5 working days of the inspection as standard, typically within 3–5 working days. A Level 3 Building Survey is delivered within 5–7 working days of the inspection. If you need the report sooner, choose the Express 48-Hour Report option when you check availability and get your fixed price.",
-      },
-      {
-        question: "Will I receive photographs in my report?",
-        answer:
-          "Yes. All reports include clear photographs of defects and RICS condition ratings (1–3).",
-      },
-      {
-        question: "Can you survey vacant or tenanted properties?",
-        answer:
-          "Yes. We can inspect occupied, vacant, or tenanted homes as long as access is arranged in advance.",
-      },
-    ],
-  },
+  "/services/cpr-35-reports": [
+    {
+      question: "What is a CPR 35 expert witness report?",
+      answer:
+        "A report prepared by an independent expert under Part 35 of the Civil Procedure Rules and its Practice Direction, to help the court with technical matters outside ordinary knowledge. It sets out the facts and assumptions relied upon, the analysis, and the expert’s opinion with the basis for it, together with the expert’s qualifications and declaration.",
+    },
+    {
+      question: "Who do you prepare reports for?",
+      answer:
+        "Solicitors and legal professionals acting for claimants or defendants in property and building disputes, including housing disrepair claims. Whoever instructs us, our duty is to the court. When we are instructed as an expert witness, our role is independent evidence for the court only.",
+    },
+    {
+      question: "How long does it take to produce an expert report?",
+      answer:
+        "We confirm an inspection date as soon as access is arranged. Tell us your deadline or any court directions when you enquire and we’ll confirm whether we can meet it.",
+    },
+    {
+      question: "What does a building surveyor expert witness report on?",
+      answer:
+        "Building defects and poor workmanship, damage from building or renovation works, cracking, movement and structural concerns, damp and water ingress, repair liability and remedial works disputes, and damage to neighbouring property.",
+    },
+    {
+      question: "Will the expert give evidence in court?",
+      answer:
+        "Yes, if your case requires it. When giving evidence, as in the written report, the expert’s duty is to the court.",
+    },
+    {
+      question: "Do you accept Legal Aid instructions?",
+      answer:
+        "Yes, subject to scope and approval requirements. We’re happy to discuss Legal Aid matters to confirm eligibility and reporting requirements.",
+    },
+  ],
 
-  damp: {
-    id: "damp",
-    title: "Damp, Mould & Condensation Services",
-    questions: [
-      {
-        question: "Do you carry out damp and mould testing?",
-        answer:
-          "Yes. Our surveyors carry out on-site inspections to identify damp, mould and condensation issues. Where appropriate, we use moisture meters and thermal imaging to assess the extent of the problem and identify contributing factors.",
-      },
-      {
-        question: "What's included in a Damp & Mould Condition Report?",
-        answer:
-          "Our report includes an on-site inspection of affected areas, identification of damp and mould conditions, analysis of contributing factors such as ventilation or structural issues, detailed photographic evidence, and clear recommendations for remedial action.",
-      },
-      {
-        question: "Can you carry out remedial works as well as reports?",
-        answer:
-          "Yes. In addition to independent inspection and reporting, we offer mould treatment and remediation services. Remedial works are priced separately based on the size of the affected area, and a treatment quote can be provided following the survey.",
-      },
-    ],
-  },
+  "/services/housing-disrepair": [
+    {
+      question: "What does a housing disrepair survey include?",
+      answer:
+        "An on-site inspection, a list of defects measured against relevant UK standards, and a detailed report that outlines responsibilities and includes tailored repair recommendations.",
+    },
+    {
+      question: "Who can instruct a disrepair survey?",
+      answer: "Landlords, property owners and managing agents, and solicitors acting for tenants or landlords.",
+    },
+    {
+      question: "A tenant has sent a letter of claim. What now?",
+      answer:
+        "Speak to your solicitor early. The pre-action protocol gives you 20 working days to respond, and an independent disrepair survey puts the facts on record. General guidance, not legal advice.",
+    },
+    {
+      question: "Do you provide expert reports for disrepair claims?",
+      answer:
+        "Yes. Where a claim is under the Pre-Action Protocol for Housing Conditions Claims or before the court, solicitors instruct our CPR 35 expert witness reports, which are a separate service. CPR 35 expert witness reports →",
+    },
+    {
+      question: "Does a disrepair survey cover damp and mould?",
+      answer:
+        "Yes, where damp or mould is part of the disrepair. If damp and mould is the main concern, the Damp, Mould and Condensation Survey may suit you better.",
+    },
+    {
+      question: "How much does a housing disrepair survey cost?",
+      answer: "Each project is different, so get in touch for detailed pricing. Ask about our special rates when you call.",
+    },
+  ],
 
-  cpr35: {
-    id: "cpr35",
-    title: "CPR 35 Expert Witness Reports",
-    questions: [
-      {
-        question: "What is a CPR-35 Expert Witness Report?",
-        answer:
-          "A CPR-35 Expert Witness Report is a formal document prepared in accordance with Civil Procedure Rules Part 35, which governs expert evidence in civil proceedings. It provides an independent, impartial assessment of a property matter to assist the court in reaching a fair decision.",
-      },
-      {
-        question: "Who do you prepare reports for?",
-        answer:
-          "We prepare expert witness reports for solicitors, legal teams, claimants and defendants involved in civil litigation. Our reports cover property disputes including disrepair claims, boundary disputes, defect analysis and valuation disagreements.",
-      },
-      {
-        question: "How long does it take to produce an expert report?",
-        answer:
-          "Timescales depend on the complexity of the case and the volume of evidence to review. In most cases we aim to deliver a draft report within 10–15 working days of instruction and site inspection. Urgent instructions can be accommodated — please contact us to discuss your deadline.",
-      },
-    ],
-  },
+  "/services/party-wall": [
+    {
+      question: "What is the Party Wall etc. Act 1996?",
+      answer:
+        "The law in England and Wales that sets out how building work on or near a shared wall, a boundary or a neighbour’s foundations must be notified and, if the neighbour dissents, settled by party wall surveyors through an award.",
+    },
+    {
+      question: "Do you act for both sides?",
+      answer:
+        "Yes, as the agreed surveyor, if both owners agree to appoint us. Otherwise we act for either the building owner or the adjoining owner, and the two appointed surveyors work together on the award.",
+    },
+    {
+      question: "How long does the Party Wall process take?",
+      answer:
+        "Notices are served one to two months before work starts, depending on the work, and your neighbour has 14 days to respond. Simple consent cases take 2 to 6 weeks; cases needing an award typically take 6 to 12 weeks, and complex disputes 3 to 6 months.",
+    },
+    {
+      question: "How much does a party wall surveyor cost?",
+      answer:
+        "Party wall notices are £50 per notice. A schedule of condition is £450. Surveyor time is £145 per hour, whether we are the agreed surveyor or one owner’s appointed surveyor. Introductory offer: a fixed £1,500. The building owner normally pays the reasonable fees of both surveyors.",
+    },
+    {
+      question: "What is a party wall award?",
+      answer:
+        "The legal document the surveyors make when a neighbour dissents, or doesn’t reply within 14 days. It sets out how and when the work will proceed, access, protective measures, damage protocols and who pays. It is commonly called a party wall agreement.",
+    },
+    {
+      question: "Do I need a schedule of condition?",
+      answer:
+        "If your neighbour dissents, a schedule of condition records their property before work starts. If they consent, nothing more is needed under the Act, but a schedule of condition is still sensible protection for both owners, and we can prepare one.",
+    },
+  ],
 
-  partyWall: {
-    id: "partyWall",
-    title: "Party Wall & Boundary Services",
-    questions: [
-      {
-        question: "What is the Party Wall etc. Act 1996?",
-        answer:
-          "The Party Wall etc. Act 1996 provides a framework for preventing and resolving disputes in relation to party walls, boundary walls and excavations near neighbouring buildings. It requires building owners to notify adjoining owners before carrying out certain types of work.",
-      },
-      {
-        question: "Do you act for both sides?",
-        answer:
-          "As an Agreed Surveyor we can act for both the building owner and the adjoining owner, provided both parties consent. Where one party has concerns about impartiality, we will act solely for the appointing party and a separate surveyor will be appointed by the other side.",
-      },
-      {
-        question: "How long does the Party Wall process take?",
-        answer:
-          "The timeline varies depending on the complexity of the works and whether the adjoining owner consents or dissents. In straightforward cases the process can be completed in a few weeks. Where a Party Wall Award is required, it typically takes 6–8 weeks, though this can vary.",
-      },
-    ],
-  },
+  "/services/epc": [
+    {
+      question: "How long is an EPC valid for?",
+      answer:
+        "10 years. If you make significant improvements, such as new heating or insulation, a new EPC will show the better rating.",
+    },
+    {
+      question: "Do landlords need an EPC before letting?",
+      answer:
+        "Yes. A valid EPC must be in place before a rental property is marketed, and tenants must be given a copy. Rented homes must also meet the minimum energy efficiency standard, currently a rating of E or above unless a valid exemption is registered. General guidance, not legal advice.",
+    },
+    {
+      question: "How quickly can I get an EPC?",
+      answer: "Fast turnaround is available. Tell us when you need it and we’ll confirm the earliest appointment.",
+    },
+    {
+      question: "Do you provide commercial EPCs in London?",
+      answer: "Yes. We assess non-domestic properties, issue the certificate and advise on improving the energy rating.",
+    },
+    {
+      question: "How much is an EPC for a rental property?",
+      answer: "Residential EPCs will start from £33. Get in touch for commercial EPC pricing.",
+    },
+    {
+      question: "Can I check whether a property already has an EPC?",
+      answer: "Yes. EPCs are lodged on the government’s register, which you can search by postcode on GOV.UK.",
+    },
+  ],
 
-  epc: {
-    id: "epc",
-    title: "Energy Performance Certificates (EPCs)",
-    questions: [
-      {
-        question: "How long is an EPC valid for?",
-        answer:
-          "An Energy Performance Certificate is valid for 10 years from the date it was issued. After this period, a new assessment must be carried out if you are selling or renting the property.",
-      },
-      {
-        question: "Do landlords need an EPC before letting?",
-        answer:
-          "Yes. Landlords are legally required to have a valid EPC with a rating of E or above before letting a property to new tenants. Failure to comply can result in financial penalties.",
-      },
-      {
-        question: "How quickly can I get an EPC?",
-        answer:
-          "In most cases we can arrange an assessment within 1–2 working days, with the certificate issued shortly after the visit. Contact us if you need an urgent EPC.",
-      },
-    ],
-  },
+  "/services/assocrics-mentoring": [
+    {
+      question: "Who is this service for?",
+      answer:
+        "Surveying professionals working towards Associate membership of RICS (AssocRICS) who want structured mentoring and developmental feedback.",
+    },
+    {
+      question: "Is this for AssocRICS only?",
+      answer: "Yes. This service is for the AssocRICS pathway only.",
+    },
+    {
+      question: "Will Rosecrest write my assessment submissions?",
+      answer:
+        "No. All assessment documents must be your own original work. We give developmental guidance and feedback on documents you prepare.",
+    },
+    {
+      question: "What is the Official Counsellor Appointment and Governance Fee?",
+      answer:
+        "A £450 fee (incl. VAT) that applies where Rosecrest formally accepts an appointment as your counsellor. Counsellor approval is an independent professional judgement and cannot be guaranteed or purchased.",
+    },
+    {
+      question: "How do I get started?",
+      answer:
+        "Book your free 30-minute suitability call. We’ll discuss your pathway, check eligibility and explain the support options.",
+    },
+    {
+      question: "What is AssocRICS?",
+      answer:
+        "AssocRICS is the Associate grade of membership of RICS. Candidates are assessed on their experience and competencies, and assessment and membership decisions rest with RICS.",
+    },
+    {
+      question: "Can I get an RICS mentor for my AssocRICS assessment?",
+      answer:
+        "Yes. Our structured mentoring covers pathway and competency mapping, evidence reviews and mock assessments, and, where Rosecrest has formally accepted the appointment, official RICS counsellor support.",
+    },
+  ],
 
-  trades: {
-    id: "trades",
-    title: "Building And Maintenance Services",
-    questions: [
-      {
-        question: "What types of works do you carry out?",
-        answer:
-          "Our trade teams carry out plumbing, carpentry, plastering, painting and decorating, tiling, damp and mould remediation, deep cleaning, carpet cleaning, house clearance and general handyman services.",
-      },
-      {
-        question: "Are your operatives qualified?",
-        answer:
-          "Yes. All our trade operatives are qualified and experienced in their respective disciplines. Where required, they hold relevant industry certifications and our work is overseen by our management team.",
-      },
-      {
-        question: "Can you handle larger contracts?",
-        answer:
-          "Yes. We work with landlords, housing associations, local authorities and managing agents on both individual instructions and larger programmes of work. Please contact us to discuss your requirements.",
-      },
-    ],
-  },
-
-  pricing: {
-    id: "pricing",
-    title: "Pricing & Payment",
-    questions: [
-      {
-        question: "How are fees calculated?",
-        answer:
-          "Fees vary depending on the type of service, the size and complexity of the property, and the scope of the instruction. Many of our survey services are offered at fixed prices — for example, our Damp & Mould inspection is fixed at £450. For trade works, quotes are provided based on the specific scope required.",
-      },
-      {
-        question: "Do you charge VAT?",
-        answer:
-          "Yes, VAT is applicable to our services where required by HMRC regulations. All prices quoted will clearly state whether VAT is included or applicable at the standard rate.",
-      },
-      {
-        question: "What payment methods are accepted?",
-        answer:
-          "We accept payment by bank transfer and major debit and credit cards. Payment terms are confirmed at the point of instruction. For ongoing or programme work, staged payment arrangements may be available.",
-      },
-    ],
-  },
-
-  assocrics: {
-    id: "assocrics",
-    title: "AssocRICS Mentoring & Counsellor Support",
-    questions: [
-      {
-        question: "Who is this service for?",
-        answer:
-          "This service is for surveying professionals working towards Associate membership of RICS (AssocRICS). Support is tailored to each candidate’s pathway, experience and development needs.",
-      },
-      {
-        question: "Is this for AssocRICS only?",
-        answer:
-          "Yes. This service is for the AssocRICS pathway only — supporting surveying professionals working towards Associate membership of RICS.",
-      },
-      {
-        question: "Will Rosecrest write my assessment submissions?",
-        answer:
-          "No. All assessment documents must remain the candidate’s own original work. Rosecrest may provide developmental feedback, identify gaps, test competence and assist with spelling, grammar and compliance. We do not write, rewrite or generate competency statements, case studies or assessment submissions for candidates.",
-      },
-      {
-        question: "What is the Official Counsellor Appointment and Governance Fee?",
-        answer:
-          "Where Rosecrest has formally accepted an official RICS counsellor appointment, a fee of £450 including VAT applies. Counsellor approval is an independent professional judgment and cannot be guaranteed or purchased. Rosecrest will only confirm readiness when the counsellor is professionally satisfied that the candidate has demonstrated the required competence.",
-      },
-      {
-        question: "How do I get started?",
-        answer:
-          "Start with a free 30-minute suitability call. We can then discuss pathway mapping, pay-as-you-go mentoring, monthly packages or the AssocRICS Guided Candidate Programme.",
-      },
-    ],
-  },
-
-  thermographic: {
-    id: "thermographic",
-    title: "Thermographic Building Surveys",
-    questions: [
-      {
-        question: "What is a thermographic survey?",
-        answer:
-          "A thermographic survey (also called a thermal-imaging building survey) is a non-invasive inspection using infrared imaging to identify surface-temperature patterns that may be associated with heat loss, defective or missing insulation, thermal bridging, air leakage, condensation, moisture and water ingress.",
-      },
-      {
-        question: "What does the price include?",
-        answer:
-          "Each survey price includes the inspection and a written report containing relevant thermal images, corresponding photographs, an explanation of identified anomalies and recommendations for any necessary further investigation.",
-      },
-      {
-        question: "Can I add this to a Level 2 or Level 3 survey?",
-        answer:
-          "Yes. Thermographic surveying is available as an add-on to an RICS Level 2 or Level 3 survey for £175 including VAT.",
-      },
-      {
-        question: "Does thermal imaging see through walls?",
-        answer:
-          "No. Thermal imaging records surface-temperature patterns and does not see through walls, ceilings, floors or other building elements. A thermal anomaly does not, by itself, conclusively establish the presence, cause or extent of a concealed defect.",
-      },
-      {
-        question: "When might further investigation be needed?",
-        answer:
-          "Findings are interpreted in the context of the building’s construction, environmental conditions, visual observations and any supporting test results. Further intrusive or specialist investigation may be recommended where the cause remains uncertain.",
-      },
-    ],
-  },
+  "/services/thermographic-surveys": [
+    {
+      question: "What is a thermographic survey?",
+      answer:
+        "A thermographic survey, also called a thermal imaging survey, uses infrared imaging to record surface-temperature patterns across the instructed areas of a building. A surveyor interprets patterns that may be associated with heat loss, defective or missing insulation, thermal bridging, air leakage, condensation, moisture and water ingress, and sets out the findings in a written report.",
+    },
+    {
+      question: "What does the price include?",
+      answer:
+        "The inspection and a written report containing relevant thermal images, corresponding photographs, an explanation of identified anomalies and recommendations for any necessary further investigation. All prices include VAT.",
+    },
+    {
+      question: "Can I add this to a Level 2 or Level 3 survey?",
+      answer:
+        "Yes. If you are already booking an RICS Level 2 or Level 3 survey, you can add thermography for £175 including VAT.",
+    },
+    {
+      question: "Does thermal imaging see through walls?",
+      answer:
+        "No. Thermal imaging records surface-temperature patterns and does not see through walls, ceilings, floors or other building elements. A thermal anomaly does not, by itself, establish the presence, cause or extent of a concealed defect.",
+    },
+    {
+      question: "When might further investigation be needed?",
+      answer:
+        "Where the cause of an anomaly remains uncertain. Findings are interpreted in the context of the building’s construction, environmental conditions, visual observations and any supporting test results, and we may recommend further intrusive or specialist investigation.",
+    },
+    {
+      question: "Is a thermal imaging survey the same as a damp survey?",
+      answer:
+        "Not quite. Thermal imaging can show surface-temperature patterns associated with moisture, but it does not confirm a cause on its own. If you are dealing with damp or mould, our Damp, Mould and Condensation Survey combines thermal imaging with moisture readings and a written report on the likely cause.",
+    },
+  ],
 };
 
-// ─────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────
-
-/** Get all categories in display order — used by /faqs page. */
-export function getAllFAQCategories(): FAQCategory[] {
-  return [
-    faqs.general,
-    faqs.surveys,
-    faqs.damp,
-    faqs.cpr35,
-    faqs.partyWall,
-    faqs.epc,
-    faqs.assocrics,
-    faqs.thermographic,
-    faqs.trades,
-    faqs.pricing,
-  ];
-}
-
-/**
- * Map of route → which FAQ category appears on that page.
- * Used by service/sector pages to pull their relevant FAQs and
- * by the schema layer to know which FAQs to include in JSON-LD.
- */
-const routeToCategory: Record<string, FAQCategoryId> = {
-  "/homebuyer": "surveys",
-  "/services/damp-mould": "damp",
-  "/services/cpr-35-reports": "cpr35",
-  "/services/party-wall": "partyWall",
-  "/services/epc": "epc",
-  "/services/assocrics-mentoring": "assocrics",
-  "/services/thermographic-surveys": "thermographic",
-};
-
-/** Returns FAQs visible on the given route, or null if none. */
+/** FAQs visible on the given route, for its FAQPage JSON-LD; null if it has none here. */
 export function getFAQsForRoute(path: string): FAQItem[] | null {
-  const categoryId = routeToCategory[path];
-  if (!categoryId) return null;
-  return faqs[categoryId].questions;
+  return routeFAQs[path] ?? null;
 }

@@ -1,23 +1,20 @@
-"use client";
-
-import { useState } from "react";
 import { ChevronDown, ExternalLink } from "lucide-react";
-import { sourceSans } from "@/lib/fonts";
-import { JOURNEY_OPT_OUT_KEY, JOURNEY_STORAGE_KEY } from "@/lib/attribution-session";
 import JourneyOptOut from "@/components/analytics/JourneyOptOut";
+import PolicyLayout, { PolicyH3, PolicyList, type PolicySection } from "@/components/site/policies/PolicyLayout";
+import { JOURNEY_OPT_OUT_KEY, JOURNEY_STORAGE_KEY } from "@/lib/attribution-session";
 
+// The policy text below is the live legal text, kept word for word. Only the layout changed.
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Placed cookies data ──────────────────────────────────────────────────────
 
 interface CookieRow {
   name: string;
-  nameHref?: string;
   expiration?: string;
   function?: string;
 }
 
 interface CookieGroup {
-  label: string; // "Functional" | "Purpose pending investigation"
+  label: string;
   rows: CookieRow[];
 }
 
@@ -30,14 +27,13 @@ interface CookieProvider {
   groups: CookieGroup[];
 }
 
-
-// ─── Placed Cookies data ──────────────────────────────────────────────────────
-
 const cookieProviders: CookieProvider[] = [
   {
     name: "Rosecrest",
-    usage: "We remember the pages you view on this browser so that, if you enquire, we can see which pages you read on earlier visits. You can turn this off under Consent below.",
-    sharing: "This stays in your browser until you enquire. It is then saved with that enquiry. It is not shared with third parties.",
+    usage:
+      "We remember the pages you view on this browser so that, if you enquire, we can see which pages you read on earlier visits. You can turn this off under Consent below.",
+    sharing:
+      "This stays in your browser until you enquire. It is then saved with that enquiry. It is not shared with third parties.",
     groups: [
       {
         label: "Statistics",
@@ -70,12 +66,12 @@ const cookieProviders: CookieProvider[] = [
       {
         label: "Functional",
         rows: [
-          { name: "WP_PREFERENCES_USER_*", nameHref: "#", expiration: "persistent", function: "Store user preferences" },
-          { name: "wpEmojiSettingsSupports", nameHref: "#", expiration: "session", function: "Store browser details" },
-          { name: "wp-settings-*", nameHref: "#", expiration: "persistent", function: "Store user preferences" },
-          { name: "wp-settings-time-*", nameHref: "#", expiration: "1 year", function: "Store user preferences" },
-          { name: "wordpress_test_cookie", nameHref: "#", expiration: "session", function: "Read if cookies can be placed" },
-          { name: "wordpress_logged_in_*", nameHref: "#", expiration: "persistent", function: "Store logged in users" },
+          { name: "WP_PREFERENCES_USER_*", expiration: "persistent", function: "Store user preferences" },
+          { name: "wpEmojiSettingsSupports", expiration: "session", function: "Store browser details" },
+          { name: "wp-settings-*", expiration: "persistent", function: "Store user preferences" },
+          { name: "wp-settings-time-*", expiration: "1 year", function: "Store user preferences" },
+          { name: "wordpress_test_cookie", expiration: "session", function: "Read if cookies can be placed" },
+          { name: "wordpress_logged_in_*", expiration: "persistent", function: "Store logged in users" },
         ],
       },
     ],
@@ -89,17 +85,11 @@ const cookieProviders: CookieProvider[] = [
     groups: [
       {
         label: "Functional",
-        rows: [
-          { name: "_grecaptcha", nameHref: "#", expiration: "6 months", function: "Provide spam protection" },
-        ],
+        rows: [{ name: "_grecaptcha", expiration: "6 months", function: "Provide spam protection" }],
       },
       {
         label: "Purpose pending investigation",
-        rows: [
-          { name: "rc::a" },
-          { name: "rc::b" },
-          { name: "rc::c" },
-        ],
+        rows: [{ name: "rc::a" }, { name: "rc::b" }, { name: "rc::c" }],
       },
     ],
   },
@@ -147,253 +137,252 @@ const cookieProviders: CookieProvider[] = [
   },
 ];
 
-// ─── CookieProviderAccordion ──────────────────────────────────────────────────
-
-function CookieProviderAccordion({ provider, defaultOpen = false }: { provider: CookieProvider; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
-
+function CookieTable({ group }: { group: CookieGroup }) {
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden mb-3">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-5 py-4 bg-white hover:bg-gray-50 transition-colors text-left"
-      >
-        <span className="font-semibold text-[#101828] text-base">{provider.name}</span>
-        <span
-          className={`w-8 h-8 rounded-full bg-[#262A6F] text-white flex items-center justify-center shrink-0 transition-transform duration-200 ${
-            open ? "rotate-180" : ""
-          }`}
-        >
-          <ChevronDown className="w-4 h-4" />
-        </span>
-      </button>
-
-      {open && (
-        <div className="px-5 pb-5 bg-white border-t border-gray-100">
-          {/* Usage & sharing */}
-          {provider.usage && (
-            <p className={`${sourceSans.className} text-sm text-[#4A5565] mt-4 mb-1`}>
-              <span className="font-semibold text-[#101828]">Usage: </span>
-              {provider.usage}{" "}
-              {provider.usageHref && (
-                <a href={provider.usageHref} target="_blank" rel="noopener noreferrer" className="text-[#262A6F] underline inline-flex items-center gap-0.5">
-                  Read more about {provider.name} <ExternalLink className="w-3 h-3" />
-                </a>
-              )}
-            </p>
-          )}
-          {provider.sharing && (
-            <p className={`${sourceSans.className} text-sm text-[#4A5565] mb-4`}>
-              <span className="font-semibold text-[#101828]">Sharing data: </span>
-              {provider.sharingHref ? (
-                <>
-                  For more information, please read the{" "}
-                  <a href={provider.sharingHref} target="_blank" rel="noopener noreferrer" className="text-[#262A6F] underline">
-                    {provider.name} Privacy Statement
-                  </a>
-                  .
-                </>
-              ) : (
-                provider.sharing
-              )}
-            </p>
-          )}
-
-          {/* Cookie groups */}
-          {provider.groups.map((group) => (
-            <div key={group.label} className="mb-4">
-              <p className={`${sourceSans.className} text-sm font-semibold text-[#4A5565] mb-2`}>{group.label}</p>
-              <div className="rounded-lg border border-gray-200 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className={`${sourceSans.className} text-left px-4 py-2.5 font-semibold text-[#101828] text-xs uppercase tracking-wide`}>Name</th>
-                      <th className={`${sourceSans.className} text-left px-4 py-2.5 font-semibold text-[#101828] text-xs uppercase tracking-wide`}>Expiration</th>
-                      <th className={`${sourceSans.className} text-left px-4 py-2.5 font-semibold text-[#101828] text-xs uppercase tracking-wide`}>Function</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {group.rows.map((row, i) => (
-                      <tr key={i} className="bg-white">
-                        <td className={`${sourceSans.className} px-4 py-2.5 text-[#4A5565] font-mono text-xs`}>
-                          {row.nameHref ? (
-                            <a href={row.nameHref} target="_blank" rel="noopener noreferrer" className="text-[#262A6F] underline inline-flex items-center gap-0.5">
-                              {row.name} <ExternalLink className="w-3 h-3" />
-                            </a>
-                          ) : (
-                            row.name
-                          )}
-                        </td>
-                        <td className={`${sourceSans.className} px-4 py-2.5 text-[#4A5565] text-xs`}>{row.expiration ?? ""}</td>
-                        <td className={`${sourceSans.className} px-4 py-2.5 text-[#4A5565] text-xs`}>{row.function ?? ""}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+    <div className="flex flex-col gap-2">
+      <b className="text-[15px] text-ink">{group.label}</b>
+      <div className="overflow-x-auto rounded-xl border border-line">
+        <table className="w-full min-w-[480px] border-collapse text-left text-sm">
+          <thead>
+            <tr className="bg-navy text-white">
+              <th scope="col" className="px-4 py-2.5 font-bold">
+                Name
+              </th>
+              <th scope="col" className="px-4 py-2.5 font-bold">
+                Expiration
+              </th>
+              <th scope="col" className="px-4 py-2.5 font-bold">
+                Function
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {group.rows.map((row, i) => (
+              <tr key={row.name} className={i % 2 === 1 ? "bg-mist-soft" : "bg-white"}>
+                <td className="break-all border-t border-line px-4 py-2.5 font-mono text-[13px] text-ink">{row.name}</td>
+                <td className="border-t border-line px-4 py-2.5 text-body">{row.expiration ?? ""}</td>
+                <td className="border-t border-line px-4 py-2.5 text-body">{row.function ?? ""}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
-// ─── Section data ─────────────────────────────────────────────────────────────
+function CookieProviderBlock({ provider, open }: { provider: CookieProvider; open?: boolean }) {
+  return (
+    <details open={open} className="group rounded-2xl border border-line bg-white">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden">
+        <span className="text-[17px] font-bold text-ink">{provider.name}</span>
+        <ChevronDown
+          aria-hidden="true"
+          className="h-5 w-5 shrink-0 text-teal transition-transform group-open:rotate-180"
+        />
+      </summary>
+      <div className="flex flex-col gap-4 border-t border-line px-5 pb-5 pt-4 text-[15px]">
+        {provider.usage && (
+          <p>
+            <b className="text-ink">Usage: </b>
+            {provider.usage}{" "}
+            {provider.usageHref && (
+              <a
+                href={provider.usageHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1"
+              >
+                Read more about {provider.name} <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
+              </a>
+            )}
+          </p>
+        )}
+        {provider.sharing && (
+          <p>
+            <b className="text-ink">Sharing data: </b>
+            {provider.sharingHref ? (
+              <>
+                For more information, please read the{" "}
+                <a href={provider.sharingHref} target="_blank" rel="noopener noreferrer">
+                  {provider.name} Privacy Statement
+                </a>
+                .
+              </>
+            ) : (
+              provider.sharing
+            )}
+          </p>
+        )}
+        {provider.groups.map((group) => (
+          <CookieTable key={group.label} group={group} />
+        ))}
+      </div>
+    </details>
+  );
+}
 
-const sections = [
+// ─── Sections ─────────────────────────────────────────────────────────────────
+
+const sections: PolicySection[] = [
   {
     id: "introduction",
-    number: 1,
-    title: "Introduction",
+    title: "1. Introduction",
     content: (
       <>
-        <p className="mb-4">
-          Our website,{" "}
-          <a href="https://rosecrestgroupltd.co.uk" className="text-[#262A6F] underline">
-            https://rosecrestgroupltd.co.uk
-          </a>{" "}
-          (hereinafter: &quot;the website&quot;) uses cookies and other related technologies (for convenience all technologies are referred to as &quot;cookies&quot;). Cookies are also placed by third parties we have engaged. In the document below we inform you about the use of cookies on our website.
-        </p>
-        <h3 className="font-bold text-[#101828] text-base mb-2">What are cookies?</h3>
-        <p className="mb-4">
-          A cookie is a small simple file that is sent along with pages of this website and stored by your browser on the hard drive of your computer or another device. The information stored therein may be returned to our servers or to the servers of the relevant third parties during a subsequent visit.
-        </p>
-        <h3 className="font-bold text-[#101828] text-base mb-2">What are scripts?</h3>
-        <p className="mb-4">
-          A script is a piece of program code that is used to make our website function properly and interactively. This code is executed on our server or on your device.
-        </p>
-        <h3 className="font-bold text-[#101828] text-base mb-2">What is a web beacon?</h3>
-        <p className="mb-4">
-          A web beacon (or a pixel tag) is a small, invisible piece of text or image on a website that is used to monitor traffic on a website. In order to do this, various data about you is stored using web beacons.
-        </p>
-        <h3 className="font-bold text-[#101828] text-base mb-2">Cookies</h3>
-        <p className="font-semibold text-[#101828] text-sm mb-1">Technical or functional cookies</p>
-        <p className="mb-4">
-          Some cookies ensure that certain parts of the website work properly and that your user preferences remain known. By placing functional cookies, we make it easier for you to visit our website. This way, you do not need to repeatedly enter the same information when visiting our website and, for example, the items remain in your shopping cart until you have paid. We may place these cookies without your consent.
-        </p>
-        <p className="font-semibold text-[#101828] text-sm mb-1">Marketing/Tracking cookies</p>
         <p>
-          Marketing/Tracking cookies are cookies or any other form of local storage, used to create user profiles to display advertising or to track the user on this website or across several websites for similar marketing purposes.
+          Our website, <a href="https://rosecrestgroupltd.co.uk">https://rosecrestgroupltd.co.uk</a> (hereinafter:
+          &quot;the website&quot;) uses cookies and other related technologies (for convenience all technologies are
+          referred to as &quot;cookies&quot;). Cookies are also placed by third parties we have engaged. In the document
+          below we inform you about the use of cookies on our website.
+        </p>
+        <PolicyH3>What are cookies?</PolicyH3>
+        <p>
+          A cookie is a small simple file that is sent along with pages of this website and stored by your browser on
+          the hard drive of your computer or another device. The information stored therein may be returned to our
+          servers or to the servers of the relevant third parties during a subsequent visit.
+        </p>
+        <PolicyH3>What are scripts?</PolicyH3>
+        <p>
+          A script is a piece of program code that is used to make our website function properly and interactively.
+          This code is executed on our server or on your device.
+        </p>
+        <PolicyH3>What is a web beacon?</PolicyH3>
+        <p>
+          A web beacon (or a pixel tag) is a small, invisible piece of text or image on a website that is used to
+          monitor traffic on a website. In order to do this, various data about you is stored using web beacons.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "cookies",
+    title: "Cookies",
+    content: (
+      <>
+        <PolicyH3>Technical or functional cookies</PolicyH3>
+        <p>
+          Some cookies ensure that certain parts of the website work properly and that your user preferences remain
+          known. By placing functional cookies, we make it easier for you to visit our website. This way, you do not
+          need to repeatedly enter the same information when visiting our website and, for example, the items remain in
+          your shopping cart until you have paid. We may place these cookies without your consent.
+        </p>
+        <PolicyH3>Marketing/Tracking cookies</PolicyH3>
+        <p>
+          Marketing/Tracking cookies are cookies or any other form of local storage, used to create user profiles to
+          display advertising or to track the user on this website or across several websites for similar marketing
+          purposes.
         </p>
       </>
     ),
   },
   {
     id: "placed-cookies",
-    number: 2,
-    title: "Placed cookies",
+    title: "2. Placed cookies",
     content: (
-      <div>
+      <div className="flex flex-col gap-3">
         {cookieProviders.map((provider, i) => (
-          <CookieProviderAccordion key={provider.name} provider={provider} defaultOpen={i === 0} />
+          <CookieProviderBlock key={provider.name} provider={provider} open={i === 0} />
         ))}
       </div>
     ),
   },
   {
     id: "consent",
-    number: 3,
-    title: "Consent",
+    title: "3. Consent",
     content: (
       <>
-        <p className="mb-6">
-          When you visit our website for the first time, we will show you a pop-up with an explanation about cookies. As soon as you click on &quot;Save Preferences&quot;, you consent to us using the categories of cookies and plug-ins you selected in the pop-up, as described in this Cookie Policy. You can disable the use of cookies via your browser, but please note that our website may no longer work properly.
+        <p>
+          When you visit our website for the first time, we will show you a pop-up with an explanation about cookies. As
+          soon as you click on &quot;Save Preferences&quot;, you consent to us using the categories of cookies and
+          plug-ins you selected in the pop-up, as described in this Cookie Policy. You can disable the use of cookies
+          via your browser, but please note that our website may no longer work properly.
         </p>
-        <h3 className="font-bold text-[#101828] text-base mb-4">Manage your consent settings</h3>
-
-        {/* Functional — always active */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden mb-3">
-          <div className="flex items-center justify-between px-5 py-4 bg-white">
-            <span className="font-semibold text-[#101828] text-base">Functional</span>
-            <span className={`${sourceSans.className} text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full`}>
-              Always active
-            </span>
+        <PolicyH3>Manage your consent settings</PolicyH3>
+        <div className="overflow-hidden rounded-xl border border-line">
+          <div className="flex items-center justify-between gap-4 bg-white px-5 py-4">
+            <span className="text-base font-semibold text-ink">Functional</span>
+            <span className="rounded-full bg-teal-tint px-3 py-1 text-xs font-semibold text-teal">Always active</span>
           </div>
-          <div className="px-5 pb-4 border-t border-gray-100 bg-white">
-            <p className={`${sourceSans.className} text-sm text-[#4A5565] mt-3`}>
-              The technical storage or access is strictly necessary for the legitimate purpose of enabling the use of a specific service explicitly requested by the subscriber or user, or for the sole purpose of carrying out the transmission of a communication over an electronic communications network.
+          <div className="border-t border-line bg-white px-5 pb-4">
+            <p className="mt-3 text-sm text-body">
+              The technical storage or access is strictly necessary for the legitimate purpose of enabling the use of a
+              specific service explicitly requested by the subscriber or user, or for the sole purpose of carrying out
+              the transmission of a communication over an electronic communications network.
             </p>
           </div>
         </div>
-
         <JourneyOptOut />
       </>
     ),
   },
   {
     id: "managing-cookies",
-    number: 4,
-    title: "Managing Cookies",
+    title: "4. Managing cookies",
     content: (
       <>
-        <h3 className="font-bold text-[#101828] text-base mb-2">Enabling/disabling and deleting cookies</h3>
-        <p className="mb-4">
-          You can use your internet browser to automatically or manually delete cookies. You can also specify that certain cookies may not be placed. Another option is to change the settings of your internet browser so that you receive a message each time a cookie is placed. For more information about these options, please refer to the instructions in the Help section of your browser.
+        <PolicyH3>Enabling/disabling and deleting cookies</PolicyH3>
+        <p>
+          You can use your internet browser to automatically or manually delete cookies. You can also specify that
+          certain cookies may not be placed. Another option is to change the settings of your internet browser so that
+          you receive a message each time a cookie is placed. For more information about these options, please refer to
+          the instructions in the Help section of your browser.
         </p>
         <p>
-          Please note that our website may not work properly if all cookies are disabled. If you do delete the cookies in your browser, they will be placed again after your consent when you visit our website again.
+          Please note that our website may not work properly if all cookies are disabled. If you do delete the cookies
+          in your browser, they will be placed again after your consent when you visit our website again.
         </p>
       </>
     ),
   },
   {
     id: "your-rights",
-    number: 5,
-    title: "Your rights",
+    title: "5. Your rights",
     content: (
       <>
-        <h3 className="font-bold text-[#101828] text-base mb-2">Your rights with respect to personal data</h3>
-        <p className="mb-4">You have the following rights with respect to your personal data:</p>
-        <ul className={`${sourceSans.className} space-y-2 mb-6 text-sm text-[#4A5565]`}>
-          {[
+        <PolicyH3>Your rights with respect to personal data</PolicyH3>
+        <p>You have the following rights with respect to your personal data:</p>
+        <PolicyList
+          items={[
             "You have the right to know why your personal data is needed, what will happen to it, and how long it will be retained for.",
             "Right of access: You have the right to access your personal data that is known to us.",
             "Right to rectification: you have the right to supplement, correct, have deleted or blocked your personal data whenever you wish.",
             "If you give us your consent to process your data, you have the right to revoke that consent and to have your personal data deleted.",
             "Right to transfer your data: you have the right to request all your personal data from the controller and transfer it in its entirety to another controller.",
             "Right to object: you may object to the processing of your data. We comply with this, unless there are justified grounds for processing.",
-          ].map((item, i) => (
-            <li key={i} className="flex items-start gap-2">
-              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#262A6F] shrink-0" />
-              {item}
-            </li>
-          ))}
-        </ul>
-        <p className={`${sourceSans.className} text-sm text-[#4A5565]`}>
-          To exercise these rights, please contact us. Please refer to the contact details at the bottom of this Cookie Policy. If you have a complaint about how we handle your data, we would like to hear from you, but you also have the right to submit a complaint to the supervisory authority (the Information Commissioner&apos;s Office (ICO)).
+          ]}
+        />
+        <p>
+          To exercise these rights, please contact us. Please refer to the contact details at the bottom of this Cookie
+          Policy. If you have a complaint about how we handle your data, we would like to hear from you, but you also
+          have the right to submit a complaint to the supervisory authority (the Information Commissioner&apos;s Office
+          (ICO)).
         </p>
       </>
     ),
   },
   {
     id: "contact-details",
-    number: 6,
-    title: "Contact details",
+    title: "6. Contact details",
     content: (
       <>
-        <p className="mb-6">
-          For questions and/or comments about our Cookie Policy and this statement, please contact us by using the following contact details:
+        <p>
+          For questions and/or comments about our Cookie Policy and this statement, please contact us by using the
+          following contact details:
         </p>
-        <div className={`${sourceSans.className} space-y-1 text-[#4A5565] text-sm mb-6`}>
-          <p className="font-semibold text-[#101828]">Rosecrest Group Ltd</p>
-          <p>United Kingdom</p>
-          <p>
-            Website:{" "}
-            <a href="https://rosecrestgroupltd.co.uk" className="text-[#262A6F] underline">
-              https://rosecrestgroupltd.co.uk
-            </a>
-          </p>
-          <p>
-            Email:{" "}
-            <a href="mailto:info@rosecrest.co.uk" className="text-[#262A6F] underline">
-              info@rosecrest.co.uk
-            </a>
-          </p>
+        <div className="flex flex-col gap-1">
+          <b className="text-ink">Rosecrest Group Ltd</b>
+          <span>United Kingdom</span>
+          <span>
+            Website: <a href="https://rosecrestgroupltd.co.uk">https://rosecrestgroupltd.co.uk</a>
+          </span>
+          <span>
+            Email: <a href="mailto:info@rosecrest.co.uk">info@rosecrest.co.uk</a>
+          </span>
         </div>
-        <p className={`${sourceSans.className} text-sm text-[#4A5565]`}>
+        <p>
           This Cookie Policy was synchronised with{" "}
-          <a href="https://cookiedatabase.org" target="_blank" rel="noopener noreferrer" className="text-[#262A6F] underline">
+          <a href="https://cookiedatabase.org" target="_blank" rel="noopener noreferrer">
             cookiedatabase.org
           </a>{" "}
           on 9 January 2025.
@@ -403,120 +392,22 @@ const sections = [
   },
 ];
 
-const CookiePolicyClient = () => {
-  const [activeId, setActiveId] = useState("introduction");
-
-  const active = sections.find((s) => s.id === activeId)!;
+/**
+ * Cookie policy body. A server component: the consent switch (JourneyOptOut) and the
+ * contents list are the only client parts.
+ */
+export default function CookiePolicyClient() {
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12 lg:py-20">
-      {/* ── Mobile: accordion TOC + all sections ── */}
-      <div className="lg:hidden space-y-4">
-        <details className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <summary
-            className={`${sourceSans.className} font-bold text-[#101828] px-6 py-4 cursor-pointer list-none flex items-center justify-between`}
-          >
-            Table of Contents
-            <span className="text-[#262A6F] text-lg">▾</span>
-          </summary>
-          <nav className="px-4 pb-4 space-y-1">
-            {sections.map((section) => (
-              <a
-                key={section.id}
-                href={`#${section.id}`}
-                className={`${sourceSans.className} flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[#4A5565] hover:bg-[#F3F4F6] hover:text-[#262A6F] transition-colors`}
-              >
-                <span className="w-6 h-6 rounded-full bg-[#262A6F] text-white text-xs flex items-center justify-center shrink-0 font-bold">
-                  {section.number}
-                </span>
-                {section.title}
-              </a>
-            ))}
-          </nav>
-        </details>
-
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-100">
-          {sections.map((section) => (
-            <section
-              key={section.id}
-              id={section.id}
-              className="px-6 py-8 scroll-mt-6"
-            >
-              <h2 className="text-xl font-bold text-[#101828] mb-6">
-                {section.number}. {section.title.toUpperCase()}
-              </h2>
-              <div
-                className={`${sourceSans.className} text-sm text-[#4A5565] leading-relaxed space-y-2`}
-              >
-                {section.content}
-              </div>
-            </section>
-          ))}
-        </div>
-
-        <p
-          className={`${sourceSans.className} text-xs text-[#9CA3AF] text-center mt-4`}
-        >
-          © {new Date().getFullYear()} Rosecrest Group Ltd. All rights reserved.
+    <PolicyLayout
+      crumb="Cookie policy"
+      title="Cookie policy"
+      intro={
+        <p>
+          This Cookie Policy was last updated on 1 November 2024 and applies to citizens and legal permanent residents
+          of the United Kingdom.
         </p>
-      </div>
-
-      {/* ── Desktop: sticky sidebar + single content panel ── */}
-      <div className="hidden lg:flex gap-10 items-start">
-        <aside className="w-72 shrink-0 sticky top-8">
-          <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-            <h2 className="font-bold text-[#101828] text-base px-3 mb-3">
-              Table of Contents
-            </h2>
-            <nav className="space-y-1">
-              {sections.map((section) => {
-                const isActive = section.id === activeId;
-                return (
-                  <button
-                    key={section.id}
-                    onClick={() => setActiveId(section.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-left transition-colors ${
-                      isActive
-                        ? "bg-[#F0F3FF] text-[#262A6F]"
-                        : "text-[#4A5565] hover:bg-[#F3F4F6]"
-                    }`}
-                  >
-                    <span className="w-7 h-7 rounded-full bg-[#262A6F] text-white text-xs flex items-center justify-center shrink-0 font-bold">
-                      {section.number}
-                    </span>
-                    <span
-                      className={`${sourceSans.className} ${isActive ? "font-semibold" : ""}`}
-                    >
-                      {section.title}
-                    </span>
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-        </aside>
-
-        <article className="flex-1 min-w-0">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-10 py-10">
-            <h2 className="text-2xl lg:text-3xl font-bold text-[#101828] mb-2">
-              {active.number}. {active.title.toUpperCase()}
-            </h2>
-            <div
-              className={`${sourceSans.className} text-base text-[#4A5565] leading-relaxed space-y-2 mt-6`}
-            >
-              {active.content}
-            </div>
-          </div>
-
-          <p
-            className={`${sourceSans.className} text-xs text-[#9CA3AF] text-center mt-8`}
-          >
-            © {new Date().getFullYear()} Rosecrest Group Ltd. All rights
-            reserved.
-          </p>
-        </article>
-      </div>
-    </div>
+      }
+      sections={sections}
+    />
   );
-};
-
-export default CookiePolicyClient;
+}

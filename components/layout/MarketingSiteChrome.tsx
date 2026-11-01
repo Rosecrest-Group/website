@@ -1,7 +1,9 @@
-import Navbar from "@/components/common/Navbar";
 import EnquiryModal from "@/components/common/EnquiryModal";
 import GoogleTagManagerRoot from "@/components/analytics/GoogleTagManagerRoot";
 import AttributionTracker from "@/components/analytics/AttributionTracker";
+import SiteHeader from "@/components/site/SiteHeader";
+import SiteFooter from "@/components/site/SiteFooter";
+import { siteFontClass } from "@/lib/fonts";
 
 export default function MarketingSiteChrome({
   children,
@@ -9,7 +11,7 @@ export default function MarketingSiteChrome({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <div className={`${siteFontClass} flex min-h-screen flex-col bg-white`}>
       <GoogleTagManagerRoot />
       <AttributionTracker />
       <noscript>
@@ -20,9 +22,10 @@ export default function MarketingSiteChrome({
           style={{ display: "none", visibility: "hidden" }}
         />
       </noscript>
-      <Navbar />
+      <SiteHeader />
       <main className="grow">{children}</main>
+      <SiteFooter />
       <EnquiryModal />
-    </>
+    </div>
   );
 }
