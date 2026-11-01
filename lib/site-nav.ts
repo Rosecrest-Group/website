@@ -5,6 +5,9 @@
 
 export type NavLink = { label: string; href: string };
 
+/** A main-menu item; `dropdown` items open a panel instead of navigating. */
+export type MainNavItem = NavLink & { dropdown?: "guides" };
+
 /** The four homepage lanes, shown in the header bar on every page after the homepage. */
 export const LANE_LINKS: NavLink[] = [
   { label: "Buying a property", href: "/homebuyer" },
@@ -13,10 +16,10 @@ export const LANE_LINKS: NavLink[] = [
   { label: "Council or organisation", href: "/councils" },
 ];
 
-export const MAIN_NAV_LINKS: NavLink[] = [
+export const MAIN_NAV_LINKS: MainNavItem[] = [
   { label: "Areas we cover", href: "/areas-we-cover" },
   { label: "About Rosecrest", href: "/about" },
-  { label: "Guides", href: "/guides" },
+  { label: "Guides", href: "/guides", dropdown: "guides" },
   { label: "Contact", href: "/contact" },
 ];
 
@@ -57,6 +60,18 @@ export const GUIDE_ROUTES = {
   level2vs3: "/guides/level-2-vs-level-3-survey",
 } as const;
 
+/** "Guides" dropdown in the header. */
+export const GUIDE_MENU_LINKS: NavLink[] = [
+  { label: "Level 2 vs Level 3 survey", href: GUIDE_ROUTES.level2vs3 },
+  { label: "Awaab’s Law guide", href: GUIDE_ROUTES.awaabsLaw },
+  { label: "HHSRS guide", href: GUIDE_ROUTES.hhsrs },
+];
+
+export const TOOL_MENU_LINKS: NavLink[] = [
+  { label: "Mould removal estimate", href: "/services/damp-mould#treatment" },
+  { label: "Party wall notice generator", href: "/services/party-wall/notice-generator" },
+];
+
 export type FooterColumn = {
   title: string;
   links: (NavLink | { label: string; action: "terms" })[];
@@ -78,16 +93,6 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: "Party wall surveys", href: "/services/party-wall" },
       { label: "Trade services", href: "/services#trade-services" },
       { label: "All services", href: "/services" },
-    ],
-  },
-  {
-    title: "Guides and tools",
-    links: [
-      { label: "Awaab’s Law guide", href: GUIDE_ROUTES.awaabsLaw },
-      { label: "HHSRS guide", href: GUIDE_ROUTES.hhsrs },
-      { label: "Level 2 vs Level 3 survey", href: GUIDE_ROUTES.level2vs3 },
-      { label: "Mould removal estimate", href: "/services/damp-mould#treatment" },
-      { label: "Party wall notice generator", href: "/services/party-wall/notice-generator" },
     ],
   },
   {
