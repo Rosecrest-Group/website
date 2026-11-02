@@ -62,9 +62,9 @@ export const guides: Guide[] = [
           "Depth",
           "A brief overview of condition, with traffic-light ratings",
           "A detailed visual inspection: defects, how urgent they are, and advice on repairs and further investigation",
-          "A full analysis of construction and condition, including what may happen if defects aren't repaired",
+          "A more detailed assessment of construction, condition and defects, with more extensive advice on repairs and maintenance",
         ],
-        ["Repair cost estimates", "No", "No", "Optional"],
+        ["Repair cost estimates", "No", "No", "Where applicable"],
         [
           "Valuation",
           "Ask us",
@@ -93,14 +93,14 @@ export const guides: Guide[] = [
         heading: "Why most buyers choose a Level 2",
         paragraphs: [
           "The Level 2 HomeBuyer Report is the most common choice for standard homes. The surveyor inspects the building inside and out, including walls, ceilings, roofs, gutters, windows and doors, and gives a visual appraisal of services such as heating, electricity, water and drainage.",
-          "The report flags urgent repairs and future maintenance, and notes planning, building control or other legal matters for your conveyancer. Where the surveyor can't reach a confident conclusion about part of the property, it recommends further investigation.",
+          "The report flags urgent repairs and future maintenance, and may flag planning, building control or other matters for your legal adviser to check; a home survey isn't a legal investigation. Where the surveyor can't reach a confident conclusion about part of the property, it recommends further investigation.",
           "You can add a valuation, a gas safety check or an Electrical Installation Condition Report (EICR) to a Level 2 for an extra fee.",
         ],
       },
       {
         heading: "When to choose a Level 3",
         paragraphs: [
-          "Choose a Level 3 Building Survey for older or heritage buildings, listed properties, homes that have been altered or extended, and anything you plan to renovate. It examines all accessible areas in more depth, explains defects and their likely consequences, and can include estimated repair costs to help you budget.",
+          "Choose a Level 3 Building Survey for older or heritage buildings, listed properties, homes that have been altered or extended, and anything you plan to renovate. It provides a more detailed assessment of the building's construction, condition and defects, including more extensive advice on repairs and maintenance and repair cost estimates where applicable. That additional detail can help identify visible signs of significant defects, assess their likely implications and highlight where further specialist investigation may be necessary before purchase.",
           "A valuation isn't included, but a separate, discounted valuation can be provided on request.",
         ],
       },
@@ -108,6 +108,7 @@ export const guides: Guide[] = [
         heading: "Things to know whichever level you choose",
         bullets: [
           "Our surveyors can't advise whether to go ahead with or withdraw from a purchase. The report gives you the information to decide.",
+          "Level 2 and Level 3 surveys are generally visual and non-invasive. Surveyors inspect accessible areas without opening up the building or carrying out destructive investigations.",
           "If you're worried about heat loss, insulation or damp, a thermographic survey can be added to a Level 2 or Level 3 for £175 including VAT.",
           "Every level is available with an Express 48-hour report if you're working to a tight timeline.",
         ],

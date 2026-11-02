@@ -63,7 +63,7 @@ export const services: CatalogService[] = [
     name: "RICS Level 2 HomeBuyer Report",
     category: "survey",
     summary:
-      "The most common survey for conventional homes in reasonable condition, typically built within the last 30 years. Visual inspection, traffic-light ratings and advice on repairs and further investigation.",
+      "The most common survey for conventional homes in reasonable condition, typically built within the last 30 years. Generally visual and non-invasive inspection of accessible areas, traffic-light ratings and advice on repairs and further investigation.",
     serviceType: "RICS Home Survey Level 2",
     audiences: ["homebuyers"],
     turnaround:
@@ -83,7 +83,7 @@ export const services: CatalogService[] = [
     name: "RICS Level 3 Building Survey",
     category: "survey",
     summary:
-      "The most detailed survey, for older, altered, extended, listed or non-standard properties. Full defect analysis with repair advice and optional repair cost estimates.",
+      "The most detailed survey, for older, altered, extended, listed or non-standard properties. A more detailed assessment of construction, condition and defects, with more extensive repair and maintenance advice and repair cost estimates where applicable. Generally visual and non-invasive.",
     serviceType: "RICS Home Survey Level 3",
     audiences: ["homebuyers", "homeowners"],
     turnaround:

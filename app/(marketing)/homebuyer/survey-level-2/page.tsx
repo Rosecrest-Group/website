@@ -21,12 +21,12 @@ export const metadata = getPageMetadata("/homebuyer/survey-level-2");
 
 const INCLUDED = [
   "A visual inspection of the property to evaluate its overall condition and state of repair",
-  "Identification of major faults and defects, along with recommendations for further action",
-  "Assessment of all building elements, both inside and outside, including walls, ceilings, roofs, gutters, windows and doors",
+  "Identification of visible significant defects, along with recommendations for further investigation where necessary",
+  "Assessment of accessible building elements, both inside and outside, including walls, ceilings, roofs, gutters, windows and doors",
   "A visual appraisal of services such as gas/oil heating, electricity, water and drainage, with suggestions for further inspections if needed",
   "A traffic light grading system to indicate the severity of any identified issues",
   "Identification of urgent repair needs and future maintenance requirements",
-  "Notes on planning, building control, disputes or other legal matters, for further investigation by your conveyancer",
+  "Matters such as planning, building control or disputes flagged for your legal adviser to check, as a home survey isn’t a legal investigation",
 ];
 
 export default function Page() {
@@ -58,14 +58,15 @@ export default function Page() {
               <p>
                 This report provides an overview of the building’s condition, including its services and grounds. It
                 highlights any defects or issues identified during the inspection, using an easy-to-understand traffic
-                light system. Additionally, the report addresses relevant legal matters and potential risks to the
-                building, its occupants or the surrounding grounds.
+                light system. It also notes potential risks to the building, its occupants or the surrounding grounds, and
+                may flag matters for your legal adviser to check. A home survey isn’t a legal investigation.
               </p>
               <p>
                 The RICS Level 2 survey includes more detail than a Condition Survey, with greater detail on defects
                 and urgency of any issues identified. If the surveyor is unable to draw conclusions about any part of
                 the property with sufficient confidence, the report will recommend further investigations.
               </p>
+              <p>Both Level 2 and Level 3 surveys are generally visual and non-invasive. Surveyors inspect accessible areas without opening up the building or carrying out destructive investigations.</p>
             </div>
             <ul className="m-0 mt-6 flex list-none flex-col gap-3.5 p-0 text-base text-body">
               {INCLUDED.map((item) => (
@@ -163,7 +164,7 @@ export default function Page() {
           },
           {
             title: "Level 3: Building Survey",
-            text: "Most comprehensive. An in-depth inspection for older, altered or non-standard buildings.",
+            text: "Most detailed. A more detailed assessment of construction, condition and defects for older, altered or non-standard buildings.",
             href: "/homebuyer/survey-level-3",
             cta: "Read more →",
           },

@@ -21,24 +21,24 @@ export const metadata = getPageMetadata("/homebuyer/survey-level-3");
 
 const INCLUDED = [
   {
-    title: "Comprehensive inspection with a detailed, thorough report",
-    text: "A full analysis of the property’s construction and condition, examining all accessible areas including roofs, floors, walls, and services.",
+    title: "A more detailed inspection and report",
+    text: "A more detailed assessment of the building’s construction, condition and defects, based on a generally visual, non-invasive inspection of accessible areas, including roofs, floors and walls, with building services assessed where visible.",
   },
   {
-    title: "Identification of visible defects and assessment of potential future problems",
-    text: "Detailed analysis of current issues and expert predictions about potential problems if repairs aren’t addressed promptly.",
+    title: "Visible signs of significant defects and their likely implications",
+    text: "The additional detail can help identify visible signs of significant defects, assess their likely implications and highlight where further specialist investigation may be necessary before purchase.",
   },
   {
-    title: "Optional estimated repair costs for identified issues",
-    text: "Budget planning assistance with estimated costs for necessary repairs and maintenance work.",
+    title: "Repair cost estimates where applicable",
+    text: "More extensive advice on repairs and maintenance, with repair cost estimates where applicable to help you plan.",
   },
 ];
 
 const WHY = [
-  "Most thorough inspection available",
-  "Expert structural analysis",
-  "Detailed repair recommendations",
-  "Optional cost estimates included",
+  "The most detailed RICS home survey level",
+  "More detailed assessment of construction and defects",
+  "More extensive repair and maintenance advice",
+  "Repair cost estimates where applicable",
 ];
 
 function CheckHeading({ children }: { children: React.ReactNode }) {
@@ -60,7 +60,7 @@ export default function Page() {
         pills={["Most comprehensive", "from £550.99", "Report in 5–7 working days"]}
         eyebrow="RICS Level 3 survey in London"
         title="RICS Level 3 Survey: Building Survey"
-        lede="The most detailed RICS survey: an in-depth inspection of the property, including any significant defects and fixtures."
+        lede="The most detailed RICS home survey: a more detailed assessment of the building’s construction, condition and defects, including more extensive advice on repairs and maintenance."
         sublede="Carried out by qualified and experienced surveyors across London and areas within the M25."
         facts={[
           "Fixed price from £550.99 for a studio, VAT included. Your quote depends on the property’s size, type, location and complexity",
@@ -78,9 +78,12 @@ export default function Page() {
             <h2 className="text-[30px] font-extrabold leading-[1.08] md:text-[40px]">What is the RICS Level 3 Survey?</h2>
             <div className="flex flex-col gap-4 text-lg text-body">
               <p>
-                The RICS Level 3 Survey, also known as a Building Survey, provides an in-depth inspection of the
-                property, including any significant defects and fixtures. This detailed report is designed to help
-                buyers make informed decisions about whether to proceed with their purchase.
+                The RICS Level 3 Survey, also known as a Building Survey, provides a more detailed assessment of the
+                building’s construction, condition and defects, including more extensive advice on repairs and
+                maintenance. That additional detail can help identify visible signs of significant defects, assess their likely implications and highlight where further specialist investigation may be necessary before purchase.
+              </p>
+              <p>
+                Both Level 2 and Level 3 surveys are generally visual and non-invasive. Surveyors inspect accessible areas without opening up the building or carrying out destructive investigations. A home survey isn’t a legal investigation, but the surveyor may flag matters for your legal adviser.
               </p>
               <p>
                 While our surveyors cannot advise on whether to proceed or withdraw from a purchase, this survey is
@@ -152,8 +155,8 @@ export default function Page() {
             items={[
               { text: "Ideal for older, altered or non-standard buildings" },
               { text: "Perfect for heritage and listed properties" },
-              { text: "Full defect analysis with repair implications and optional costings" },
-              { text: "For buyers who want certainty and comprehensive information" },
+              { text: "More detailed assessment of defects, with repair cost estimates where applicable" },
+              { text: "For buyers who want more detailed advice on repairs and maintenance" },
               { text: "Recommended for properties requiring significant renovation or restoration" },
             ]}
           />
@@ -164,7 +167,7 @@ export default function Page() {
         <SectionHeading
           eyebrow="Level 3 Building Survey"
           title="Why choose a Level 3 Building Survey?"
-          intro="The Level 3 survey is the most detailed property inspection available, providing you with complete peace of mind. It’s especially valuable for properties where structural integrity, historical significance, or extensive renovation plans are key considerations."
+          intro="The Level 3 survey is the most detailed RICS home survey level. Like a Level 2, it is generally visual and non-invasive. It suits properties where age, construction, alterations or renovation plans call for more detailed advice on defects, repairs and maintenance."
         />
         <div className="grid gap-[18px] sm:grid-cols-2 lg:grid-cols-4">
           {WHY.map((item) => (

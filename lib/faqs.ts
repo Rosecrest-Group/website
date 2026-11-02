@@ -26,7 +26,7 @@ const routeFAQs: Record<string, FAQItem[]> = {
     {
       question: "What is the difference between a Level 2 and a Level 3 survey?",
       answer:
-        "A Level 2 (Homebuyer Survey) is a visual inspection for modern and conventional properties, with condition ratings showing the urgency of any defects. A Level 3 (Building Survey) is an in-depth inspection for older, altered or non-standard buildings, with a detailed analysis of defects, what may happen if repairs are not addressed, and optional estimated repair costs.",
+        "A Level 2 (Homebuyer Survey) suits modern and conventional properties, with condition ratings showing the urgency of any defects. A Level 3 (Building Survey) suits older, altered or non-standard buildings and provides a more detailed assessment of the building’s construction, condition and defects, including more extensive advice on repairs and maintenance and repair cost estimates where applicable. Both Level 2 and Level 3 surveys are generally visual and non-invasive. Surveyors inspect accessible areas without opening up the building or carrying out destructive investigations.",
     },
     {
       question: "How long does a survey take?",

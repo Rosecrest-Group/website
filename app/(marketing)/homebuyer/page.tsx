@@ -37,7 +37,7 @@ const LEVELS = [
     level: 2,
     badge: "Most common choice",
     title: "Level 2: Homebuyer Survey",
-    features: ["Modern / conventional properties", "Visual inspection", "Detailed condition ratings", "Ideal for low-risk purchases"],
+    features: ["Modern / conventional properties", "Generally visual and non-invasive", "Detailed condition ratings", "Ideal for low-risk purchases"],
     price: "from £330.99",
     meta: "VAT included · Report within 3–5 working days",
     href: "/homebuyer/survey-level-2",
@@ -48,9 +48,9 @@ const LEVELS = [
     title: "Level 3: Building Survey",
     features: [
       "Older, altered or non-standard buildings",
-      "Full defect analysis",
-      "Repair implications & costings included",
-      "For buyers who want certainty",
+      "More detailed assessment of construction, condition and defects",
+      "More extensive advice on repairs and maintenance",
+      "Repair cost estimates where applicable",
     ],
     price: "from £550.99",
     meta: "VAT included · Report within 5–7 working days",
@@ -62,8 +62,8 @@ const COMPARE: [string, string, string, string][] = [
   ["Traffic-light condition ratings", "Yes", "Yes", "Yes"],
   ["Advice on repairs and maintenance", "No", "Yes", "Detailed"],
   ["Causes of defects explained", "No", "Headline", "In depth"],
-  ["Repair options and cost estimates", "No", "No", "Optional"],
-  ["Notes on legal matters for your conveyancer", "Yes", "Yes", "Yes"],
+  ["Repair cost estimates", "No", "No", "Where applicable"],
+  ["Matters flagged for your legal adviser", "Yes", "Yes", "Yes"],
   ["Typical inspection time", "1–2 hours", "2–3 hours", "2–3 hours"],
   ["Report delivered", "2 working days", "3–5 working days", "5–7 working days"],
   ["Express 48-hour report", "Available", "Available", "Available"],
@@ -87,8 +87,9 @@ export default function Page() {
             <p>We’ll help you select the most suitable survey based on the property you’re purchasing.</p>
             <p className="text-[17px]">
               A RICS survey helps you make an informed decision before you purchase a property. It reflects the
-              condition of the property at the time of the inspection, giving you a comprehensive view of what you’re
-              buying before you commit.
+              condition of the property at the time of the inspection, giving you a clearer view of what you’re buying
+              before you commit. Level 2 and Level 3 surveys are generally visual and non-invasive: surveyors inspect
+              accessible areas without opening up the building or carrying out destructive investigations.
             </p>
           </>
         }
@@ -203,8 +204,8 @@ export default function Page() {
         </div>
         <p className="text-sm text-muted-ink">
           Every survey is carried out under our <TermsButton>Terms of Engagement</TermsButton>, sent to you before the
-          inspection. If you ask, we’ll explain the difference between the survey options. The final choice of survey
-          rests with you.
+          inspection. Both Level 2 and Level 3 surveys are generally visual and non-invasive. Surveyors inspect accessible areas without opening up the building or carrying out destructive investigations. A home survey isn’t a legal investigation, but the surveyor may flag matters for your legal adviser. If you ask, we’ll explain the difference between the survey
+          options. The final choice of survey rests with you.
         </p>
       </Section>
 

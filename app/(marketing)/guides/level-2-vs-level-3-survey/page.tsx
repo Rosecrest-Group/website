@@ -116,7 +116,7 @@ const FAQS: FAQItem[] = [
   {
     question: "What does a Level 3 add to a Level 2?",
     answer:
-      "A Level 3 is a more in-depth inspection with a full defect analysis. It explains the likely causes of defects and what may happen if repairs aren’t addressed, and offers optional estimated repair costs. At Rosecrest the difference between starting prices is £247.50.",
+      "A Level 3 survey provides a more detailed assessment of the building’s construction, condition and defects, including more extensive advice on repairs and maintenance. That additional detail can help identify visible signs of significant defects, assess their likely implications and highlight where further specialist investigation may be necessary before purchase. It includes repair cost estimates where applicable. Both Level 2 and Level 3 surveys are generally visual and non-invasive. Surveyors inspect accessible areas without opening up the building or carrying out destructive investigations. At Rosecrest the difference between starting prices is £220.",
   },
   {
     question: "Is a Level 2 the same as a HomeBuyer Report?",
@@ -126,7 +126,7 @@ const FAQS: FAQItem[] = [
   {
     question: "Does my mortgage valuation count as a survey?",
     answer:
-      "No. It protects the lender, not you. It checks the price, not the condition, and won’t look in the loft or lift a floorboard.",
+      "No. It protects the lender, not you. It looks at the property’s value, not its condition.",
   },
   {
     question: "Which survey is designed for a flat?",
@@ -155,11 +155,11 @@ const FAQS: FAQItem[] = [
   },
   {
     question: "Can I add thermal imaging?",
-    answer: "Yes, for £175 with a Level 2 or 3. It spots heat loss, missing insulation and hidden damp.",
+    answer: "Yes, for £175 with a Level 2 or 3. It records surface-temperature patterns that can indicate heat loss, missing insulation or possible damp, where appropriate.",
   },
   {
     question: "Will you lift floorboards?",
-    answer: "No. RICS surveys are non-invasive. If we suspect a hidden problem, we’ll tell you which specialist to call.",
+    answer: "No. Both Level 2 and Level 3 surveys are generally visual and non-invasive. Surveyors inspect accessible areas without opening up the building or carrying out destructive investigations. Where the surveyor sees signs that need further investigation, the report says which specialist to bring in.",
   },
 ];
 
@@ -240,12 +240,12 @@ export default function LevelTwoVsThreeGuide() {
               <b className="text-lg text-ink">In short</b>
               <ul className="m-0 flex list-disc flex-col gap-1.5 pl-[22px]">
                 <li>
-                  <b className="text-ink">Level 2 Homebuyer Survey:</b> a detailed visual inspection, ideal for modern
+                  <b className="text-ink">Level 2 Homebuyer Survey:</b> a detailed, generally visual and non-invasive inspection, ideal for modern
                   and conventional properties built in the last 30 years that are unaltered and non-extended.
                 </li>
                 <li>
-                  <b className="text-ink">Level 3 Building Survey:</b> an in-depth inspection, ideal for older, altered or
-                  non-standard buildings, heritage and listed properties, and properties requiring significant
+                  <b className="text-ink">Level 3 Building Survey:</b> a more detailed assessment of construction, condition
+                  and defects, ideal for older, altered or non-standard buildings, heritage and listed properties, and properties requiring significant
                   renovation.
                 </li>
                 <li>
@@ -267,13 +267,13 @@ export default function LevelTwoVsThreeGuide() {
               The difference in one line
             </h2>
             <p>
-              A Level 2 tells you what’s wrong. A Level 3 tells you why it’s happening, what to do about it, and what
-              happens if you leave it.
+              A Level 3 survey provides a more detailed assessment of the building’s construction, condition and defects, including more extensive advice on repairs and maintenance. That additional detail can help identify visible signs of significant defects, assess their likely implications and highlight where further specialist investigation may be necessary before purchase.
             </p>
             <p>
               Both are carried out by qualified and experienced surveyors at a RICS-regulated firm. Both rate the
-              condition of the property green, amber or red. The Level 3 surveyor spends longer on site, looks harder at
-              how the building is put together, and writes a report that helps you plan repairs and maintenance.
+              condition of the property green, amber or red. Both Level 2 and Level 3 surveys are generally visual and non-invasive. Surveyors inspect accessible areas without opening up the building or carrying out destructive investigations. The Level 3 surveyor spends longer on
+              site, looks in more detail at how the building is put together, and writes a report that helps you plan
+              repairs and maintenance.
             </p>
             <GuideTable
               caption="Level 2 Homebuyer Survey and Level 3 Building Survey compared"
@@ -288,8 +288,8 @@ export default function LevelTwoVsThreeGuide() {
                 ["Traffic-light condition ratings", "Yes", "Yes"],
                 ["Advice on repairs and maintenance", "Yes", "Detailed"],
                 ["Causes of defects explained", "Headline", "In depth"],
-                ["Repair options and cost estimates", "No", "Optional"],
-                ["Notes for your conveyancer", "Yes", "Yes"],
+                ["Repair cost estimates", "No", "Where applicable"],
+                ["Matters flagged for your legal adviser", "Yes", "Yes"],
                 ["Time on site", "Depends on the size of the property", "Usually 2–3 hours"],
                 ["Report delivered", "3–5 working days", "5–7 working days"],
                 ["Express 48-hour report", "Available", "Available"],
@@ -412,17 +412,18 @@ export default function LevelTwoVsThreeGuide() {
               ]}
             />
             <p>
-              For context, the average quote on reallymoving between January 2024 and July 2025 was £499 for a Level 2
-              and £661 for a Level 3 across the UK. The HomeOwners Alliance puts typical 2026 ranges at £400–£1,000 for a
-              Level 2 and £630–£1,500 for a Level 3, with London towards the top because homes cost more.
+              For context, HomeOwners Alliance reports that the average Level 2 survey in London cost approximately £590 in August 2026, based on Reallymoving data. For Level 3 surveys, its indicative national price range is £630 to £1,500, with costs varying according to property value, size, condition and complexity.
+            </p>
+            <p>
+              RICS also explains that survey costs vary according to the property and the level of inspection required. More detailed surveys, particularly for larger or more complex properties, generally cost more.
             </p>
 
             <h2 id="limits" className={H2}>
               What no survey can tell you, and who can
             </h2>
             <p>
-              Every RICS survey is non-invasive. We won’t lift fitted carpets or floorboards, drill into walls or open
-              secured panels. When we see signs of something we can’t confirm, we’ll tell you who to call. Allow time
+              Both Level 2 and Level 3 surveys are generally visual and non-invasive. Surveyors inspect accessible areas without opening up the building or carrying out destructive investigations. We won’t lift fitted carpets or floorboards, drill into walls or open secured
+              panels. Where the surveyor sees signs that need further investigation, the report says who to bring in. Allow time
               for this before you exchange, especially on a period home.
             </p>
             <GuideTable
@@ -441,7 +442,7 @@ export default function LevelTwoVsThreeGuide() {
                     that assesses the likely cause, where the evidence supports it, before any treatment is quoted. Ours starts from £540 including VAT.
                   </>,
                 ],
-                ["Cracking or movement", "A structural engineer, to judge whether movement is historic or ongoing"],
+                ["Cracking or movement", "An appropriately qualified structural engineer, to judge whether movement is historic or ongoing. Structural engineering fees vary depending on the nature of the concern, the investigation required and whether a written report is needed, so obtain a quotation first"],
                 ["Drain defects, or trees near the house on clay", "A CCTV drain survey"],
                 [
                   "Old wiring or consumer unit",
@@ -449,7 +450,7 @@ export default function LevelTwoVsThreeGuide() {
                 ],
                 ["Boiler or gas appliances", "A Gas Safe registered engineer"],
                 ["Possible asbestos", "An asbestos surveyor"],
-                ["Hidden heat loss or damp", "Thermal imaging, £175 added to a Level 2 or 3"],
+                ["Possible heat loss or damp", "Thermal imaging, £175 added to a Level 2 or 3"],
               ]}
             />
 
@@ -466,8 +467,9 @@ export default function LevelTwoVsThreeGuide() {
                 such as a structural engineer or a Gas Safe registered engineer, arrange it before you exchange.
               </li>
               <li>
-                <b className="text-ink">Pass legal points to your conveyancer.</b> Missing sign-off for an extension,
-                unclear repair liability in a lease.
+                <b className="text-ink">Pass flagged points to your legal adviser.</b> Missing sign-off for an
+                extension, unclear repair liability in a lease. A home survey isn’t a legal investigation, so your legal
+                adviser checks these.
               </li>
               <li>
                 <b className="text-ink">Plan for the ambers.</b> Defects requiring attention and repair that are not

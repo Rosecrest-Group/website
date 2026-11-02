@@ -58,7 +58,7 @@ const CATEGORIES: Category[] = [
       {
         q: "What is the difference between a Level 2 and a Level 3 survey?",
         a: [
-          "A Level 2 survey suits conventional homes in reasonable condition. A Level 3 survey is a more detailed inspection for older, larger, altered or run-down properties, with more detail on defects and repairs. ",
+          "A Level 2 survey suits conventional homes in reasonable condition. A Level 3 survey suits older, larger, altered or run-down properties and provides a more detailed assessment of construction, condition and defects, with more extensive advice on repairs and maintenance. Both are generally visual and non-invasive. ",
           { text: "Compare the levels", href: "/guides/level-2-vs-level-3-survey" },
           ".",
         ],
