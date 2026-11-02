@@ -22,7 +22,7 @@ export const metadata = getPageMetadata("/homebuyer/survey-level-1");
 const INCLUDED = [
   "Condition of the building, services and grounds",
   "Traffic light rating for each element",
-  "Legal matters for your conveyancer",
+  "Matters flagged for your legal adviser",
   "Risks to the building, its occupants and the grounds",
   "Further investigations recommended where needed",
   "Photographs of defects identified",
@@ -38,7 +38,7 @@ export default function Page() {
         pills={["Best for newer homes", "from £280.99", "Report within 2 working days"]}
         eyebrow="RICS Level 1 survey in London"
         title="RICS Level 1 Survey: Condition Report"
-        lede="A straightforward overview of the property’s condition using a simple traffic light rating system."
+        lede="A concise assessment of the property’s visible condition, using condition ratings to highlight significant defects and matters requiring attention."
         sublede="Carried out by qualified and experienced surveyors across London and areas within the M25."
         facts={[
           "Fixed price from £280.99 for a studio, VAT included. Your quote depends on the property’s size, type, location and complexity",
@@ -55,10 +55,10 @@ export default function Page() {
           <div>
             <div className="flex flex-col gap-4 text-[17px] text-body">
               <p>
-                This report provides an overview of the building’s condition, including its services and grounds. It
-                highlights any defects or issues identified during the inspection, using an easy-to-understand traffic
-                light system. Additionally, the report addresses relevant legal matters and potential risks to the
-                building, its occupants or the surrounding grounds.
+                This report is a concise assessment of the property’s visible condition, including its services and
+                grounds, using condition ratings to highlight significant defects and matters requiring attention. It
+                also notes potential risks to the building, its occupants or the surrounding grounds, and may flag
+                matters for your legal adviser to check. A home survey isn’t a legal investigation.
               </p>
               <p>
                 The RICS Level 1 Survey, also known as a Condition Survey, does not offer specific advice on repairs or
@@ -149,7 +149,7 @@ export default function Page() {
           },
           {
             title: "Level 3: Building Survey",
-            text: "Most comprehensive. An in-depth inspection for older, altered or non-standard buildings.",
+            text: "Most detailed. A more detailed assessment of construction, condition and defects for older, altered or non-standard buildings.",
             href: "/homebuyer/survey-level-3",
             cta: "Read more →",
           },

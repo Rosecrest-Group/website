@@ -164,7 +164,7 @@ export const services: CatalogService[] = [
     serviceType: "Expert witness report",
     audiences: ["legal", "tenants", "landlords"],
     turnaround:
-      "Draft report usually within 10–15 working days of instruction and inspection; urgent deadlines can be discussed.",
+      "The timetable is agreed in writing with the instructing solicitor before acceptance, taking account of any court directions.",
     intents: [
       "expert witness surveyor",
       "solicitor needs a surveyor report",

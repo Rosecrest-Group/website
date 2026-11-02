@@ -496,7 +496,7 @@ export const guides: Guide[] = [
       {
         question: "How long does a CPR 35 expert report take?",
         answer:
-          "It depends on the complexity of the case. In most cases we aim to deliver a draft report within 10–15 working days of instruction and site inspection. Urgent instructions can be discussed.",
+          "It depends on the complexity of the case. The timetable is agreed in writing with the instructing solicitor before acceptance, taking account of any court directions.",
       },
       {
         question: "Not sure which report you need?",

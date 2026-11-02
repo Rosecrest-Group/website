@@ -62,13 +62,13 @@ export const pageMetadata: Record<string, PageMeta> = {
     name: "Homebuyer surveys",
     title: "Homebuyer Survey London | Level 1, 2 & 3 Surveys Explained",
     description:
-      "Buying a property in London? We offer Level 1, 2 and 3 homebuyer surveys, helping you choose the right survey and avoid costly issues before you buy.",
+      "Buying in London? We offer RICS Level 1, 2 and 3 homebuyer surveys and help you choose the right one to understand the property’s condition before you buy.",
   },
   "/homebuyer/survey-level-1": {
     name: "RICS Level 1 Survey",
     title: "RICS Level 1 Survey London | Condition Report for Newer Homes",
     description:
-      "Get a RICS Level 1 Survey in London. Ideal for newer homes, our condition reports highlight defects using a clear traffic light system for peace of mind.",
+      "RICS Level 1 Survey in London for newer homes: a concise assessment of visible condition, using condition ratings to highlight significant defects.",
   },
   "/homebuyer/survey-level-2": {
     name: "RICS Level 2 Survey",
@@ -80,7 +80,7 @@ export const pageMetadata: Record<string, PageMeta> = {
     name: "RICS Level 3 Survey",
     title: "RICS Level 3 Survey London | Building Survey for Older Properties",
     description:
-      "Need a RICS Level 3 Survey in London? Our Building Surveys provide detailed defect analysis, repair advice and optional cost estimates for older or complex properties.",
+      "RICS Level 3 Survey in London: a more detailed assessment of construction, condition and defects, with repair cost estimates where applicable.",
   },
   "/landlord": {
     name: "Landlords",
