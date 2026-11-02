@@ -45,7 +45,7 @@ const MATTERS = [
   {
     icon: Droplet,
     title: "Damp & Mould Investigations",
-    text: "Assessment of damp, mould and condensation issues, including likely causes and contributing factors.",
+    text: "Assessment of damp, mould and condensation issues, including visible conditions, potential contributing factors and likely causes where the findings support them.",
     link: { href: "/services/damp-mould", label: "Damp and mould surveys →" },
   },
   {
@@ -182,7 +182,7 @@ export default function LegalPage() {
               Legal instructions require independence, clarity and reporting prepared in accordance with relevant
               professional standards. Our inspections assess issues such as damp, mould, structural defects, water
               ingress and general property condition, supported by photographic evidence and professional analysis.
-              Reports provide clear findings, identify defects and their likely causes, and set out an impartial
+              Reports record clear findings and visible defects, assess likely causes based on the evidence available, and set out an impartial
               professional opinion suitable for legal review.
             </p>
           </>
@@ -232,7 +232,7 @@ export default function LegalPage() {
         <div className="grid gap-[18px] md:grid-cols-2">
           <TintNote title="Our duty is to the court">
             Whoever instructs us, an expert’s overriding duty is to the court: to provide an independent, impartial
-            opinion. We never act for and against the same landlord at the same time.
+            opinion. Every expert witness instruction is subject to a conflict-of-interest assessment before acceptance, ensuring that the appointed surveyor can fulfil their duty to provide independent and impartial evidence.
           </TintNote>
           <TintNote title="A separate service">
             When we’re instructed as an expert witness, our role is independent evidence only. We don’t quote for or

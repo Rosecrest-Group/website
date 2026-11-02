@@ -20,12 +20,12 @@ interface Service {
 
 const services: Service[] = [
   {
-    badge: "Fixed price service",
+    badge: "Clear pricing",
     title: "Damp, Mould & Condensation",
     description:
-      "Fast-track inspections with transparent pricing. Perfect for addressing tenant complaints or compliance requirements.",
+      "Independent, non-invasive inspections with clear pricing. Suited to tenant complaints and compliance requirements.",
     features: [
-      "Fast-track inspection: £450 fixed price",
+      "Damp, Mould and Condensation Survey from £540 incl. VAT, subject to scope",
       "Treatment: £25 per m² transparent pricing",
       "Full booking & cost calculator available",
     ],

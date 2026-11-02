@@ -80,8 +80,9 @@ const FAQS: FaqItem[] = [
       <p>
         Not quite. Thermal imaging can show surface-temperature patterns associated with moisture, but it does not
         confirm a cause on its own. If you are dealing with damp or mould, our{" "}
-        <TextLink href="/services/damp-mould">Damp, Mould and Condensation Survey</TextLink> combines thermal imaging
-        with moisture readings and a written report on the likely cause.
+        <TextLink href="/services/damp-mould">Damp, Mould and Condensation Survey</TextLink> is a visual, non-invasive
+        inspection with thermal imaging and indicative moisture readings where appropriate and available, and a written
+        report that identifies likely causes where supported by the findings.
       </p>
     ),
   },

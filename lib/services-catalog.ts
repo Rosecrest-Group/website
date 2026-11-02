@@ -103,12 +103,12 @@ export const services: CatalogService[] = [
     name: "Damp, mould and condensation inspection",
     category: "survey",
     summary:
-      "Independent on-site inspection to identify damp, mould and condensation, their causes and the remedial action needed, with photographs and a written report. Mould treatment is also available.",
+      "Independent, non-invasive inspection of damp, mould and condensation that records visible conditions and potential contributing factors, identifies likely causes where the findings support them, and recommends next steps, with photographs and a written report. Mould treatment is also available.",
     serviceType: "Damp and mould survey",
     audiences: ["landlords", "tenants", "homeowners", "councils", "housing-providers"],
     price: {
-      from: 450,
-      note: "Fast-track inspection at a fixed £450. Treatment is priced separately at £25 per m².",
+      from: 540,
+      note: "From £540 including VAT, subject to the property’s circumstances and the agreed scope of inspection. Treatment is priced separately at £25 per m².",
     },
     intents: [
       "damp in my house",

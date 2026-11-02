@@ -61,16 +61,16 @@ const POLICY: { title: string; text: React.ReactNode }[] = [
     text: "We check for any connection to the parties or the property before the letter of instruction, on anonymised details if names can’t be released yet. The other party on every case is logged, and landlords in live tenant-side cases are excluded from our marketing.",
   },
   {
-    title: "Both sides, never against ourselves",
-    text: "We accept instructions from solicitors acting for tenants and for landlords, and as single joint expert. We never act for and against the same landlord at the same time.",
+    title: "Claimant, defendant or single joint expert",
+    text: "Our appropriately qualified surveyors accept instructions from claimant and defendant solicitors and may act as Single Joint Experts where jointly instructed by the parties. Every expert witness instruction is subject to a conflict-of-interest assessment before acceptance, ensuring that the appointed surveyor can fulfil their duty to provide independent and impartial evidence.",
   },
   {
     title: "Expert work kept separate from remedial work",
     text: "When we’re instructed as an expert witness on a property, we don’t quote for or carry out repairs or mould treatment on it as part of, or alongside, that instruction. This applies only to properties where we are the expert.",
   },
   {
-    title: "Financial dependence is disclosed",
-    text: "In line with the RICS professional statement for surveyors acting as expert witnesses, new edition in force from 30 November 2026, we disclose where fees from one client form a significant share of our expert witness income.",
+    title: "Financial dependence is assessed and disclosed",
+    text: "Expert witness appointments are personal to the individual surveyor. Under the RICS standard Surveyors acting as expert witnesses (5th edition, effective 30 November 2026), where a surveyor receives a significant proportion of their expert witness instructions through one landlord or solicitor’s firm, they assess whether that relationship creates financial dependence requiring disclosure in their expert report.",
   },
   {
     title: "Use of technology is disclosed",

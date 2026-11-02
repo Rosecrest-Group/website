@@ -62,11 +62,11 @@ const NEEDS = [
 const FAQS: FaqItem[] = [
   {
     q: "Do you carry out damp and mould testing?",
-    a: "Yes. The Damp, Mould and Condensation Survey uses thermal imaging and moisture readings alongside a visual inspection of the affected areas. Readings are indicative, so we consider them together with the building and how the home is used.",
+    a: "Yes. The Damp, Mould and Condensation Survey is a visual, non-invasive inspection of the accessible affected areas, with thermal imaging and indicative moisture readings where appropriate and available. Readings are indicative, so we consider them together with the building and how the home is used.",
   },
   {
     q: "What’s included in a Damp & Mould Condition Report?",
-    a: "The affected areas, the conditions observed, contributing factors, photographs and recommendations for onward action. We aim to identify the likely cause; where the evidence isn’t conclusive, the report says so and recommends next steps.",
+    a: "The affected areas, the conditions observed, contributing factors, photographs and recommendations for onward action. The report identifies likely causes where supported by the findings and recommends further investigation where necessary.",
   },
   {
     q: "Can you carry out remedial works as well as reports?",
@@ -82,7 +82,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "Is a condensation survey different from a damp survey?",
-    a: "Our Damp, Mould and Condensation Survey covers both. Condensation, penetrating damp and rising damp can look alike on a wall but need different fixes, so the survey looks for the likely cause before any work is recommended.",
+    a: "Our Damp, Mould and Condensation Survey covers both. Condensation, penetrating damp and rising damp can look alike on a wall but need different fixes, so the survey assesses the likely cause, where the evidence supports it, before any work is recommended.",
   },
   {
     q: "Who is responsible for mould in a rented property?",
@@ -94,7 +94,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "How much does a damp survey cost in London?",
-    a: "The Damp, Mould and Condensation Survey is a fixed £450. Where treatment is appropriate, mould removal is £25 per m² + VAT, subject to exact measurement.",
+    a: "Our Damp, Mould and Condensation Survey starts from £540 including VAT, subject to the property’s circumstances and the agreed scope of inspection. Where treatment is appropriate, mould removal is £25 per m² + VAT, subject to exact measurement.",
   },
   {
     q: "How quickly can you inspect?",
@@ -185,26 +185,26 @@ export default function DampMouldPage() {
             <CheckList
               className="gap-3.5"
               items={[
-                "On-site inspection of affected areas",
+                "Visual inspection of accessible affected areas",
                 "Identification of damp and mould conditions",
-                "Analysis of contributing factors",
+                "Assessment of potential contributing factors",
                 "Detailed photographic evidence",
                 "Written report for onward action",
               ]}
             />
             <p className="text-sm text-muted-ink">
-              Thermal imaging and moisture readings support the findings. Moisture readings are indicative and don’t
-              prove a cause on their own: we aim to identify the likely cause, and where the evidence isn’t
-              conclusive, the report says so and recommends next steps.
+              Where appropriate and available, thermal imaging and indicative moisture readings support the findings.
+              Readings don’t prove a cause on their own. The report identifies likely causes where supported by the
+              findings and recommends further investigation where necessary.
             </p>
           </div>
           <PriceCard
             label="Damp, Mould and Condensation Survey"
-            price="£450"
-            note="Fixed price. One visit, one written report."
+            price="From £540"
+            note="Including VAT, subject to the property’s circumstances and the agreed scope of inspection."
             items={[
-              "On-site inspection of the affected areas",
-              "Thermal imaging and moisture readings",
+              "Visual, non-invasive inspection of accessible affected areas",
+              "Thermal imaging and indicative moisture readings where appropriate and available",
               "Photographs of the conditions recorded",
               "Written report for onward action",
             ]}

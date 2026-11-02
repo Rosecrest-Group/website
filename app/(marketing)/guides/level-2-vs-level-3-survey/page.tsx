@@ -24,7 +24,7 @@ const PRICE_CARDS = [
     tag: "Most common choice",
     level: "Level 2",
     name: "Homebuyer Survey",
-    price: "£363.99",
+    price: "£330.99",
     suits: "Modern and conventional properties",
     report: "Report in 3–5 working days",
   },
@@ -33,7 +33,7 @@ const PRICE_CARDS = [
     tag: "Most comprehensive",
     level: "Level 3",
     name: "Building Survey",
-    price: "£611.49",
+    price: "£550.99",
     suits: "Older, altered or non-standard buildings",
     report: "Report in 5–7 working days",
   },
@@ -253,8 +253,8 @@ export default function LevelTwoVsThreeGuide() {
                   extended homes. Compare what each report covers against the property you’re buying.
                 </li>
                 <li>
-                  <b className="text-ink">Price difference at Rosecrest:</b> £247.50 between our starting prices
-                  (£363.99 and £611.49, VAT included).
+                  <b className="text-ink">Price difference at Rosecrest:</b> £220 between our starting prices
+                  (£330.99 and £550.99 for a studio, VAT included).
                 </li>
                 <li>
                   <b className="text-ink">Still have questions?</b> If you ask, our trusted advisors will explain the
@@ -294,7 +294,7 @@ export default function LevelTwoVsThreeGuide() {
                 ["Report delivered", "3–5 working days", "5–7 working days"],
                 ["Express 48-hour report", "Available", "Available"],
                 ["Thermal imaging add-on", "£175", "£175"],
-                ["Price, VAT included", "from £363.99", "from £611.49"],
+                ["Starting price (studio), VAT included", "from £330.99", "from £550.99"],
               ]}
             />
 
@@ -331,7 +331,7 @@ export default function LevelTwoVsThreeGuide() {
                   "Not applicable",
                 ],
                 ["Report within", "2 working days", "3–5 working days", "5–7 working days"],
-                ["Price, VAT included", "from £313.99", "from £363.99", "from £611.49"],
+                ["Starting price (studio), VAT included", "from £280.99", "from £330.99", "from £550.99"],
               ]}
             />
 
@@ -403,12 +403,12 @@ export default function LevelTwoVsThreeGuide() {
               columns={["Survey", "From (VAT included)", "Report delivered"]}
               widths={["38%", "31%", "31%"]}
               rows={[
-                ["Level 1 Condition Report", "£313.99", "2 working days"],
-                ["Level 2 Homebuyer Survey", "£363.99", "3–5 working days"],
-                ["Level 3 Building Survey", "£611.49", "5–7 working days"],
+                ["Level 1 Condition Report", "£280.99", "2 working days"],
+                ["Level 2 Homebuyer Survey", "£330.99", "3–5 working days"],
+                ["Level 3 Building Survey", "£550.99", "5–7 working days"],
                 ["Express 48-hour report", "Available on all three", "48 hours"],
                 ["Thermal imaging add-on", "£175 with a Level 2 or 3", "With your report"],
-                ["Damp, Mould and Condensation Survey", "£450 fixed", "24-hour response"],
+                ["Damp, Mould and Condensation Survey", "£540, subject to scope", "Agreed when you book"],
               ]}
             />
             <p>
@@ -438,7 +438,7 @@ export default function LevelTwoVsThreeGuide() {
                     <Link href="/services/damp-mould" className="font-bold text-teal no-underline hover:text-teal-dark">
                       damp and mould survey
                     </Link>{" "}
-                    that finds the cause before any treatment is quoted. Ours is £450 fixed.
+                    that assesses the likely cause, where the evidence supports it, before any treatment is quoted. Ours starts from £540 including VAT.
                   </>,
                 ],
                 ["Cracking or movement", "A structural engineer, to judge whether movement is historic or ongoing"],

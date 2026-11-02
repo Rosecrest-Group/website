@@ -57,13 +57,13 @@ export default function Page() {
 
       <SurveyHero
         crumb="Level 3 Building Survey"
-        pills={["Most comprehensive", "from £611.49", "Report in 5–7 working days"]}
+        pills={["Most comprehensive", "from £550.99", "Report in 5–7 working days"]}
         eyebrow="RICS Level 3 survey in London"
         title="RICS Level 3 Survey: Building Survey"
         lede="The most detailed RICS survey: an in-depth inspection of the property, including any significant defects and fixtures."
         sublede="Carried out by qualified and experienced surveyors across London and areas within the M25."
         facts={[
-          "Fixed price from £611.49, VAT included",
+          "Fixed price from £550.99 for a studio, VAT included. Your quote depends on the property’s size, type, location and complexity",
           "Inspection typically takes 2–3 hours",
           "Report within 5–7 working days, or choose our Express 48-Hour Report option",
         ]}

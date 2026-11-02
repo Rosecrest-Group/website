@@ -29,7 +29,7 @@ const LEVELS = [
       "Appropriate for unaltered and non-extended property",
       "Not suitable for older, larger or non-traditional properties",
     ],
-    price: "from £313.99",
+    price: "from £280.99",
     meta: "VAT included · Report within 2 working days",
     href: "/homebuyer/survey-level-1",
   },
@@ -38,7 +38,7 @@ const LEVELS = [
     badge: "Most common choice",
     title: "Level 2: Homebuyer Survey",
     features: ["Modern / conventional properties", "Visual inspection", "Detailed condition ratings", "Ideal for low-risk purchases"],
-    price: "from £363.99",
+    price: "from £330.99",
     meta: "VAT included · Report within 3–5 working days",
     href: "/homebuyer/survey-level-2",
   },
@@ -52,7 +52,7 @@ const LEVELS = [
       "Repair implications & costings included",
       "For buyers who want certainty",
     ],
-    price: "from £611.49",
+    price: "from £550.99",
     meta: "VAT included · Report within 5–7 working days",
     href: "/homebuyer/survey-level-3",
   },
@@ -67,7 +67,7 @@ const COMPARE: [string, string, string, string][] = [
   ["Typical inspection time", "1–2 hours", "2–3 hours", "2–3 hours"],
   ["Report delivered", "2 working days", "3–5 working days", "5–7 working days"],
   ["Express 48-hour report", "Available", "Available", "Available"],
-  ["Price, VAT included", "from £313.99", "from £363.99", "from £611.49"],
+  ["Starting price (studio), VAT included", "from £280.99", "from £330.99", "from £550.99"],
 ];
 
 const infoCardClass = "flex flex-col gap-3 rounded-[18px] border border-line bg-white p-[26px]";
@@ -128,7 +128,7 @@ export default function Page() {
         }
       >
         <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-base text-body">
-          <Tick>Fixed prices, VAT included, from £313.99</Tick>
+          <Tick>Fixed prices, VAT included, from £280.99 for a studio. Your quote depends on the property’s size, type, location and complexity</Tick>
           <Tick>Qualified and experienced surveyors across London and areas within the M25</Tick>
           <Tick>Express 48-Hour Report option on every level</Tick>
         </ul>

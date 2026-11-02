@@ -92,13 +92,13 @@ const CATEGORIES: Category[] = [
       {
         q: "Do you carry out damp and mould testing?",
         a: [
-          "Yes. Our Damp, Mould and Condensation Survey uses thermal imaging and moisture readings to find the likely cause, such as condensation, penetrating or rising damp, or leaks. Where the evidence isn’t conclusive, the report says so and recommends next steps.",
+          "Yes. Our Damp, Mould and Condensation Survey is a visual, non-invasive inspection of the accessible affected areas, with thermal imaging and indicative moisture readings where appropriate and available. It looks for evidence of causes such as condensation, penetrating or rising damp, or leaks. The report identifies likely causes where supported by the findings and recommends further investigation where necessary.",
         ],
       },
       {
         q: "What’s included in a Damp & Mould Condition Report?",
         a: [
-          "The affected areas, thermal imaging and moisture readings, photographs, the likely cause where the evidence allows, contributing factors and recommended next steps.",
+          "The affected areas and visible conditions, photographs, relevant readings where appropriate, evidence of potential contributing factors, likely causes where supported by the findings, and recommended next steps, including any further investigation needed.",
         ],
       },
       {

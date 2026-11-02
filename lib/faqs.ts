@@ -68,7 +68,7 @@ const routeFAQs: Record<string, FAQItem[]> = {
     {
       question: "What does a damp and mould survey involve?",
       answer:
-        "Thermal imaging, moisture readings and photos, with a written report giving the likely cause where the evidence allows, and recommendations. Where the evidence isn’t conclusive, the report says so and recommends next steps. Damp and mould surveys →",
+        "A visual, non-invasive inspection of the accessible affected areas, with photographs and, where appropriate and available, thermal imaging and indicative moisture readings. The report identifies likely causes where supported by the findings and recommends further investigation where necessary. Damp and mould surveys →",
     },
     {
       question: "Does Awaab’s Law apply to private landlords?",
@@ -101,12 +101,12 @@ const routeFAQs: Record<string, FAQItem[]> = {
     {
       question: "Do you carry out damp and mould testing?",
       answer:
-        "Yes. The Damp, Mould and Condensation Survey uses thermal imaging and moisture readings alongside a visual inspection of the affected areas. Readings are indicative, so we consider them together with the building and how the home is used.",
+        "Yes. The Damp, Mould and Condensation Survey is a visual, non-invasive inspection of the accessible affected areas, with thermal imaging and indicative moisture readings where appropriate and available. Readings are indicative, so we consider them together with the building and how the home is used.",
     },
     {
       question: "What’s included in a Damp & Mould Condition Report?",
       answer:
-        "The affected areas, the conditions observed, contributing factors, photographs and recommendations for onward action. We aim to identify the likely cause; where the evidence isn’t conclusive, the report says so and recommends next steps.",
+        "The affected areas, the conditions observed, contributing factors, photographs and recommendations for onward action. The report identifies likely causes where supported by the findings and recommends further investigation where necessary.",
     },
     {
       question: "Can you carry out remedial works as well as reports?",
@@ -126,7 +126,7 @@ const routeFAQs: Record<string, FAQItem[]> = {
     {
       question: "Is a condensation survey different from a damp survey?",
       answer:
-        "Our Damp, Mould and Condensation Survey covers both. Condensation, penetrating damp and rising damp can look alike on a wall but need different fixes, so the survey looks for the likely cause before any work is recommended.",
+        "Our Damp, Mould and Condensation Survey covers both. Condensation, penetrating damp and rising damp can look alike on a wall but need different fixes, so the survey assesses the likely cause, where the evidence supports it, before any work is recommended.",
     },
     {
       question: "Who is responsible for mould in a rented property?",
@@ -141,7 +141,7 @@ const routeFAQs: Record<string, FAQItem[]> = {
     {
       question: "How much does a damp survey cost in London?",
       answer:
-        "The Damp, Mould and Condensation Survey is a fixed £450. Where treatment is appropriate, mould removal is £25 per m² + VAT, subject to exact measurement.",
+        "Our Damp, Mould and Condensation Survey starts from £540 including VAT, subject to the property’s circumstances and the agreed scope of inspection. Where treatment is appropriate, mould removal is £25 per m² + VAT, subject to exact measurement.",
     },
     {
       question: "How quickly can you inspect?",

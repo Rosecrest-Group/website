@@ -246,7 +246,7 @@ export const guides: Guide[] = [
           "Photographs, findings and clear recommendations for remedial action",
           "Treated areas, priced by the size of the affected area",
         ],
-        ["Rosecrest price", "Fast-track inspection at a fixed £450", "£25 per m², quoted after the survey"],
+        ["Rosecrest price", "From £540 including VAT, subject to scope", "£25 per m², quoted after the survey"],
         [
           "When to use it",
           "First, whenever the cause isn't certain or a tenant has raised a complaint",
@@ -267,14 +267,14 @@ export const guides: Guide[] = [
       {
         heading: "What a damp and mould inspection covers",
         paragraphs: [
-          "Our surveyors inspect the affected areas on site, identify the damp and mould conditions, and look at contributing factors such as ventilation or structural issues. Where appropriate we use moisture meters and thermal imaging to assess the extent of the problem.",
+          "Our surveyors inspect the accessible affected areas, record visible damp and mould conditions and look for evidence of potential contributing factors, such as ventilation or building defects. Thermal imaging and indicative moisture readings are used where appropriate and available. The report identifies likely causes where supported by the findings and recommends further investigation where necessary.",
           "The report includes photographs and clear recommendations for remedial action.",
         ],
       },
       {
         heading: "Landlords, tenants and Awaab's Law",
         paragraphs: [
-          "Damp and mould complaints need prompt, documented action. Awaab's Law sets timescales for social landlords to investigate and fix hazards such as damp and mould. An independent inspection gives you a dated record of the condition, the likely cause and the action needed.",
+          "Damp and mould complaints need prompt, documented action. Awaab's Law sets timescales for social landlords to investigate and fix hazards such as damp and mould. An independent inspection gives you a dated record of the visible condition, the likely causes where the findings support them, and the recommended next steps.",
         ],
       },
       {
@@ -288,12 +288,12 @@ export const guides: Guide[] = [
       {
         question: "Is black mould always caused by condensation?",
         answer:
-          "No. Condensation is a common cause, but mould can also follow a leak, rain getting in through a defect, or rising damp. An inspection finds which it is, so the fix addresses the cause.",
+          "No. Condensation is a common cause, but mould can also follow a leak, rain getting in through a defect, or rising damp. An inspection assesses which is most likely, based on the evidence available, and recommends further investigation where needed, so the fix addresses the cause.",
       },
       {
         question: "How much does a damp and mould inspection cost?",
         answer:
-          "Our fast-track damp and mould inspection is a fixed £450. Mould treatment is priced separately at £25 per m² of affected area.",
+          "Our Damp, Mould and Condensation Survey starts from £540 including VAT, subject to the property’s circumstances and the agreed scope of inspection. Mould treatment is priced separately at £25 per m² of affected area.",
       },
       {
         question: "Can you carry out the treatment as well as the report?",

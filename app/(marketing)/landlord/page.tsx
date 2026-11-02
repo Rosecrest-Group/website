@@ -33,10 +33,10 @@ const SERVICES: LandlordService[] = [
   {
     icon: Droplets,
     title: "Damp, Mould & Condensation",
-    badge: "Fixed price service",
-    text: "Fast-track inspections with transparent pricing. Perfect for addressing tenant complaints or compliance requirements.",
+    badge: "Clear pricing",
+    text: "Independent, non-invasive inspections with clear pricing. Suited to tenant complaints and compliance requirements.",
     points: [
-      "Fast-track inspection: £450 fixed price",
+      "Damp, Mould and Condensation Survey from £540 incl. VAT, subject to scope",
       "Treatment: £25 per m² transparent pricing",
       "Full booking & cost calculator available",
     ],
@@ -74,9 +74,9 @@ const FAQS: FaqItem[] = [
     q: "What does a damp and mould survey involve?",
     a: (
       <p>
-        Thermal imaging, moisture readings and photos, with a written report giving the likely cause where the
-        evidence allows, and recommendations. Where the evidence isn’t conclusive, the report says so and recommends
-        next steps. <TextLink href="/services/damp-mould">Damp and mould surveys →</TextLink>
+        A visual, non-invasive inspection of the accessible affected areas, with photographs and, where appropriate
+        and available, thermal imaging and indicative moisture readings. The report identifies likely causes where
+        supported by the findings and recommends further investigation where necessary. <TextLink href="/services/damp-mould">Damp and mould surveys →</TextLink>
       </p>
     ),
   },

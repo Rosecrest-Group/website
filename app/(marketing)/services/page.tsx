@@ -38,14 +38,14 @@ const SURVEY_SERVICES: ServiceCardData[] = [
     icon: HomeIcon,
     title: "RICS Level 1, 2 and 3 surveys",
     text: "Level 1 Condition Report, Level 2 Homebuyer Survey and Level 3 Building Survey, to help you make an informed decision before you purchase a property.",
-    price: "from £313.99",
+    price: "from £280.99",
   },
   {
     href: "/services/damp-mould",
     icon: Droplet,
     title: "Damp, Mould and Condensation Survey",
-    text: "Fast-track inspection and a written report on observed conditions and contributing factors, with mould treatment where appropriate.",
-    price: "£450 fixed price",
+    text: "Visual, non-invasive inspection and a written report on observed conditions and potential contributing factors, with mould treatment where appropriate.",
+    price: "from £540 incl. VAT",
   },
   {
     href: "/services/housing-disrepair",

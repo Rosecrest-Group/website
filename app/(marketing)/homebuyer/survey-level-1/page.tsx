@@ -35,13 +35,13 @@ export default function Page() {
 
       <SurveyHero
         crumb="Level 1 Condition Report"
-        pills={["Best for newer homes", "from £313.99", "Report within 2 working days"]}
+        pills={["Best for newer homes", "from £280.99", "Report within 2 working days"]}
         eyebrow="RICS Level 1 survey in London"
         title="RICS Level 1 Survey: Condition Report"
         lede="A straightforward overview of the property’s condition using a simple traffic light rating system."
         sublede="Carried out by qualified and experienced surveyors across London and areas within the M25."
         facts={[
-          "Fixed price from £313.99, VAT included",
+          "Fixed price from £280.99 for a studio, VAT included. Your quote depends on the property’s size, type, location and complexity",
           "Inspection typically takes 1–2 hours",
           "Report within 2 working days, or choose our Express 48-Hour Report option",
         ]}

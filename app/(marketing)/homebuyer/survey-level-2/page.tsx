@@ -36,13 +36,13 @@ export default function Page() {
 
       <SurveyHero
         crumb="Level 2 Homebuyer Survey"
-        pills={["Most common choice", "from £363.99", "Report in 3–5 working days"]}
+        pills={["Most common choice", "from £330.99", "Report in 3–5 working days"]}
         eyebrow="RICS Level 2 survey in London"
         title="RICS Level 2 Survey: Homebuyer Report"
         lede="Also known as the Homebuyer Report, the RICS Level 2 survey provides a detailed visual inspection of the property to assess its overall condition, including any notable defects."
         sublede="The report helps buyers make an informed decision about whether to proceed with their purchase. Please note, however, that our surveyors cannot advise whether to proceed with or withdraw from the purchase."
         facts={[
-          "Fixed price from £363.99, VAT included",
+          "Fixed price from £330.99 for a studio, VAT included. Your quote depends on the property’s size, type, location and complexity",
           "Qualified and experienced surveyors across London and areas within the M25",
           "Express 48-Hour Report option available",
         ]}
@@ -102,7 +102,7 @@ export default function Page() {
         facts={[
           { label: "Report", value: "Within 5 working days" },
           { label: "Need it sooner?", value: "Express 48-Hour Report" },
-          { label: "Fixed price", value: "from £363.99" },
+          { label: "Fixed price", value: "from £330.99" },
         ]}
       />
 

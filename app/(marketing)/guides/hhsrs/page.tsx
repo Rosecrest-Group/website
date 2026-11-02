@@ -19,7 +19,7 @@ const HAZARDS = [
   {
     icon: Droplet,
     title: "Damp and mould",
-    text: "The hazard behind most complaints, with the likely cause identified where the evidence allows.",
+    text: "The hazard behind most complaints, with likely causes identified where the findings support them.",
   },
   { icon: Thermometer, title: "Excess cold", text: "Heating, insulation and ventilation assessed together." },
   { icon: TriangleAlert, title: "Falls and safety", text: "Stairs, windows and trip hazards recorded and rated." },
