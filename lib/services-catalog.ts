@@ -108,7 +108,7 @@ export const services: CatalogService[] = [
     audiences: ["landlords", "tenants", "homeowners", "councils", "housing-providers"],
     price: {
       from: 540,
-      note: "From £540 including VAT, subject to the property’s circumstances and the agreed scope of inspection. Treatment is priced separately at £25 per m².",
+      note: "From £540 including VAT, subject to the property’s circumstances and the agreed scope of inspection. Treatment is priced separately at £25 per m² + VAT.",
     },
     intents: [
       "damp in my house",

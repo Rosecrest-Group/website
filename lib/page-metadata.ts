@@ -116,7 +116,7 @@ export const pageMetadata: Record<string, PageMeta> = {
     name: "Damp and mould surveys",
     title: "Damp and Mould Survey London | Inspections, Reports & Treatment",
     description:
-      "Need a damp and mould survey in London? We provide inspections, clear reports and treatment support to identify causes, resolve issues and meet compliance.",
+      "Damp and mould surveys in London: a visual, non-invasive inspection and written report on the likely causes, with recommendations for remedial action.",
   },
   "/services/party-wall": {
     name: "Party wall surveyor",

@@ -1,6 +1,5 @@
 import {
   BadgeCheck,
-  Clock,
   Droplets,
   FileText,
   MessageSquareWarning,
@@ -240,7 +239,7 @@ export default function DampMouldPage() {
 
       <NavyBand
         title="Need help quickly?"
-        text="Speak to our expert team to discuss your requirements or book your inspection today."
+        text="Speak to our expert team to discuss your requirements or book your inspection."
         actions={
           <>
             <ButtonLink href="#callback" variant="light">
@@ -251,7 +250,7 @@ export default function DampMouldPage() {
         }
         pills={[
           { icon: BadgeCheck, label: "RICS Regulated" },
-          { icon: Clock, label: "24h Response" },
+          { icon: FileText, label: "Quotation before booking" },
           { icon: Scale, label: "Independent" },
         ]}
       />

@@ -73,7 +73,7 @@ const routeFAQs: Record<string, FAQItem[]> = {
     {
       question: "Does Awaab’s Law apply to private landlords?",
       answer:
-        "Not yet. It applies to councils and housing associations. A consultation on extending it to private rented tenancies runs until 18 December 2026. Your existing duties on repair, fitness for habitation and HHSRS already apply.",
+        "No. As at November 2026, it applies to councils and housing associations. A consultation on extending it to private rented tenancies runs until 18 December 2026. Your existing duties on repair, fitness for habitation and HHSRS already apply.",
     },
     {
       question: "What is an HHSRS assessment?",
@@ -93,7 +93,7 @@ const routeFAQs: Record<string, FAQItem[]> = {
     {
       question: "Can you treat mould and arrange repairs as well as report?",
       answer:
-        "Yes. Mould treatment is £25 per m² (work out your cost), and remedial work can be arranged through our trusted trade network. If we’re instructed as an expert witness on a property, we don’t quote for or carry out repairs or mould treatment on it as part of, or alongside, that instruction.",
+        "Yes. Mould treatment is £25 per m² + VAT (work out your cost), and remedial work can be arranged through our trusted trade network. If we’re instructed as an expert witness on a property, we don’t quote for or carry out repairs or mould treatment on it as part of, or alongside, that instruction.",
     },
   ],
 

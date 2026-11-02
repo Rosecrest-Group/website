@@ -37,7 +37,7 @@ const SERVICES: LandlordService[] = [
     text: "Independent, non-invasive inspections with clear pricing. Suited to tenant complaints and compliance requirements.",
     points: [
       "Damp, Mould and Condensation Survey from £540 incl. VAT, subject to scope",
-      "Mould treatment, a separate service: £25 per m²",
+      "Mould treatment, a separate service: £25 per m² + VAT",
       "Full booking & cost calculator available",
     ],
     primary: { label: "Book Damp & Mould Survey", href: "/services/damp-mould", filled: true },
@@ -82,7 +82,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "Does Awaab’s Law apply to private landlords?",
-    a: "Not yet. It applies to councils and housing associations. A consultation on extending it to private rented tenancies runs until 18 December 2026. Your existing duties on repair, fitness for habitation and HHSRS already apply.",
+    a: "No. As at November 2026, it applies to councils and housing associations. A consultation on extending it to private rented tenancies runs until 18 December 2026. Your existing duties on repair, fitness for habitation and HHSRS already apply.",
   },
   {
     q: "What is an HHSRS assessment?",
@@ -117,7 +117,7 @@ const FAQS: FaqItem[] = [
     q: "Can you treat mould and arrange repairs as well as report?",
     a: (
       <p>
-        Yes. Mould treatment is £25 per m²{" "}
+        Yes. Mould treatment is £25 per m² + VAT{" "}
         <TextLink href="/services/damp-mould#treatment">(work out your cost)</TextLink>, and remedial work can be
         arranged through our trusted trade network. If we’re instructed as an expert witness on a property, we don’t
         quote for or carry out repairs or mould treatment on it as part of, or alongside, that instruction.
@@ -236,7 +236,7 @@ export default function LandlordPage() {
           <Eyebrow>Questions</Eyebrow>
           <h2 className="text-[30px] font-extrabold leading-[1.08] md:text-[40px]">What landlords ask us</h2>
         </div>
-        <TintNote title="Awaab’s Law: where landlords stand today">
+        <TintNote title="Awaab’s Law: where landlords stand, as at November 2026">
           <p>
             Awaab’s Law applies to social landlords only: councils and housing associations. On 9 October 2026 the
             government opened a consultation on extending it to private rented tenancies. It closes on 18 December

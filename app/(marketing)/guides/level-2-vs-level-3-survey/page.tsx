@@ -439,7 +439,7 @@ export default function LevelTwoVsThreeGuide() {
                     <Link href="/services/damp-mould" className="font-bold text-teal no-underline hover:text-teal-dark">
                       damp and mould survey
                     </Link>{" "}
-                    that assesses the likely cause, where the evidence supports it, before any treatment is quoted. Ours starts from £540 including VAT.
+                    that assesses the likely cause, where the evidence supports it, before any treatment is quoted. Ours starts from £540 including VAT, subject to the property’s circumstances and the agreed scope of inspection.
                   </>,
                 ],
                 ["Cracking or movement", "An appropriately qualified structural engineer, to judge whether movement is historic or ongoing. Structural engineering fees vary depending on the nature of the concern, the investigation required and whether a written report is needed, so obtain a quotation first"],

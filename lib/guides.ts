@@ -247,7 +247,7 @@ export const guides: Guide[] = [
           "Photographs, findings and clear recommendations for remedial action",
           "Treated areas, priced by the size of the affected area",
         ],
-        ["Rosecrest price", "From £540 including VAT, subject to scope", "£25 per m², quoted after the survey"],
+        ["Rosecrest price", "From £540 including VAT, subject to scope", "£25 per m² + VAT, quoted after the survey"],
         [
           "When to use it",
           "First, whenever the cause isn't certain or a tenant has raised a complaint",
@@ -293,7 +293,7 @@ export const guides: Guide[] = [
       {
         question: "How much does a damp and mould inspection cost?",
         answer:
-          "Our Damp, Mould and Condensation Survey starts from £540 including VAT, subject to the property’s circumstances and the agreed scope of inspection. Mould treatment is priced separately at £25 per m² of affected area.",
+          "Our Damp, Mould and Condensation Survey starts from £540 including VAT, subject to the property’s circumstances and the agreed scope of inspection. Mould treatment is priced separately at £25 per m² of affected area + VAT.",
       },
       {
         question: "Can you carry out the treatment as well as the report?",

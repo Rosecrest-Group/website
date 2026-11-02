@@ -121,7 +121,7 @@ export default function Home() {
       {/* The selector: identify the visitor first, then route them to their own page */}
       <Section id="help" className="md:py-[72px]" innerClassName="gap-8">
         <div className="flex max-w-[760px] flex-col gap-2.5">
-          <h2 className="text-[30px] font-extrabold leading-[1.1] md:text-[40px]">What do you need help with today?</h2>
+          <h2 className="text-[30px] font-extrabold leading-[1.1] md:text-[40px]">What do you need help with?</h2>
           <p className="text-lg text-body">
             Select the option that best describes you and we’ll guide you to the right service.
           </p>
