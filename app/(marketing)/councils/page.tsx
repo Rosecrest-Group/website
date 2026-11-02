@@ -54,21 +54,9 @@ const CASE_STUDIES = [
       ["Key Outcome", "Resolution of disrepair complaints and 99.9% tenant satisfaction"],
     ],
   },
-  {
-    title: "Independent Stock Condition Survey Supporting 30-Year Asset Management Strategy",
-    rows: [
-      ["Client", "District Council Housing Services"],
-      ["Properties", "1,200 council-owned residential properties"],
-      [
-        "Services Provided",
-        "Comprehensive stock condition surveys, energy efficiency assessments, costed repair schedules",
-      ],
-      [
-        "Key Outcome",
-        "Evidence-based 30-year investment plan aligned with Decent Homes Standards and net-zero targets",
-      ],
-    ],
-  },
+  // The district council stock condition case study (1,200 council-owned homes) was removed
+  // in November 2026: Rosecrest has not verified it. Reinstate only once Venesha confirms the
+  // project and the client's permission to publish it.
   {
     title: "Fire Safety & Building Compliance Review Across High-Rise Portfolio",
     rows: [

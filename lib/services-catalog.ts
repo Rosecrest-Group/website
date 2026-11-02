@@ -103,7 +103,7 @@ export const services: CatalogService[] = [
     name: "Damp, mould and condensation inspection",
     category: "survey",
     summary:
-      "Independent, non-invasive inspection of damp, mould and condensation that records visible conditions and potential contributing factors, identifies likely causes where the findings support them, and recommends next steps, with photographs and a written report. Mould treatment is also available.",
+      "Independent, non-invasive inspection of damp, mould and condensation that records visible conditions and potential contributing factors, identifies likely causes where the findings support them, and recommends next steps, with photographs and a written report. Mould treatment is a separate service, quoted separately.",
     serviceType: "Damp and mould survey",
     audiences: ["landlords", "tenants", "homeowners", "councils", "housing-providers"],
     price: {

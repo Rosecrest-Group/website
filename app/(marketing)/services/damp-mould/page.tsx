@@ -56,7 +56,7 @@ const NEEDS = [
     title: "Independent Reports",
     text: "Clear documentation for legal, insurance or dispute resolution purposes.",
   },
-  { icon: Search, title: "Remedial Scoping", text: "Assessment to plan and scope appropriate treatment works." },
+  { icon: Search, title: "Remedial Scoping", text: "Recommendations to help plan appropriate remedial action." },
 ];
 
 const FAQS: FaqItem[] = [
@@ -176,11 +176,16 @@ export default function DampMouldPage() {
       <Section tone="mist">
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16">
           <div className="flex flex-col gap-[18px]">
-            <Eyebrow>Mould survey at a fixed price</Eyebrow>
-            <h2 className="text-[30px] font-extrabold leading-[1.08] md:text-[40px]">Fixed-Price Damp &amp; Mould Survey</h2>
+            <Eyebrow>Damp and mould survey pricing</Eyebrow>
+            <h2 className="text-[30px] font-extrabold leading-[1.08] md:text-[40px]">
+              Damp, Mould &amp; Condensation Survey
+            </h2>
             <p className="text-lg text-body">
-              Our comprehensive inspection provides clear documentation of observed conditions and contributing
-              factors.
+              Our Damp, Mould and Condensation Survey involves a visual, non-invasive inspection of accessible areas,
+              supported by photographs and relevant moisture readings where appropriate. The written report assesses
+              the likely causes of the damp or mould, identifies relevant visible defects and provides recommendations
+              for remedial action. Where the evidence is insufficient to establish the cause, the report will explain
+              any limitations and recommend further specialist or intrusive investigation where necessary.
             </p>
             <CheckList
               className="gap-3.5"
@@ -194,8 +199,7 @@ export default function DampMouldPage() {
             />
             <p className="text-sm text-muted-ink">
               Where appropriate and available, thermal imaging and indicative moisture readings support the findings.
-              Readings don’t prove a cause on their own. The report identifies likely causes where supported by the
-              findings and recommends further investigation where necessary.
+              Readings don’t prove a cause on their own.
             </p>
           </div>
           <PriceCard

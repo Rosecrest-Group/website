@@ -239,7 +239,7 @@ export const guides: Guide[] = [
       rows: [
         [
           "What it does",
-          "Finds the type of damp, where it comes from and what's contributing to it",
+          "Assesses the likely causes of the damp or mould and identifies relevant visible defects",
           "Treats mould and the affected surfaces",
         ],
         [
@@ -268,8 +268,7 @@ export const guides: Guide[] = [
       {
         heading: "What a damp and mould inspection covers",
         paragraphs: [
-          "Our surveyors inspect the accessible affected areas, record visible damp and mould conditions and look for evidence of potential contributing factors, such as ventilation or building defects. Thermal imaging and indicative moisture readings are used where appropriate and available. The report identifies likely causes where supported by the findings and recommends further investigation where necessary.",
-          "The report includes photographs and clear recommendations for remedial action.",
+          "Our Damp, Mould and Condensation Survey involves a visual, non-invasive inspection of accessible areas, supported by photographs and relevant moisture readings where appropriate. The written report assesses the likely causes of the damp or mould, identifies relevant visible defects and provides recommendations for remedial action. Where the evidence is insufficient to establish the cause, the report will explain any limitations and recommend further specialist or intrusive investigation where necessary.",
         ],
       },
       {

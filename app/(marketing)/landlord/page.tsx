@@ -37,7 +37,7 @@ const SERVICES: LandlordService[] = [
     text: "Independent, non-invasive inspections with clear pricing. Suited to tenant complaints and compliance requirements.",
     points: [
       "Damp, Mould and Condensation Survey from £540 incl. VAT, subject to scope",
-      "Treatment: £25 per m² transparent pricing",
+      "Mould treatment, a separate service: £25 per m²",
       "Full booking & cost calculator available",
     ],
     primary: { label: "Book Damp & Mould Survey", href: "/services/damp-mould", filled: true },

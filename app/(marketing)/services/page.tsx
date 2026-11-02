@@ -44,7 +44,7 @@ const SURVEY_SERVICES: ServiceCardData[] = [
     href: "/services/damp-mould",
     icon: Droplet,
     title: "Damp, Mould and Condensation Survey",
-    text: "Visual, non-invasive inspection and a written report on observed conditions and potential contributing factors, with mould treatment where appropriate.",
+    text: "Visual, non-invasive inspection of accessible areas and a written report assessing the likely causes, with recommendations for remedial action.",
     price: "from £540 incl. VAT",
   },
   {

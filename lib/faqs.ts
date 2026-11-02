@@ -341,7 +341,7 @@ const routeFAQs: Record<string, FAQItem[]> = {
     {
       question: "Is a thermal imaging survey the same as a damp survey?",
       answer:
-        "Not quite. Thermal imaging can show surface-temperature patterns associated with moisture, but it does not confirm a cause on its own. If you are dealing with damp or mould, our Damp, Mould and Condensation Survey combines thermal imaging with moisture readings and a written report on the likely cause.",
+        "Not quite. Thermal imaging can show surface-temperature patterns associated with moisture, but it does not confirm a cause on its own. If you are dealing with damp or mould, our Damp, Mould and Condensation Survey is a visual, non-invasive inspection with thermal imaging and indicative moisture readings where appropriate and available, and a written report that identifies likely causes where supported by the findings.",
     },
   ],
 };
