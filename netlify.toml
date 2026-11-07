@@ -2,5 +2,8 @@
   command = "next build --webpack"
   publish = ".next"
 
+[context.staging.environment]
+  NEXT_PUBLIC_REVIEW_COMMENTS = "1"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"

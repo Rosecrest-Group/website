@@ -4,6 +4,13 @@ import AttributionTracker from "@/components/analytics/AttributionTracker";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
 import { siteFontClass } from "@/lib/fonts";
+import dynamic from "next/dynamic";
+
+// Set for the staging branch in netlify.toml. Without it the build leaves this code out.
+const ReviewComments =
+  process.env.NEXT_PUBLIC_REVIEW_COMMENTS === "1"
+    ? dynamic(() => import("@/components/review/ReviewComments"))
+    : null;
 
 export default function MarketingSiteChrome({
   children,
@@ -11,7 +18,7 @@ export default function MarketingSiteChrome({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`${siteFontClass} flex min-h-screen flex-col bg-white`}>
+    <div data-review-root className={`${siteFontClass} flex min-h-screen flex-col bg-white`}>
       <GoogleTagManagerRoot />
       <AttributionTracker />
       <noscript>
@@ -26,6 +33,7 @@ export default function MarketingSiteChrome({
       <main className="grow">{children}</main>
       <SiteFooter />
       <EnquiryModal />
+      {ReviewComments ? <ReviewComments /> : null}
     </div>
   );
 }

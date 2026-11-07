@@ -7,6 +7,11 @@ const localModules = path.join(projectRoot, "node_modules");
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: projectRoot,
+  // An unset NEXT_PUBLIC_ variable isn't inlined, which would keep the review tool in every
+  // production page. Giving it a value lets the build remove the code.
+  env: {
+    NEXT_PUBLIC_REVIEW_COMMENTS: process.env.NEXT_PUBLIC_REVIEW_COMMENTS ?? "",
+  },
   // Same-origin `/api/v1` rewrites buffer the body. Match the API's 50 MB document cap
   // so a report is not rejected here before it reaches storage.
   experimental: {

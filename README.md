@@ -126,6 +126,10 @@ npm run dev
 
 Rollback: Netlify and Railway both keep deploy history — publish / roll back to a previous build from the dashboard.
 
+### Copy review comments
+
+On staging, anyone signed in to the CRM can select text on a marketing page to comment on it, and reply to or resolve other reviewers' comments. `NEXT_PUBLIC_REVIEW_COMMENTS=1` in `netlify.toml` switches this on for the `staging` branch only, so production builds leave the code out. Comments are stored in the API's `review_comments` table.
+
 ## Further reading
 
 - [`docs/Rosecrest-Website-Documentation.md`](docs/Rosecrest-Website-Documentation.md) — hosting, Sanity, DNS, Netlify env vars
