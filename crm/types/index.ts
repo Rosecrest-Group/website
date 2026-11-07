@@ -767,42 +767,14 @@ export interface Message {
   failedAt?: string | null;
   toAddress?: string;
   fromAddress?: string;
-  teamConnectPhoneDocId?: string | null;
-  teamConnectMessageId?: string | null;
   replyToMessageId?: string | null;
   author?: { id: string; fullName: string } | null;
 }
 
-export interface TeamConnectNumber {
-  phoneDocId: string;
-  label: string;
-  voiceNumber: string;
-  smsNumber: string | null;
-  smsEnabled: boolean;
-  status: string;
-}
-
-export interface TeamConnectCallResult {
-  success: boolean;
-  callId: string;
-  callSid: string;
-  status: string;
-  phoneDocId: string;
-  from: string;
-  to: string;
-  agentPhone: string;
-  availableMinutesBefore?: number;
-  callLogId?: string;
-}
-
-export interface TeamConnectSmsSendResult {
-  success: boolean;
-  messageId: string;
-  status: string;
-  from: string;
-  to: string;
-  phoneDocId: string;
-  segmentsUsed: number;
+export interface SmsConfig {
+  enabled: boolean;
+  fromNumber: string | null;
+  repliesWebhookConfigured: boolean;
 }
 
 export interface CadenceRunInfo {

@@ -13,16 +13,12 @@ import {
 import { api } from "@/crm/lib/api";
 import type { CallContext } from "@/crm/lib/callContext";
 import { dialViaDialpadIframe, normalizeDialNumber } from "@/crm/lib/dialpadCti";
-import type { TeamConnectNumber } from "@/crm/types";
 
 type PhoneContextValue = {
-  teamConnectEnabled: boolean;
-  teamConnectNumbers: TeamConnectNumber[];
+  smsEnabled: boolean;
+  smsFromNumber: string | null;
   userPhone: string | null;
-  selectedPhoneDocId: string | null;
-  setSelectedPhoneDocId: (phoneDocId: string | null) => void;
   refreshPhoneSettings: () => Promise<void>;
-  refreshTeamConnectNumbers: () => Promise<void>;
   dialpadConfigured: boolean;
   dialpadEnabled: boolean;
   dialpadIframeUrl: string | null;
@@ -33,13 +29,10 @@ type PhoneContextValue = {
 };
 
 const PhoneContext = createContext<PhoneContextValue>({
-  teamConnectEnabled: false,
-  teamConnectNumbers: [],
+  smsEnabled: false,
+  smsFromNumber: null,
   userPhone: null,
-  selectedPhoneDocId: null,
-  setSelectedPhoneDocId: () => {},
   refreshPhoneSettings: async () => {},
-  refreshTeamConnectNumbers: async () => {},
   dialpadConfigured: false,
   dialpadEnabled: false,
   dialpadIframeUrl: null,
@@ -60,10 +53,9 @@ export function PhoneProvider({
   children: ReactNode;
   initialUser?: { phone?: string | null } | null;
 }) {
-  const [teamConnectEnabled, setTeamConnectEnabled] = useState(false);
-  const [teamConnectNumbers, setTeamConnectNumbers] = useState<TeamConnectNumber[]>([]);
+  const [smsEnabled, setSmsEnabled] = useState(false);
+  const [smsFromNumber, setSmsFromNumber] = useState<string | null>(null);
   const [userPhone, setUserPhone] = useState<string | null>(initialUser?.phone ?? null);
-  const [selectedPhoneDocId, setSelectedPhoneDocId] = useState<string | null>(null);
   const [dialpadConfigured, setDialpadConfigured] = useState(false);
   const [dialpadEnabled, setDialpadEnabled] = useState(false);
   const [dialpadIframeUrl, setDialpadIframeUrl] = useState<string | null>(null);
@@ -71,19 +63,14 @@ export function PhoneProvider({
   const [dialpadSidebarOpen, setDialpadSidebarOpen] = useState(false);
   const iframeRef = useRef<RefObject<HTMLIFrameElement | null> | null>(null);
 
-  const refreshTeamConnectNumbers = useCallback(async () => {
+  const refreshSmsConfig = useCallback(async () => {
     try {
-      const result = await api.listTeamConnectNumbers();
-      setTeamConnectEnabled(result.enabled);
-      setTeamConnectNumbers(result.numbers);
-      setSelectedPhoneDocId((current) => {
-        if (current && result.numbers.some((n) => n.phoneDocId === current)) return current;
-        return result.defaultPhoneDocId;
-      });
+      const config = await api.getSmsConfig();
+      setSmsEnabled(config.enabled);
+      setSmsFromNumber(config.fromNumber);
     } catch {
-      setTeamConnectEnabled(false);
-      setTeamConnectNumbers([]);
-      setSelectedPhoneDocId(null);
+      setSmsEnabled(false);
+      setSmsFromNumber(null);
     }
   }, []);
 
@@ -107,8 +94,8 @@ export function PhoneProvider({
     } catch {
       setUserPhone(null);
     }
-    await Promise.all([refreshTeamConnectNumbers(), refreshDialpadConfig()]);
-  }, [refreshTeamConnectNumbers, refreshDialpadConfig]);
+    await Promise.all([refreshSmsConfig(), refreshDialpadConfig()]);
+  }, [refreshSmsConfig, refreshDialpadConfig]);
 
   useEffect(() => {
     // Defer phone/telephony boot so first page data isn't competing for bandwidth.
@@ -148,13 +135,10 @@ export function PhoneProvider({
   return (
     <PhoneContext.Provider
       value={{
-        teamConnectEnabled,
-        teamConnectNumbers,
+        smsEnabled,
+        smsFromNumber,
         userPhone,
-        selectedPhoneDocId,
-        setSelectedPhoneDocId,
         refreshPhoneSettings,
-        refreshTeamConnectNumbers,
         dialpadConfigured,
         dialpadEnabled,
         dialpadIframeUrl,

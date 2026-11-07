@@ -67,7 +67,6 @@ import { scrollChatContainerToBottom } from "@/crm/lib/scrollChatThread";
 import { parseTrailingMediaUrls } from "@/crm/lib/messageMediaAttachments";
 import { cadenceStopTooltip } from "@/crm/lib/cadenceStopReason";
 import { callDirectionLabel, resolveCallDirection } from "@/crm/lib/callDisplay";
-import SelectField from "@/crm/components/ui/SelectField";
 import { usePhone } from "@/crm/lib/phoneContext";
 import { refreshInboxUnreadCount } from "@/crm/lib/useInboxUnreadCount";
 import {
@@ -1251,8 +1250,7 @@ export default function LeadMessageThread({
   const [error, setError] = useState("");
   const [composeCollapsed, setComposeCollapsed] = useState(true);
   const [composeExpanded, setComposeExpanded] = useState(false);
-  const { teamConnectEnabled, teamConnectNumbers, selectedPhoneDocId, setSelectedPhoneDocId, dialpadEnabled } =
-    usePhone();
+  const { smsEnabled, smsFromNumber, dialpadEnabled } = usePhone();
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasScrolledToBottomRef = useRef(false);
   const composeRef = useRef<MessageRichComposeHandle>(null);
@@ -1434,22 +1432,15 @@ export default function LeadMessageThread({
         if (!cancelled) setLoading(false);
       }
 
-      if ((!teamConnectEnabled && !dialpadEnabled) || cancelled) return;
+      if (!dialpadEnabled || cancelled) return;
 
       // Defer provider sync so first paint isn't blocked.
       await new Promise((resolve) => window.setTimeout(resolve, 1500));
       if (cancelled) return;
 
       try {
-        const [sms, calls] = await Promise.all([
-          teamConnectEnabled
-            ? api.syncLeadSmsFromTeamConnect(leadId).catch(() => ({ synced: 0 }))
-            : Promise.resolve({ synced: 0 }),
-          dialpadEnabled
-            ? api.syncLeadCallsFromDialpad(leadId).catch(() => ({ synced: 0 }))
-            : Promise.resolve({ synced: 0 }),
-        ]);
-        if (cancelled || (!sms.synced && !calls.synced)) return;
+        const calls = await api.syncLeadCallsFromDialpad(leadId).catch(() => ({ synced: 0 }));
+        if (cancelled || !calls.synced) return;
         const take = Math.max(
           MESSAGE_PAGE_SIZE,
           getCachedLeadThread(leadId)?.messages.length ?? 0
@@ -1480,7 +1471,7 @@ export default function LeadMessageThread({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when lead / messaging providers change
-  }, [leadId, teamConnectEnabled, dialpadEnabled, revalidateSeed, hostedThread]);
+  }, [leadId, dialpadEnabled, revalidateSeed, hostedThread]);
 
   useEffect(() => {
     if (!hostedThread) return;
@@ -1592,9 +1583,6 @@ export default function LeadMessageThread({
     const silent = opts?.silent ?? false;
     if (!silent) setLoading(true);
     try {
-      const smsPromise = teamConnectEnabled
-        ? api.syncLeadSmsFromTeamConnect(leadId).catch(() => undefined)
-        : Promise.resolve(undefined);
       const callsPromise = dialpadEnabled
         ? api.syncLeadCallsFromDialpad(leadId).catch(() => undefined)
         : Promise.resolve(undefined);
@@ -1608,8 +1596,8 @@ export default function LeadMessageThread({
       });
       if (!silent) setLoading(false);
 
-      const [sms, calls] = await Promise.all([smsPromise, callsPromise]);
-      if (sms?.synced || calls?.synced) {
+      const calls = await callsPromise;
+      if (calls?.synced) {
         const thread = await fetchLeadThreadPage(leadId, take);
         applyMessagePage(thread.pageResult, "replace", {
           notes: thread.notes,
@@ -1624,14 +1612,14 @@ export default function LeadMessageThread({
 
   useEffect(() => {
     if (hostedThread) return;
-    if (!teamConnectEnabled && !dialpadEnabled) return;
+    if (!smsEnabled && !dialpadEnabled) return;
     const tick = () => {
       if (document.visibilityState !== "visible") return;
       void refreshMessages({ silent: true });
     };
     const timer = window.setInterval(tick, 60_000);
     return () => window.clearInterval(timer);
-  }, [leadId, teamConnectEnabled, dialpadEnabled, hostedThread]);
+  }, [leadId, smsEnabled, dialpadEnabled, hostedThread]);
 
   const composePlaceholder =
     channel === "EMAIL"
@@ -1666,9 +1654,7 @@ export default function LeadMessageThread({
     </>
   );
 
-  const smsNumbers = teamConnectNumbers.filter((n) => n.smsEnabled && n.status === "active");
-  const showSmsNumberSelector =
-    channel === "SMS" && teamConnectEnabled && smsNumbers.length > 0;
+  const showSmsFromNumber = channel === "SMS" && smsEnabled && Boolean(smsFromNumber);
 
   async function handleSend() {
     const emailPayload = channel === "EMAIL" ? getEmailPayload(htmlBody) : null;
@@ -1707,10 +1693,6 @@ export default function LeadMessageThread({
         ...(sendFields.toAddress ? { toAddress: sendFields.toAddress } : {}),
         ...(sendFields.ccAddresses ? { ccAddresses: sendFields.ccAddresses } : {}),
         replyToMessageId: targetMessage?.id,
-        teamConnectPhoneDocId:
-          channel === "SMS" && teamConnectEnabled
-            ? selectedPhoneDocId ?? smsNumbers[0]?.phoneDocId
-            : undefined,
       };
       if (hostedThread && onHostedSend) {
         await onHostedSend(payload);
@@ -1943,22 +1925,8 @@ export default function LeadMessageThread({
               </div>
             )}
 
-            {showSmsNumberSelector && !composeExpanded && (
-              <div className="mb-3">
-                <SelectField
-                  id="lead-message-sms-number"
-                  label={smsNumbers.length > 1 ? "Send from" : "Sending from"}
-                  value={selectedPhoneDocId ?? smsNumbers[0]?.phoneDocId ?? ""}
-                  onChange={(e) => setSelectedPhoneDocId(e.target.value || null)}
-                  disabled={smsNumbers.length <= 1}
-                >
-                  {smsNumbers.map((n) => (
-                    <option key={n.phoneDocId} value={n.phoneDocId}>
-                      {n.label} ({n.smsNumber ?? n.voiceNumber})
-                    </option>
-                  ))}
-                </SelectField>
-              </div>
+            {showSmsFromNumber && !composeExpanded && (
+              <p className="mb-3 text-xs text-(--color-tc-30)">Sending from {smsFromNumber}</p>
             )}
 
             <div className={composeExpanded ? "hidden" : undefined}>
@@ -2042,20 +2010,8 @@ export default function LeadMessageThread({
               />
             </div>
           )}
-          {showSmsNumberSelector && (
-            <SelectField
-              id="lead-message-sms-number-expanded"
-              label={smsNumbers.length > 1 ? "Send from" : "Sending from"}
-              value={selectedPhoneDocId ?? smsNumbers[0]?.phoneDocId ?? ""}
-              onChange={(e) => setSelectedPhoneDocId(e.target.value || null)}
-              disabled={smsNumbers.length <= 1}
-            >
-              {smsNumbers.map((n) => (
-                <option key={n.phoneDocId} value={n.phoneDocId}>
-                  {n.label} ({n.smsNumber ?? n.voiceNumber})
-                </option>
-              ))}
-            </SelectField>
+          {showSmsFromNumber && (
+            <p className="text-xs text-(--color-tc-30)">Sending from {smsFromNumber}</p>
           )}
           <MessageRichCompose
             ref={expandedComposeRef}

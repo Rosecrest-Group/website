@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/crm/lib/api";
-import type { AdminUserSummary, TeamConnectNumber, WebhookEventSummary } from "@/crm/types";
+import type { AdminUserSummary, SmsConfig, WebhookEventSummary } from "@/crm/types";
 import { toast } from "sonner";
 import CrmPageContent from "@/crm/components/layout/CrmPageContent";
 import CrmPageHeader from "@/crm/components/layout/CrmPageHeader";
@@ -36,9 +36,8 @@ export default function IntegrationsAdmin() {
   const [selected, setSelected] = useState<WebhookEventSummary | null>(null);
   const [replayResult, setReplayResult] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [teamConnectEnabled, setTeamConnectEnabled] = useState(false);
-  const [teamConnectNumbers, setTeamConnectNumbers] = useState<TeamConnectNumber[]>([]);
-  const [teamConnectLoading, setTeamConnectLoading] = useState(true);
+  const [smsConfig, setSmsConfig] = useState<SmsConfig | null>(null);
+  const [smsLoading, setSmsLoading] = useState(true);
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [dialpadStatus, setDialpadStatus] = useState<Awaited<
@@ -65,23 +64,19 @@ export default function IntegrationsAdmin() {
         setUsers(userList.items);
       })
       .catch(() => toast.error("Failed to load Dialpad settings"))
-      .finally(() => setDialpadLoading(false));
-  }
-
-  function loadTeamConnect() {
-    setTeamConnectLoading(true);
-    setUsersLoading(true);
-    Promise.all([api.listTeamConnectNumbers(), api.listAdminUsers()])
-      .then(([tc, userList]) => {
-        setTeamConnectEnabled(tc.enabled);
-        setTeamConnectNumbers(tc.numbers);
-        setUsers(userList.items);
-      })
-      .catch(() => toast.error("Failed to load Team Connect settings"))
       .finally(() => {
-        setTeamConnectLoading(false);
+        setDialpadLoading(false);
         setUsersLoading(false);
       });
+  }
+
+  function loadSmsConfig() {
+    setSmsLoading(true);
+    api
+      .getSmsConfig()
+      .then(setSmsConfig)
+      .catch(() => toast.error("Failed to load SMS settings"))
+      .finally(() => setSmsLoading(false));
   }
 
   useEffect(() => {
@@ -89,7 +84,7 @@ export default function IntegrationsAdmin() {
   }, [provider]);
 
   useEffect(() => {
-    loadTeamConnect();
+    loadSmsConfig();
     loadDialpad();
   }, []);
 
@@ -127,35 +122,6 @@ export default function IntegrationsAdmin() {
     load();
   }
 
-  const usersWithAgentPhone = users.filter((u) => u.phone?.trim()).length;
-
-  const legacyUserColumns: Column<AdminUserSummary & Record<string, unknown>>[] = [
-    {
-      key: "fullName",
-      header: "User",
-      render: (_, row) => (
-        <div>
-          <p className="font-medium text-(--color-tc-40)">{row.fullName}</p>
-          <p className="text-xs text-(--color-tc-30)">{row.email}</p>
-        </div>
-      ),
-    },
-    {
-      key: "role",
-      header: "Role",
-      render: (value) => <span className="text-xs text-(--color-tc-30)">{value as string}</span>,
-    },
-    {
-      key: "phone",
-      header: "Agent phone",
-      render: (value) =>
-        value ? (
-          <span className="font-mono text-xs text-(--color-tc-40)">{value as string}</span>
-        ) : (
-          <span className="text-xs text-(--color-tc-30)">Not set</span>
-        ),
-    },
-  ];
 
   const dialpadUserColumns: Column<AdminUserSummary & Record<string, unknown>>[] = [
     {
@@ -202,31 +168,6 @@ export default function IntegrationsAdmin() {
     },
   ];
 
-  const numberColumns: Column<TeamConnectNumber & Record<string, unknown>>[] = [
-    {
-      key: "label",
-      header: "Label",
-      render: (value) => <span className="text-sm text-(--color-tc-40)">{value as string}</span>,
-    },
-    {
-      key: "voiceNumber",
-      header: "Voice",
-      render: (value) => <span className="font-mono text-xs">{value as string}</span>,
-    },
-    {
-      key: "smsNumber",
-      header: "SMS",
-      render: (value) => (
-        <span className="font-mono text-xs">{(value as string | null) ?? "—"}</span>
-      ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (value) => <StatusPill variant="completed" label={value as string} />,
-    },
-  ];
-
   const eventColumns: Column<WebhookEventSummary & Record<string, unknown>>[] = [
     {
       key: "provider",
@@ -267,7 +208,7 @@ export default function IntegrationsAdmin() {
     <CrmPageContent>
       <CrmPageHeader
         title="Integrations"
-        subtitle="Dialpad calling, Team Connect SMS, webhooks, and replay (admin)"
+        subtitle="Dialpad calling, Zernio SMS, webhooks, and replay (admin)"
         actions={
           <>
             <SecondaryButton
@@ -358,56 +299,29 @@ export default function IntegrationsAdmin() {
         </div>
       </CrmPanel>
 
-      <CrmPanel title="Team Connect (SMS)">
+      <CrmPanel title="SMS (Zernio)">
         <div className="space-y-4">
-          {teamConnectLoading ? (
+          {smsLoading ? (
             <LoadingSpinner />
           ) : (
             <>
               <div className="flex flex-wrap gap-2">
-                <StatusBadge ok={teamConnectEnabled} label="API key configured" />
-                <StatusPill
-                  variant="pending"
-                  label={`${teamConnectNumbers.length} business number${teamConnectNumbers.length === 1 ? "" : "s"}`}
+                <StatusBadge ok={Boolean(smsConfig?.enabled)} label="API key configured" />
+                <StatusBadge
+                  ok={Boolean(smsConfig?.repliesWebhookConfigured)}
+                  label="Replies webhook configured"
                 />
-                <StatusPill
-                  variant={usersWithAgentPhone === users.length ? "completed" : "in-review"}
-                  label={`${usersWithAgentPhone}/${users.length} users with agent phone`}
-                />
+                {smsConfig?.fromNumber ? (
+                  <StatusPill variant="pending" label={`Sending from ${smsConfig.fromNumber}`} />
+                ) : null}
               </div>
 
               <div className="rounded-lg bg-(--color-nc-10) p-3 text-sm text-(--color-tc-30)">
-                <p className="font-medium text-(--color-tc-40)">SMS via Team Connect</p>
+                <p className="font-medium text-(--color-tc-40)">SMS via Zernio</p>
                 <p className="mt-2 text-xs leading-relaxed">
-                  Outbound SMS and inbound sync use Team Connect business numbers. Voice calls use
+                  Texts send from the number above and replies land on the lead. Voice calls use
                   Dialpad above.
                 </p>
-              </div>
-
-              {teamConnectNumbers.length > 0 ? (
-                <Table
-                  columns={numberColumns}
-                  data={teamConnectNumbers as (TeamConnectNumber & Record<string, unknown>)[]}
-                  getRowKey={(r) => r.phoneDocId}
-                />
-              ) : (
-                <p className="text-sm text-(--color-tc-30)">No Team Connect numbers on this account.</p>
-              )}
-
-              <div className="border-t border-(--color-tc-20) pt-4">
-                <p className="mb-1 text-sm font-medium text-(--color-tc-40)">Agent phones</p>
-                <p className="mb-3 text-xs text-(--color-tc-30)">
-                  Users set their own agent phone in Settings → Profile.
-                </p>
-                {usersLoading ? (
-                  <LoadingSpinner />
-                ) : (
-                  <Table
-                    columns={legacyUserColumns}
-                    data={users as (AdminUserSummary & Record<string, unknown>)[]}
-                    getRowKey={(r) => r.id}
-                  />
-                )}
               </div>
             </>
           )}
