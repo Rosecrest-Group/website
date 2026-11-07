@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import CommentBox from "./CommentBox";
-import type { ReviewThread } from "./reviewApi";
+import type { ReviewThread, ReviewUser } from "./reviewApi";
 
 const COLLAPSED_CHARS = 420;
 
@@ -32,23 +32,87 @@ function CommentText({ author, createdAt, body }: { author: string; createdAt: s
   );
 }
 
+/** Asks in place first, because a deleted comment can't be brought back. */
+function DeleteControl({ question, onDelete }: { question: string; onDelete: () => Promise<void> }) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="text-sm text-red-700 hover:underline"
+      >
+        Delete
+      </button>
+    );
+  }
+
+  return (
+    <div role="group" aria-label="Confirm delete" className="w-full rounded bg-red-50 px-2 py-1.5 text-sm">
+      <p className="text-red-900">{failed ? "That didn't work. Try again?" : question}</p>
+      <div className="mt-1 flex gap-3">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true);
+            setFailed(false);
+            onDelete().catch(() => {
+              setBusy(false);
+              setFailed(true);
+            });
+          }}
+          className="font-medium text-red-700 hover:underline disabled:opacity-50"
+        >
+          {busy ? "Deleting" : "Delete"}
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            setConfirming(false);
+            setFailed(false);
+          }}
+          className="text-neutral-700 hover:underline disabled:opacity-50"
+        >
+          Keep it
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ThreadCard({
   thread,
+  user,
   located,
   active,
   onSelect,
   onReply,
   onToggleResolved,
+  onDelete,
 }: {
   thread: ReviewThread;
+  user: ReviewUser;
   located: boolean;
   active: boolean;
   onSelect: () => void;
   onReply: (body: string) => Promise<void>;
   onToggleResolved: () => Promise<void>;
+  onDelete: (commentId: string) => Promise<void>;
 }) {
   const [replying, setReplying] = useState(false);
   const card = useRef<HTMLElement>(null);
+  const canDelete = (authorId: string) =>
+    authorId === user.id || user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+  const replyCount = thread.replies.length;
+  const deleteQuestion =
+    replyCount === 0
+      ? "Delete this comment?"
+      : `Delete this comment and its ${replyCount === 1 ? "reply" : `${replyCount} replies`}?`;
 
   useEffect(() => {
     if (active) card.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -79,6 +143,11 @@ function ThreadCard({
           {thread.replies.map((reply) => (
             <li key={reply.id}>
               <CommentText author={reply.author.fullName} createdAt={reply.createdAt} body={reply.body} />
+              {canDelete(reply.author.id) ? (
+                <div className="mt-1">
+                  <DeleteControl question="Delete this reply?" onDelete={() => onDelete(reply.id)} />
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -103,7 +172,7 @@ function ThreadCard({
           />
         </div>
       ) : (
-        <div className="mt-2.5 flex gap-3 text-sm">
+        <div className="mt-2.5 flex flex-wrap gap-3 text-sm">
           <button type="button" onClick={() => setReplying(true)} className="font-medium text-navy hover:underline">
             Reply
           </button>
@@ -114,6 +183,9 @@ function ThreadCard({
           >
             {thread.resolvedAt ? "Reopen" : "Resolve"}
           </button>
+          {canDelete(thread.author.id) ? (
+            <DeleteControl question={deleteQuestion} onDelete={() => onDelete(thread.id)} />
+          ) : null}
         </div>
       )}
     </article>
@@ -122,20 +194,24 @@ function ThreadCard({
 
 export default function ReviewPanel({
   threads,
+  user,
   locatedIds,
   activeId,
   onClose,
   onSelect,
   onReply,
   onToggleResolved,
+  onDelete,
 }: {
   threads: ReviewThread[];
+  user: ReviewUser;
   locatedIds: Set<string>;
   activeId: string | null;
   onClose: () => void;
   onSelect: (thread: ReviewThread) => void;
   onReply: (thread: ReviewThread, body: string) => Promise<void>;
   onToggleResolved: (thread: ReviewThread) => Promise<void>;
+  onDelete: (commentId: string) => Promise<void>;
 }) {
   const [showResolved, setShowResolved] = useState(false);
   const open = threads.filter((thread) => !thread.resolvedAt);
@@ -182,11 +258,13 @@ export default function ReviewPanel({
           <ThreadCard
             key={thread.id}
             thread={thread}
+            user={user}
             located={locatedIds.has(thread.id)}
             active={thread.id === activeId}
             onSelect={() => onSelect(thread)}
             onReply={(body) => onReply(thread, body)}
             onToggleResolved={() => onToggleResolved(thread)}
+            onDelete={onDelete}
           />
         ))}
       </div>

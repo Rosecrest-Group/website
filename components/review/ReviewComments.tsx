@@ -10,6 +10,7 @@ import ReviewPanel from "./ReviewPanel";
 import {
   addReply,
   createThread,
+  deleteComment,
   fetchReviewUser,
   fetchThreads,
   setResolved,
@@ -274,6 +275,7 @@ function ReviewLayer({
       {panelOpen && user ? (
         <ReviewPanel
           threads={threads}
+          user={user}
           locatedIds={locatedIds}
           activeId={activeId}
           onClose={() => {
@@ -290,6 +292,15 @@ function ReviewLayer({
           onToggleResolved={async (thread) => {
             replaceThread(await setResolved(thread.id, !thread.resolvedAt));
             setActiveId(null);
+          }}
+          onDelete={async (commentId) => {
+            const { thread: updated } = await deleteComment(commentId);
+            if (updated) {
+              replaceThread(updated);
+            } else {
+              setThreads((current) => current.filter((thread) => thread.id !== commentId));
+              if (activeId === commentId) setActiveId(null);
+            }
           }}
         />
       ) : null}

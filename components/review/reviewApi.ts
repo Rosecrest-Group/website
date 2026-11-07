@@ -4,7 +4,7 @@ const API_BASE = process.env.NEXT_PUBLIC_CRM_API_URL ?? "/api/v1";
 
 export const MAX_COMMENT_WORDS = 1000;
 
-export type ReviewUser = { id: string; fullName: string };
+export type ReviewUser = { id: string; fullName: string; role: string };
 
 type ReviewAuthor = { id: string; fullName: string; avatarUrl: string | null };
 
@@ -76,6 +76,11 @@ export function addReply(threadId: string, body: string) {
     method: "POST",
     body: JSON.stringify({ body }),
   });
+}
+
+/** The thread comes back when a reply was removed, and is null when the whole comment was. */
+export function deleteComment(commentId: string) {
+  return request<{ thread: ReviewThread | null }>(`/review-comments/${commentId}`, { method: "DELETE" });
 }
 
 export function setResolved(threadId: string, resolved: boolean) {
