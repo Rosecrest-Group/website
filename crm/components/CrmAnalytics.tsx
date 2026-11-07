@@ -703,7 +703,7 @@ export default function CrmAnalytics() {
           emptyMessage={
             crawlersError
               ? "Crawler activity couldn't be loaded"
-              : "No AI or search crawler requests in this period"
+              : "No AI assistant requests in this period"
           }
         />
 
