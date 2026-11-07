@@ -9,15 +9,19 @@ const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).le
 export default function CommentBox({
   placeholder,
   submitLabel,
+  initialBody = "",
+  onChange,
   onSubmit,
   onCancel,
 }: {
   placeholder: string;
   submitLabel: string;
+  initialBody?: string;
+  onChange?: (body: string) => void;
   onSubmit: (body: string) => Promise<void>;
   onCancel: () => void;
 }) {
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState(initialBody);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -54,7 +58,10 @@ export default function CommentBox({
         value={body}
         placeholder={placeholder}
         aria-label={placeholder}
-        onChange={(e) => setBody(e.target.value)}
+        onChange={(e) => {
+          setBody(e.target.value);
+          onChange?.(e.target.value);
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void submit();
           if (e.key === "Escape") onCancel();

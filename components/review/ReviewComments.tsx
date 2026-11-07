@@ -89,6 +89,10 @@ function ReviewLayer({
   const [ranges, setRanges] = useState<Map<string, Range>>(() => new Map());
   const [selected, setSelected] = useState<Selected | null>(null);
   const [composing, setComposing] = useState<Selected | null>(null);
+  // The box closed by clicking away: its text stays highlighted so it can be picked up again.
+  const [parked, setParked] = useState<Selected | null>(null);
+  // Only Cancel or posting clears this, so a stray click can't lose a long comment.
+  const [draft, setDraft] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
 
@@ -164,20 +168,26 @@ function ReviewLayer({
       open.flatMap((thread) => ranges.get(thread.id) ?? []),
     );
     const activeRange = activeId ? ranges.get(activeId) : undefined;
-    const emphasised = composing?.range ?? activeRange;
+    const emphasised = composing?.range ?? parked?.range ?? activeRange;
     paintHighlight("review-comment-active", emphasised ? [emphasised] : []);
     return () => {
       clearHighlight("review-comment");
       clearHighlight("review-comment-active");
     };
-  }, [threads, ranges, activeId, composing]);
+  }, [threads, ranges, activeId, composing, parked]);
 
   useEffect(() => {
     let timer: number | undefined;
     const onSelectionChange = () => {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
-        if (!composingRef.current) setSelected(readSelection());
+        const next = readSelection();
+        if (!next && composingRef.current) return;
+        if (next) {
+          setComposing(null);
+          setParked(null);
+        }
+        setSelected(next);
       }, 200);
     };
     document.addEventListener("selectionchange", onSelectionChange);
@@ -191,15 +201,22 @@ function ReviewLayer({
     const onClick = (event: MouseEvent) => {
       if (!window.getSelection()?.isCollapsed) return;
       if (!reviewRoot()?.contains(event.target as Node)) return;
+      if (composingRef.current) {
+        setParked(composingRef.current);
+        setComposing(null);
+        return;
+      }
+      setParked(null);
       const caret = caretAt(event.clientX, event.clientY);
-      if (!caret) return;
-      const hit = threads.find((thread) => {
-        const range = ranges.get(thread.id);
-        return !thread.resolvedAt && range?.isPointInRange(caret.node, caret.offset);
-      });
-      if (!hit) return;
-      setActiveId(hit.id);
-      setPanelOpen(true);
+      const hit =
+        caret &&
+        threads.find((thread) => {
+          const range = ranges.get(thread.id);
+          return !thread.resolvedAt && range?.isPointInRange(caret.node, caret.offset);
+        });
+      // A plain click on the page closes the panel; dragging a selection returns above and leaves it open.
+      setActiveId(hit ? hit.id : null);
+      setPanelOpen(Boolean(hit));
     };
     document.addEventListener("click", onClick);
     return () => document.removeEventListener("click", onClick);
@@ -213,22 +230,24 @@ function ReviewLayer({
 
   const locatedIds = useMemo(() => new Set(ranges.keys()), [ranges]);
   const openCount = threads.filter((thread) => !thread.resolvedAt).length;
+  const prompt = selected ?? parked;
   const signInHref = `/crm/login?redirect=${encodeURIComponent(pagePath)}`;
 
   return (
     <div className={siteFontClass} data-review-ui>
       <style>{HIGHLIGHT_STYLES}</style>
 
-      {selected && !composing ? (
-        <div className="absolute z-9999" style={selected.placement}>
+      {prompt && !composing ? (
+        <div className="absolute z-9999" style={prompt.placement}>
           {user ? (
             <button
               type="button"
               // Keeps the reader's selection in place through the click.
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
-                setComposing(selected);
+                setComposing(prompt);
                 setSelected(null);
+                setParked(null);
                 window.getSelection()?.removeAllRanges();
               }}
               className="rounded-md bg-navy px-3 py-1.5 text-sm font-medium text-white shadow-lg hover:bg-navy-deep"
@@ -260,11 +279,17 @@ function ReviewLayer({
           <CommentBox
             placeholder="Write your comment"
             submitLabel="Post comment"
-            onCancel={() => setComposing(null)}
+            initialBody={draft}
+            onChange={setDraft}
+            onCancel={() => {
+              setComposing(null);
+              setDraft("");
+            }}
             onSubmit={async (body) => {
               const thread = await createThread(pagePath, composing.anchor, body);
               setThreads((current) => [...current, thread]);
               setComposing(null);
+              setDraft("");
               setActiveId(thread.id);
               setPanelOpen(true);
             }}
