@@ -17,6 +17,8 @@ import {
 } from "@/components/site/homebuyer/survey-sections";
 import { formatPounds, surveyPrice } from "@/components/site/homebuyer/pricing";
 import { LEVEL_2_PAGE_FAQ } from "@/lib/faqs";
+import HeroQuickPrice from "@/components/site/homebuyer/HeroQuickPrice";
+import SurveyLevelChooser from "@/components/site/homebuyer/SurveyLevelChooser";
 
 export const metadata = getPageMetadata("/homebuyer/survey-level-2");
 
@@ -55,6 +57,7 @@ export default function Page() {
           "Qualified and experienced surveyors across London and areas within the M25",
           "Express 48-Hour Report option available",
         ]}
+        aside={<HeroQuickPrice level={2} />}
       />
 
       <SurveyTrustStrip />
@@ -186,6 +189,15 @@ export default function Page() {
             </p>
           </div>
         </div>
+      </Section>
+
+      <Section id="which-survey">
+        <SectionHeading
+          eyebrow="Level 2 or Level 3?"
+          title="Should I get a Level 2 or a Level 3 survey?"
+          intro="Both are generally visual and non-invasive. The right one depends on the property. Tick anything that applies to see which survey is designed for it."
+        />
+        <SurveyLevelChooser />
       </Section>
 
       <PriceSection level={2} />

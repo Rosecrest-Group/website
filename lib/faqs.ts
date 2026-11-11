@@ -24,6 +24,21 @@ export interface FAQItem {
 // components/site/homebuyer/survey-sections.tsx; change both together.
 export const LEVEL_2_PAGE_FAQ: FAQItem[] = [
   {
+    question: "What is a Level 2 survey?",
+    answer:
+      "A RICS Level 2 survey, also known as the Homebuyer Report, is a visual, non-invasive inspection of a conventional home in reasonable condition. It uses traffic-light condition ratings to show which defects need urgent attention, which need repair, and where further investigation is recommended before you buy.",
+  },
+  {
+    question: "What does a Level 2 survey check?",
+    answer:
+      "The surveyor inspects accessible building elements inside and out, including walls, ceilings, roofs, gutters, windows and doors, and makes a visual appraisal of services such as heating, electricity, water and drainage. The report rates the condition of each element, identifies urgent repairs and future maintenance, recommends further investigation where needed and includes a Next Steps Action Plan.",
+  },
+  {
+    question: "How long does a Level 2 survey take?",
+    answer:
+      "The time on site depends on the size of the property. Larger or more complex properties take longer.",
+  },
+  {
     question: "Is a Level 2 the same as a HomeBuyer Report?",
     answer:
       "Yes. The RICS Level 2 survey is also known as the Homebuyer Report, and many people still use that name.",

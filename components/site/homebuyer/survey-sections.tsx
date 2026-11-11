@@ -64,6 +64,7 @@ export function SurveyHero({
   lede,
   sublede,
   facts,
+  aside,
 }: {
   crumb: string;
   pills: string[];
@@ -72,37 +73,52 @@ export function SurveyHero({
   lede: string;
   sublede: string;
   facts: string[];
+  /** Optional card beside the hero copy (e.g. an instant price), stacked below it on mobile. */
+  aside?: React.ReactNode;
 }) {
   return (
     <section className="bg-mist text-ink">
       <div className="mx-auto w-full max-w-[1440px] px-gutter pb-16 pt-4 md:pb-20">
         <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "RICS surveys", href: "/homebuyer" }, { label: crumb }]} />
-        <div className="mt-10 flex max-w-[860px] flex-col gap-5 md:mt-14">
-          <Link
-            href="/homebuyer#levels"
-            className="inline-flex items-center gap-2 self-start text-[15px] font-bold text-teal no-underline hover:text-teal-dark"
-          >
-            <ArrowLeft aria-hidden="true" className="h-4 w-4" strokeWidth={2.2} />
-            Back to survey selection
-          </Link>
-          <div className="flex flex-wrap gap-2.5">
-            {pills.map((pill) => (
-              <span key={pill} className="rounded-full border border-line bg-white px-3 py-1.5 text-[13px] font-bold">
-                {pill}
-              </span>
-            ))}
+        <div
+          className={cn(
+            "mt-10 flex flex-col gap-5 md:mt-14",
+            // With a card beside it, the copy splits around the card so phones see the card
+            // straight after the opening paragraph, and desktops show it in its own column.
+            aside &&
+              "lg:grid lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:items-start lg:gap-x-14 lg:gap-y-5",
+          )}
+        >
+          <div className="flex max-w-[860px] flex-col gap-5 lg:col-start-1">
+            <Link
+              href="/homebuyer#levels"
+              className="inline-flex items-center gap-2 self-start text-[15px] font-bold text-teal no-underline hover:text-teal-dark"
+            >
+              <ArrowLeft aria-hidden="true" className="h-4 w-4" strokeWidth={2.2} />
+              Back to survey selection
+            </Link>
+            <div className="flex flex-wrap gap-2.5">
+              {pills.map((pill) => (
+                <span key={pill} className="rounded-full border border-line bg-white px-3 py-1.5 text-[13px] font-bold">
+                  {pill}
+                </span>
+              ))}
+            </div>
+            <Eyebrow>{eyebrow}</Eyebrow>
+            <h1 className="text-[38px] font-extrabold leading-[1.04] md:text-[54px]">{title}</h1>
+            <p className="max-w-[640px] text-xl text-body">{lede}</p>
           </div>
-          <Eyebrow>{eyebrow}</Eyebrow>
-          <h1 className="text-[38px] font-extrabold leading-[1.04] md:text-[54px]">{title}</h1>
-          <p className="max-w-[640px] text-xl text-body">{lede}</p>
-          <p className="max-w-[640px] text-[17px] text-body">{sublede}</p>
-          <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-base text-body">
-            {facts.map((fact) => (
-              <Tick key={fact}>{fact}</Tick>
-            ))}
-          </ul>
-          <div className="flex flex-wrap items-center gap-3.5">
-            <ButtonLink href="#price">Check Availability &amp; Get a Fixed Price</ButtonLink>
+          {aside && <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">{aside}</div>}
+          <div className="flex max-w-[860px] flex-col gap-5 lg:col-start-1">
+            <p className="max-w-[640px] text-[17px] text-body">{sublede}</p>
+            <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-base text-body">
+              {facts.map((fact) => (
+                <Tick key={fact}>{fact}</Tick>
+              ))}
+            </ul>
+            <div className="flex flex-wrap items-center gap-3.5">
+              <ButtonLink href="#price">Check Availability &amp; Get a Fixed Price</ButtonLink>
+            </div>
           </div>
         </div>
       </div>
