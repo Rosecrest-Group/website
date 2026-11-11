@@ -1,8 +1,9 @@
 import { getPageMetadata } from "@/lib/page-metadata";
 import { EMAIL, EMAIL_HREF, PHONE, PHONE_HREF, REGISTERED_OFFICE, SOCIAL_LINKS } from "@/lib/constants";
 import PageJsonLd from "@/components/common/PageJsonLd";
+import HeroTopBar from "@/components/site/HeroTopBar";
 import EnquiryForm from "@/components/site/contact/EnquiryForm";
-import { Breadcrumbs, Eyebrow } from "@/components/site/primitives";
+import { Eyebrow } from "@/components/site/primitives";
 
 export const metadata = getPageMetadata("/contact");
 
@@ -26,9 +27,9 @@ export default function ContactPage() {
       <PageJsonLd path="/contact" />
 
       <section className="bg-mist text-ink">
-        <div className="mx-auto w-full max-w-[1440px] px-gutter pb-16 pt-4 md:pb-24">
-          <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Contact" }]} />
-          <div className="mt-10 flex flex-col gap-12 md:mt-14">
+        <div className="mx-auto w-full max-w-[1440px] px-gutter pb-16 md:pb-24">
+          <HeroTopBar items={[{ label: "Home", href: "/" }, { label: "Contact" }]} />
+          <div className="mt-7 flex flex-col gap-12 md:mt-9">
             <div className="flex max-w-[820px] flex-col gap-4">
               <Eyebrow>Talk to us</Eyebrow>
               <h1 className="text-[38px] font-extrabold leading-[1.04] md:text-[52px]">Contact Rosecrest</h1>

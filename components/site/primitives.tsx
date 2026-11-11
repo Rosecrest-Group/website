@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { Fragment, type AnchorHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
+import HeroTopBar from "@/components/site/HeroTopBar";
 
 // ─────────────────────────────────────────────────────────────
 // Building blocks for the marketing site. Every page is a stack of
@@ -303,27 +304,53 @@ export function StepNumber({ n, tone = "navy" }: { n: React.ReactNode; tone?: "n
 
 export type Crumb = { label: string; href?: string };
 
-export function Breadcrumbs({ items, className }: { items: Crumb[]; className?: string }) {
+export function Breadcrumbs({
+  items,
+  className,
+  compact = false,
+}: {
+  items: Crumb[];
+  className?: string;
+  /** On phones, show only a "← parent" link when the trail is three or more deep. */
+  compact?: boolean;
+}) {
+  const parentIndex = compact && items.length > 2 ? items.length - 2 : -1;
   return (
-    <nav aria-label="Breadcrumb" className={cn("flex flex-wrap gap-2.5 text-sm", className)}>
-      {items.map((item, i) => (
-        <Fragment key={i}>
-          {i > 0 && (
-            <span aria-hidden="true" className="text-line-strong">
-              /
-            </span>
-          )}
-          {item.href ? (
-            <Link href={item.href} className="text-muted-ink no-underline hover:text-ink">
-              {item.label}
-            </Link>
-          ) : (
-            <span aria-current="page" className="font-semibold text-ink">
-              {item.label}
-            </span>
-          )}
-        </Fragment>
-      ))}
+    <nav aria-label="Breadcrumb" className={cn("flex flex-wrap items-center gap-2.5 text-sm", className)}>
+      {items.map((item, i) => {
+        const isParent = i === parentIndex;
+        const hideOnPhone = parentIndex >= 0 && !isParent;
+        return (
+          <Fragment key={i}>
+            {i > 0 && (
+              <span aria-hidden="true" className={cn("text-line-strong", parentIndex >= 0 && "hidden md:inline")}>
+                /
+              </span>
+            )}
+            {item.href ? (
+              <Link
+                href={item.href}
+                className={cn(
+                  "text-muted-ink no-underline hover:text-ink",
+                  hideOnPhone && "hidden md:inline",
+                  isParent && "font-bold text-teal md:font-normal md:text-muted-ink",
+                )}
+              >
+                {isParent && (
+                  <span aria-hidden="true" className="md:hidden">
+                    ←{" "}
+                  </span>
+                )}
+                {item.label}
+              </Link>
+            ) : (
+              <span aria-current="page" className={cn("font-semibold text-ink", hideOnPhone && "hidden md:inline")}>
+                {item.label}
+              </span>
+            )}
+          </Fragment>
+        );
+      })}
     </nav>
   );
 }
@@ -353,11 +380,11 @@ export function PageHero({
 }) {
   return (
     <section className={cn("bg-mist text-ink", className)}>
-      <div className="mx-auto w-full max-w-[1440px] px-gutter pb-16 pt-4 md:pb-20">
-        {breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
+      <div className="mx-auto w-full max-w-[1440px] px-gutter pb-16 md:pb-20">
+        {breadcrumbs ? <HeroTopBar items={breadcrumbs} /> : <div className="pt-4" />}
         <div
           className={cn(
-            "mt-10 grid items-center gap-10 md:mt-14 lg:gap-16",
+            "mt-7 grid items-center gap-10 md:mt-9 lg:gap-16",
             media && "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]",
           )}
         >

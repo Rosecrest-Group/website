@@ -11,10 +11,13 @@ import type { SurveyLevel } from "@/components/site/homebuyer/pricing";
 /** A button that opens the survey booking form ("Check Availability & Get a Fixed Price") in a pop-up. */
 export default function BookingDialogButton({
   level = 2,
+  bedrooms,
   className,
   children,
 }: {
   level?: SurveyLevel;
+  /** Property size to pre-select in the form (a bedroom value from the price list). */
+  bedrooms?: string;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -52,7 +55,12 @@ export default function BookingDialogButton({
             </DialogPrimitive.Close>
           </div>
           <div className="overflow-y-auto p-3 sm:p-6">
-            <SurveyBookingForm level={level} formName="Survey booking pop-up" onClose={() => setOpen(false)} />
+            <SurveyBookingForm
+              level={level}
+              initialBedrooms={bedrooms}
+              formName="Survey booking pop-up"
+              onClose={() => setOpen(false)}
+            />
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

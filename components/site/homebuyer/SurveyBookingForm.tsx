@@ -58,8 +58,11 @@ export default function SurveyBookingForm({
   formName = "Survey booking form",
   onClose,
   className,
+  initialBedrooms = "",
 }: {
   level: SurveyLevel;
+  /** Pre-selects the property size, e.g. when opened from the hero price card. */
+  initialBedrooms?: string;
   /** Recorded with the lead's attribution so the CRM shows which form it came from. */
   formName?: string;
   /** When set (e.g. inside a dialog), the success panel offers a Close button. */
@@ -89,7 +92,7 @@ export default function SurveyBookingForm({
       jobPostcode: "",
       propertyType: "",
       propertyValue: "",
-      bedrooms: "",
+      bedrooms: initialBedrooms,
       helpWith: "",
       surveyType: `level-${level}`,
       express: false,

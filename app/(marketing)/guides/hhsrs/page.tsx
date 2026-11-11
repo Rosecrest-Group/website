@@ -70,7 +70,6 @@ export default function HhsrsGuide() {
 
       <PageHero
         breadcrumbs={[{ label: "Home", href: "/" }, { label: "Guides", href: "/guides" }, { label: "HHSRS" }]}
-        eyebrow="Guide"
         title={TITLE}
         intro={
           <>

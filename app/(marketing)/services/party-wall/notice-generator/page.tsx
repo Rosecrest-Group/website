@@ -1,9 +1,10 @@
 import { getPageMetadata } from "@/lib/page-metadata";
 import PageJsonLd from "@/components/common/PageJsonLd";
+import HeroTopBar from "@/components/site/HeroTopBar";
 import CallbackSection from "@/components/site/CallbackSection";
 import NoticeGeneratorForm from "@/components/site/party-wall/NoticeGeneratorForm";
 import RelatedStrip from "@/components/site/party-wall/RelatedStrip";
-import { Breadcrumbs, Eyebrow, FaqList, Section, SectionHeading, TextLink, type FaqItem } from "@/components/site/primitives";
+import { Eyebrow, FaqList, Section, SectionHeading, TextLink, type FaqItem } from "@/components/site/primitives";
 
 export const metadata = getPageMetadata("/services/party-wall/notice-generator");
 
@@ -54,15 +55,15 @@ export default function PartyWallNoticeGeneratorPage() {
       <PageJsonLd path="/services/party-wall/notice-generator" />
 
       <section className="bg-mist text-ink">
-        <div className="mx-auto w-full max-w-[1440px] px-gutter pb-16 pt-4 md:pb-20">
-          <Breadcrumbs
+        <div className="mx-auto w-full max-w-[1440px] px-gutter pb-16 md:pb-20">
+          <HeroTopBar
             items={[
               { label: "Home", href: "/" },
               { label: "Party wall", href: "/services/party-wall" },
               { label: "Notice generator" },
             ]}
           />
-          <div className="mt-10 flex flex-col gap-9 md:mt-14">
+          <div className="mt-7 flex flex-col gap-9 md:mt-9">
             <div className="flex max-w-[820px] flex-col gap-[18px]">
               <Eyebrow>Free party wall notice template</Eyebrow>
               <h1 className="text-[38px] font-extrabold leading-[1.04] md:text-[54px]">Party Wall Notice Generator</h1>

@@ -1,8 +1,6 @@
-import Link from "next/link";
-import { ArrowLeft, Check, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  Breadcrumbs,
   ButtonLink,
   Eyebrow,
   FaqList,
@@ -13,6 +11,7 @@ import {
 } from "@/components/site/primitives";
 import TrustBadges from "@/components/site/TrustBadges";
 import SurveyBookingForm from "@/components/site/homebuyer/SurveyBookingForm";
+import HeroTopBar from "@/components/site/HeroTopBar";
 import type { SurveyLevel } from "@/components/site/homebuyer/pricing";
 
 // Shared building blocks for the RICS Level 1, 2 and 3 survey pages.
@@ -55,11 +54,10 @@ export function Tick({
   );
 }
 
-/** Hero for a single survey level: back link, pills, eyebrow, H1, lede and key facts. */
+/** Hero for a single survey level: slim breadcrumb row, H1, a line of key facts, lede and bullet points. */
 export function SurveyHero({
   crumb,
   pills,
-  eyebrow,
   title,
   lede,
   sublede,
@@ -67,8 +65,8 @@ export function SurveyHero({
   aside,
 }: {
   crumb: string;
+  /** First item shows as a badge, the rest as a dotted line of facts under the heading. */
   pills: string[];
-  eyebrow: string;
   title: string;
   lede: string;
   sublede: string;
@@ -78,11 +76,11 @@ export function SurveyHero({
 }) {
   return (
     <section className="bg-mist text-ink">
-      <div className="mx-auto w-full max-w-[1440px] px-gutter pb-16 pt-4 md:pb-20">
-        <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "RICS surveys", href: "/homebuyer" }, { label: crumb }]} />
+      <div className="mx-auto w-full max-w-[1440px] px-gutter pb-16 md:pb-20">
+        <HeroTopBar items={[{ label: "Home", href: "/" }, { label: "RICS surveys", href: "/homebuyer" }, { label: crumb }]} />
         <div
           className={cn(
-            "mt-10 flex flex-col gap-5 md:mt-14",
+            "mt-7 flex flex-col gap-5 md:mt-9",
             // With a card beside it, the copy splits around the card so phones see the card
             // straight after the opening paragraph, and desktops show it in its own column.
             aside &&
@@ -90,22 +88,21 @@ export function SurveyHero({
           )}
         >
           <div className="flex max-w-[860px] flex-col gap-5 lg:col-start-1">
-            <Link
-              href="/homebuyer#levels"
-              className="inline-flex items-center gap-2 self-start text-[15px] font-bold text-teal no-underline hover:text-teal-dark"
-            >
-              <ArrowLeft aria-hidden="true" className="h-4 w-4" strokeWidth={2.2} />
-              Back to survey selection
-            </Link>
-            <div className="flex flex-wrap gap-2.5">
-              {pills.map((pill) => (
-                <span key={pill} className="rounded-full border border-line bg-white px-3 py-1.5 text-[13px] font-bold">
-                  {pill}
-                </span>
-              ))}
-            </div>
-            <Eyebrow>{eyebrow}</Eyebrow>
             <h1 className="text-[38px] font-extrabold leading-[1.04] md:text-[54px]">{title}</h1>
+            <p className="m-0 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[15px] text-muted-ink">
+              {pills.map((pill, i) =>
+                i === 0 ? (
+                  <span key={pill} className="rounded-full bg-teal-tint px-2.5 py-1 text-[13px] font-bold text-teal">
+                    {pill}
+                  </span>
+                ) : (
+                  <span key={pill} className="inline-flex items-center gap-2.5">
+                    {i > 1 && <span aria-hidden="true">·</span>}
+                    {pill}
+                  </span>
+                ),
+              )}
+            </p>
             <p className="max-w-[640px] text-xl text-body">{lede}</p>
           </div>
           {aside && <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">{aside}</div>}

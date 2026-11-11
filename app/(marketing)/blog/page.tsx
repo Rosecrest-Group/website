@@ -44,7 +44,6 @@ export default async function BlogPage() {
 
       <PageHero
         breadcrumbs={[{ label: "Home", href: "/" }, { label: "News & Insights" }]}
-        eyebrow="Articles"
         title="News & Insights"
         intro={<p>Property advice, industry updates and guidance from the Rosecrest team.</p>}
         className="[&>div]:pb-12 md:[&>div]:pb-[72px]"

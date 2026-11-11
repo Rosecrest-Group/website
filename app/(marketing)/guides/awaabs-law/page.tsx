@@ -71,7 +71,6 @@ export default function AwaabsLawGuide() {
 
       <PageHero
         breadcrumbs={[{ label: "Home", href: "/" }, { label: "Guides", href: "/guides" }, { label: "Awaab’s Law" }]}
-        eyebrow="Guide"
         title={TITLE}
         intro={
           <>

@@ -1,7 +1,7 @@
 import { getPageMetadata } from "@/lib/page-metadata";
 import PageJsonLd from "@/components/common/PageJsonLd";
+import HeroTopBar from "@/components/site/HeroTopBar";
 import EnquiryForm from "@/components/site/contact/EnquiryForm";
-import { Breadcrumbs } from "@/components/site/primitives";
 
 export const metadata = getPageMetadata("/request-inspection");
 
@@ -11,9 +11,9 @@ export default function RequestInspectionPage() {
       <PageJsonLd path="/request-inspection" />
 
       <section className="bg-mist text-ink">
-        <div className="mx-auto w-full max-w-[1440px] px-gutter pb-16 pt-4 md:pb-24">
-          <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Request an inspection" }]} />
-          <div className="mt-10 grid items-start gap-10 md:mt-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:gap-16">
+        <div className="mx-auto w-full max-w-[1440px] px-gutter pb-16 md:pb-24">
+          <HeroTopBar items={[{ label: "Home", href: "/" }, { label: "Request an inspection" }]} />
+          <div className="mt-7 grid items-start gap-10 md:mt-9 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:gap-16">
             <div className="flex flex-col gap-4">
               <h1 className="text-[38px] font-extrabold leading-[1.04] md:text-[52px]">Request an inspection</h1>
               <p className="text-xl text-body">

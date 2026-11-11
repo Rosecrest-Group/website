@@ -90,7 +90,12 @@ export default function MouldEstimator() {
         </output>
       </div>
 
-      <a href="#callback" className={cn(buttonClass("primary"), "w-full")}>
+      <a
+        href="#callback"
+        data-need="Mould treatment"
+        data-detail={`Mould treatment: affected area about ${m2} m² (calculator estimate £${cost} + VAT).`}
+        className={cn(buttonClass("primary"), "w-full")}
+      >
         Book a Discussion
       </a>
       <span className="text-center text-[13px] text-muted-ink">

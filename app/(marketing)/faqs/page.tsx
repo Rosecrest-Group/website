@@ -2,8 +2,9 @@ import { Fragment } from "react";
 import { getPageMetadata } from "@/lib/page-metadata";
 import JsonLd from "@/components/common/JsonLd";
 import PageJsonLd from "@/components/common/PageJsonLd";
+import HeroTopBar from "@/components/site/HeroTopBar";
 import CallbackSection from "@/components/site/CallbackSection";
-import { Breadcrumbs, Section, SmartLink, TextLink } from "@/components/site/primitives";
+import { Section, SmartLink, TextLink } from "@/components/site/primitives";
 import { buildFAQPage } from "@/lib/schema";
 
 export const metadata = getPageMetadata("/faqs");
@@ -269,9 +270,9 @@ export default function FaqsPage() {
       <JsonLd data={buildFAQPage(SCHEMA_ITEMS)} id="faqs" />
 
       <section className="bg-mist text-ink">
-        <div className="mx-auto w-full max-w-[1440px] px-gutter pb-14 pt-4 md:pb-[72px]">
-          <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "FAQs" }]} />
-          <div className="mt-10 flex max-w-[900px] flex-col gap-[18px] md:mt-14">
+        <div className="mx-auto w-full max-w-[1440px] px-gutter pb-14 md:pb-[72px]">
+          <HeroTopBar items={[{ label: "Home", href: "/" }, { label: "FAQs" }]} />
+          <div className="mt-7 flex max-w-[900px] flex-col gap-[18px] md:mt-9">
             <h1 className="text-[38px] font-extrabold leading-[1.04] md:text-[54px]">Frequently Asked Questions</h1>
             <p className="max-w-[680px] text-xl text-body">
               Here are answers to the most common questions about our property surveys, valuations, and reports.

@@ -25,7 +25,8 @@ type LandlordService = {
   badge?: string;
   text: string;
   points: string[];
-  primary: { label: string; href: string; filled?: boolean };
+  /** need: the call-back option to tick when this opens the form. */
+  primary: { label: string; href: string; filled?: boolean; need?: string };
   link: { label: string; href: string };
 };
 
@@ -48,7 +49,7 @@ const SERVICES: LandlordService[] = [
     title: "HHSRS Assessment",
     text: "Formal hazard assessment and compliance reporting for Housing Health & Safety standards.",
     points: ["Formal hazard assessment", "Compliance reporting", "Housing Health & Safety Rating System"],
-    primary: { label: "Request a discussion", href: "#callback" },
+    primary: { label: "Request a discussion", href: "#callback", need: "HHSRS inspection" },
     link: { label: "HHSRS guide →", href: "/guides/hhsrs" },
   },
   {
@@ -56,7 +57,7 @@ const SERVICES: LandlordService[] = [
     title: "Disrepair & Condition Surveys",
     text: "Independent condition assessment and scope of works reporting for property disputes.",
     points: ["Independent condition assessment", "Scope of works reporting", "Evidence for dispute resolution"],
-    primary: { label: "Request a discussion", href: "#callback" },
+    primary: { label: "Request a discussion", href: "#callback", need: "Housing disrepair survey" },
     link: { label: "Housing disrepair surveys →", href: "/services/housing-disrepair" },
   },
   {
@@ -64,7 +65,7 @@ const SERVICES: LandlordService[] = [
     title: "Energy Performance Certificates",
     text: "Energy Performance Certificates (EPC) for rental compliance with fast turnaround and 10-year validity.",
     points: ["Compliance with rental requirements", "Valid for 10 years", "Fast turnaround available"],
-    primary: { label: "Request a discussion", href: "#callback" },
+    primary: { label: "Request a discussion", href: "#callback", need: "Energy Performance Certificate (EPC)" },
     link: { label: "EPCs from £33 →", href: "/services/epc" },
   },
 ];
@@ -195,6 +196,7 @@ export default function LandlordPage() {
               <div className="mt-auto flex flex-wrap items-center gap-x-5 gap-y-3 pt-1.5">
                 <ButtonLink
                   href={service.primary.href}
+                  data-need={service.primary.need}
                   variant={service.primary.filled ? "primary" : "outline"}
                   size="sm"
                   className={service.primary.filled ? undefined : "border-2 border-line-strong"}

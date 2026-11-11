@@ -131,7 +131,6 @@ export default function AssocRicsMentoringPage() {
           { label: "Services", href: "/services" },
           { label: "AssocRICS mentoring" },
         ]}
-        eyebrow="AssocRICS mentoring"
         title="AssocRICS Candidate Mentoring & Counsellor Support"
         intro={
           <>

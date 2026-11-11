@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Breadcrumbs, ButtonLink, Eyebrow, type Crumb } from "@/components/site/primitives";
+import { ButtonLink, Eyebrow, type Crumb } from "@/components/site/primitives";
+import HeroTopBar from "@/components/site/HeroTopBar";
 import { cn } from "@/lib/utils";
 import ArticleToc, { type TocItem } from "./ArticleToc";
 
@@ -30,19 +31,15 @@ export function formatDate(value?: string) {
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" });
 }
 
-/** Mist header: breadcrumbs, back link, eyebrow, H1, lede and a byline row. */
+/** Mist header: slim breadcrumb row, eyebrow, H1, lede and a byline row. */
 export function ArticleHero({
   breadcrumbs,
-  backHref = "/guides",
-  backLabel = "← Back to News & Insights",
   eyebrow,
   title,
   intro,
   byline,
 }: {
   breadcrumbs: Crumb[];
-  backHref?: string;
-  backLabel?: string;
   eyebrow?: React.ReactNode;
   title: React.ReactNode;
   intro?: React.ReactNode;
@@ -50,12 +47,9 @@ export function ArticleHero({
 }) {
   return (
     <section className="bg-mist text-ink">
-      <div className="mx-auto w-full max-w-[1440px] px-gutter pb-14 pt-4 md:pb-16">
-        <Breadcrumbs items={breadcrumbs} />
-        <div className="mt-10 flex max-w-[980px] flex-col gap-[18px] md:mt-14">
-          <Link href={backHref} className="self-start text-[15px] font-bold text-teal no-underline hover:text-teal-dark">
-            {backLabel}
-          </Link>
+      <div className="mx-auto w-full max-w-[1440px] px-gutter pb-14 md:pb-16">
+        <HeroTopBar items={breadcrumbs} />
+        <div className="mt-7 flex max-w-[980px] flex-col gap-[18px] md:mt-9">
           {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
           <h1 className="text-[34px] font-extrabold leading-[1.06] md:text-[50px]">{title}</h1>
           {intro && <p className="max-w-[820px] text-lg text-body md:text-xl">{intro}</p>}

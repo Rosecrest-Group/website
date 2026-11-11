@@ -347,27 +347,6 @@ function InnerHeader({ pathname }: { pathname: string }) {
             </button>
           </div>
         </div>
-        <nav aria-label="Who we help" className="hidden border-t border-line bg-mist lg:block">
-          <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center gap-x-[30px] whitespace-nowrap px-gutter text-[15px]">
-            <span className="text-[13px] font-bold uppercase tracking-[0.06em] text-muted-ink">Who we help</span>
-            {LANE_LINKS.map((link) => {
-              const active = pathname.startsWith(link.href);
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "inline-flex min-h-12 items-center border-b-[3px] px-0.5 font-semibold no-underline hover:text-teal",
-                    active ? "border-teal text-teal" : "border-transparent text-ink",
-                  )}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
         {openMenu === "services" && <ServicesMenu id={servicesId} onNavigate={() => setOpenMenu(null)} />}
         {openMenu === "guides" && <GuidesMenu id={guidesId} onNavigate={() => setOpenMenu(null)} />}
         {mobileOpen && <MobileMenu id={mobileId} pathname={pathname} onNavigate={() => setMobileOpen(false)} />}

@@ -48,7 +48,6 @@ export default function Page() {
       <SurveyHero
         crumb="Level 2 Homebuyer Survey"
         pills={["Most common choice", "from £330.99", "Report in 3–5 working days"]}
-        eyebrow="RICS Level 2 Home Survey"
         title="RICS Level 2 Survey in London"
         lede="A RICS Level 2 survey, also known as the Homebuyer Report, is a visual, non-invasive inspection of a conventional home in reasonable condition. It uses traffic-light condition ratings to show which defects need urgent attention, which need repair, and what to check further before you buy."
         sublede="The report helps buyers make an informed decision about whether to proceed with their purchase. Please note, however, that our surveyors cannot advise whether to proceed with or withdraw from the purchase."

@@ -36,8 +36,7 @@ export default function Page() {
       <SurveyHero
         crumb="Level 1 Condition Report"
         pills={["Best for newer homes", "from £280.99", "Report within 2 working days"]}
-        eyebrow="RICS Level 1 survey in London"
-        title="RICS Level 1 Survey: Condition Report"
+        title="RICS Level 1 Condition Report in London"
         lede="A concise assessment of the property’s visible condition, using condition ratings to highlight significant defects and matters requiring attention."
         sublede="Carried out by qualified and experienced surveyors across London and areas within the M25."
         facts={[

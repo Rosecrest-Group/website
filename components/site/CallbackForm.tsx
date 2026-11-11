@@ -151,12 +151,30 @@ export default function CallbackForm({
   const {
     register,
     handleSubmit,
+    getValues,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     mode: "onTouched",
     resolver: zodResolver(formSchema),
     defaultValues: { name: "", phone: "", email: "", details: "" },
   });
+
+  // A link to #callback can carry what the visitor already chose on the page:
+  // data-need ticks that option, data-detail fills an empty "What's going on" box
+  // (e.g. the mould calculator's area and estimate).
+  useEffect(() => {
+    const onClick = (event: MouseEvent) => {
+      const link = (event.target as Element | null)?.closest?.('a[href="#callback"]');
+      if (!link) return;
+      const need = link.getAttribute("data-need");
+      if (need) setNeeds((prev) => (prev.includes(need) ? prev : [...prev, need]));
+      const detail = link.getAttribute("data-detail");
+      if (detail && !getValues("details")?.trim()) setValue("details", detail);
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, [getValues, setValue]);
 
   const onSubmit = async (values: FormValues) => {
     setSubmitError(false);

@@ -59,6 +59,7 @@ export default function HeroQuickPrice({ level }: { level: SurveyLevel }) {
       </p>
       <BookingDialogButton
         level={level}
+        bedrooms={bedrooms}
         className={buttonClass("primary")}
       >
         Check availability &amp; book

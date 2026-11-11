@@ -179,7 +179,6 @@ export default function LevelTwoVsThreeGuide() {
 
       <PageHero
         breadcrumbs={[{ label: "Home", href: "/" }, { label: "Guides", href: "/guides" }, { label: "Level 2 vs Level 3" }]}
-        eyebrow="Guide"
         title={TITLE}
         intro={
           <p>
