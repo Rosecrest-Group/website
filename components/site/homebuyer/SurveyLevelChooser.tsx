@@ -7,12 +7,18 @@ import { TextLink } from "@/components/site/primitives";
 
 // Each statement comes from what the Level 2 and Level 3 pages already say each survey is
 // designed for. Change the wording here only if those pages change.
+//
+// Outcome rule (proposed 11 Nov 2026, awaiting Rosecrest's confirmation):
+// - "strong" signs on their own point to a Level 3;
+// - two or more "soft" signs point to a Level 3;
+// - one soft sign: either survey could suit;
+// - nothing ticked: Level 2.
 const SIGNS = [
-  { id: "age", label: "It was built more than about 30 years ago" },
-  { id: "altered", label: "It has been extended or altered" },
-  { id: "construction", label: "It is listed, a heritage property or of non-standard construction" },
-  { id: "size", label: "It is larger than a typical home" },
-  { id: "renovation", label: "It needs significant renovation or restoration" },
+  { id: "age", label: "It was built more than about 30 years ago", strong: false },
+  { id: "altered", label: "It has been extended or altered", strong: false },
+  { id: "construction", label: "It is listed, a heritage property or of non-standard construction", strong: true },
+  { id: "size", label: "It is larger than a typical home", strong: false },
+  { id: "renovation", label: "It needs significant renovation or restoration", strong: true },
 ] as const;
 
 type SignId = (typeof SIGNS)[number]["id"];
@@ -20,7 +26,10 @@ type SignId = (typeof SIGNS)[number]["id"];
 /** "Level 2 or Level 3?" check on the Level 2 page. A guide only; the buyer chooses. */
 export default function SurveyLevelChooser() {
   const [ticked, setTicked] = useState<Set<SignId>>(new Set());
-  const level3 = ticked.size > 0;
+  const strongTicked = SIGNS.some((sign) => sign.strong && ticked.has(sign.id));
+  const softTicked = SIGNS.filter((sign) => !sign.strong && ticked.has(sign.id)).length;
+  const outcome: "level2" | "either" | "level3" =
+    strongTicked || softTicked >= 2 ? "level3" : softTicked === 1 ? "either" : "level2";
 
   const toggle = (id: SignId) =>
     setTicked((prev) => {
@@ -73,11 +82,11 @@ export default function SurveyLevelChooser() {
         aria-live="polite"
         className={cn(
           "flex flex-col gap-3 rounded-[18px] border p-6 sm:p-[30px]",
-          level3 ? "border-line bg-white" : "border-teal bg-teal-tint",
+          outcome === "level2" ? "border-teal bg-teal-tint" : "border-line bg-white",
         )}
       >
         <span className="text-[13px] font-bold uppercase tracking-[0.06em] text-muted-ink">Our guide</span>
-        {level3 ? (
+        {outcome === "level3" && (
           <>
             <h3 className="text-[22px] font-bold leading-[1.25]">A Level 3 Building Survey may suit better</h3>
             <p className="text-[17px] text-body">
@@ -89,7 +98,27 @@ export default function SurveyLevelChooser() {
               About the Level 3 Building Survey →
             </TextLink>
           </>
-        ) : (
+        )}
+        {outcome === "either" && (
+          <>
+            <h3 className="text-[22px] font-bold leading-[1.25]">Either survey could suit this property</h3>
+            <p className="text-[17px] text-body">
+              A Level 2 can suit a conventional home in reasonable condition. A Level 3 provides a more detailed
+              assessment of the building’s construction, condition and defects, including more extensive advice on
+              repairs and maintenance and repair cost estimates where applicable. If you’re unsure, we can explain
+              the difference between the survey options.
+            </p>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              <TextLink href="#price" className="text-[15px]">
+                Get your Level 2 price →
+              </TextLink>
+              <TextLink href="/homebuyer/survey-level-3" className="text-[15px]">
+                About the Level 3 Building Survey →
+              </TextLink>
+            </div>
+          </>
+        )}
+        {outcome === "level2" && (
           <>
             <h3 className="text-[22px] font-bold leading-[1.25]">A Level 2 fits this kind of property</h3>
             <p className="text-[17px] text-body">
