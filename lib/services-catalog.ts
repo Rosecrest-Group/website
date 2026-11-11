@@ -47,6 +47,10 @@ export const services: CatalogService[] = [
     summary:
       "A brief condition report with traffic-light ratings for new builds and standard, unaltered homes built within the last 5–10 years.",
     serviceType: "RICS Home Survey Level 1",
+    price: {
+      from: 280.99,
+      note: "From £280.99 for a studio, including VAT. The final quotation depends on the property’s size, type, location and complexity.",
+    },
     audiences: ["homebuyers"],
     turnaround:
       "1–2 hours on site; report within 2 working days of the inspection. Express 48-hour report available.",
@@ -89,6 +93,10 @@ export const services: CatalogService[] = [
     summary:
       "The most detailed survey, for older, altered, extended, listed or non-standard properties. A more detailed assessment of construction, condition and defects, with more extensive repair and maintenance advice and repair cost estimates where applicable. Generally visual and non-invasive.",
     serviceType: "RICS Home Survey Level 3",
+    price: {
+      from: 550.99,
+      note: "From £550.99 for a studio, including VAT. The final quotation depends on the property’s size, type, location and complexity.",
+    },
     audiences: ["homebuyers", "homeowners"],
     turnaround:
       "Report within 5–7 working days of the inspection. Express 48-hour report available.",

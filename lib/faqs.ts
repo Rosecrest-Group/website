@@ -66,6 +66,128 @@ export const LEVEL_2_PAGE_FAQ: FAQItem[] = [
 
 const routeFAQs: Record<string, FAQItem[]> = {
   "/homebuyer/survey-level-2": LEVEL_2_PAGE_FAQ,
+  // Mirrors the FAQ rendered on /homebuyer/survey-level-1; update both together.
+  "/homebuyer/survey-level-1": [
+    {
+      question: "Does a Level 1 survey include advice on repairs?",
+      answer:
+        "No. The RICS Level 1 Survey does not offer specific advice on repairs or ongoing maintenance. If the surveyor cannot draw conclusions about any part of the property with sufficient confidence, the report will recommend further investigations.",
+    },
+    {
+      question: "How long does a survey take?",
+      answer:
+        "The duration of the survey depends on the size of the property. A Level 1 typically takes 1–2 hours and a Level 3 typically 2–3 hours. Larger or more complex properties take longer.",
+    },
+    {
+      question: "When will I receive my report?",
+      answer:
+        "As standard, a Level 1 report is delivered within 2 working days, a Level 2 within 3–5 working days and a Level 3 within 5–7 working days of the inspection. Need it sooner? Choose the Express 48-Hour Report option when you check availability and get your fixed price.",
+    },
+    {
+      question: "Will I receive photographs in my report?",
+      answer:
+        "Yes. Your report includes photographs of the defects identified during the inspection, with the surveyor’s explanation of each one.",
+    },
+    {
+      question: "Can you survey vacant or tenanted properties?",
+      answer:
+        "Yes. We arrange access with the estate agent, seller or managing agent.",
+    },
+    {
+      question: "Why do you need the number of bedrooms?",
+      answer:
+        "Your price is based on the property type and size. Choose the bedrooms and you’ll see your exact price before you book.",
+    },
+  ],
+  // Mirrors the FAQ rendered on /homebuyer/survey-level-3; update both together.
+  "/homebuyer/survey-level-3": [
+    {
+      question: "Does a Level 3 survey include a valuation?",
+      answer:
+        "No. A valuation is not included with this survey, but a separate, discounted valuation can be provided upon request.",
+    },
+    {
+      question: "What is the difference between a Level 2 and a Level 3 survey?",
+      answer:
+        "A Level 2 (Homebuyer Survey) suits modern and conventional properties, with condition ratings showing the urgency of any defects. A Level 3 (Building Survey) suits older, altered or non-standard buildings and provides a more detailed assessment of the building’s construction, condition and defects, including more extensive advice on repairs and maintenance and repair cost estimates where applicable. Both Level 2 and Level 3 surveys are generally visual and non-invasive. Surveyors inspect accessible areas without opening up the building or carrying out destructive investigations.",
+    },
+    {
+      question: "Can the surveyor tell me whether to buy the property?",
+      answer:
+        "No. Our surveyors cannot advise whether to proceed with or withdraw from the purchase. As section 8 of our Terms of Engagement puts it: “The report is intended to assist decision-making only. The decision to proceed, renegotiate, or withdraw from a purchase is the Client’s responsibility.”",
+    },
+    {
+      question: "How long does a survey take?",
+      answer:
+        "The duration of the survey depends on the size of the property. A Level 1 typically takes 1–2 hours and a Level 3 typically 2–3 hours. Larger or more complex properties take longer.",
+    },
+    {
+      question: "When will I receive my report?",
+      answer:
+        "As standard, a Level 1 report is delivered within 2 working days, a Level 2 within 3–5 working days and a Level 3 within 5–7 working days of the inspection. Need it sooner? Choose the Express 48-Hour Report option when you check availability and get your fixed price.",
+    },
+    {
+      question: "Can you survey vacant or tenanted properties?",
+      answer:
+        "Yes. We arrange access with the estate agent, seller or managing agent.",
+    },
+  ],
+  // Mirrors the FAQ rendered on /services/environmental-reports; update both together.
+  "/services/environmental-reports": [
+    {
+      question: "What is an environmental search?",
+      answer:
+        "A report on the environmental risks affecting a property, backed by national data sources and GIS mapping. Ours covers contaminated land, flood risk, ground stability, radon, nearby environmental hazards and climate-related risk, with a clear, easy-to-understand summary.",
+    },
+    {
+      question: "What does a flood risk report cover?",
+      answer:
+        "River, surface water, groundwater and coastal flood data, to assess the property’s exposure to flooding and the possible insurance implications.",
+    },
+    {
+      question: "What is a contaminated land report?",
+      answer:
+        "It identifies past industrial use, potential pollution risks and any remediation requirements for the land.",
+    },
+    {
+      question: "What does a ground stability report check?",
+      answer:
+        "Risks from subsidence, sinkholes and mining activity.",
+    },
+    {
+      question: "Who needs an environmental report?",
+      answer:
+        "Buyers and sellers of residential or commercial property, landlords and letting agents, developers and architects, solicitors and conveyancers, and mortgage lenders and insurers.",
+    },
+    {
+      question: "How much does it cost and how long does it take?",
+      answer:
+        "We offer affordable, fixed-rate pricing, and a fast turnaround is available.",
+    },
+  ],
+  // Mirrors the FAQ rendered on /services/party-wall/notice-generator; update both together.
+  "/services/party-wall/notice-generator": [
+    {
+      question: "Is this a party wall notice template?",
+      answer:
+        "It works like one: instead of filling in a blank template, you answer the questions above and we prepare the notice from your answers and email it to you.",
+    },
+    {
+      question: "Which party wall notice do I need?",
+      answer:
+        "It depends on the work. Loft beams, chimney breast removal and other work to a shared wall need a party structure notice. A new wall on the boundary needs a line of junction notice. Excavating within 3 metres of a neighbour’s building and deeper than its foundations (or within 6 metres in some cases) needs a notice of adjacent excavation.",
+    },
+    {
+      question: "What happens after I serve the notice?",
+      answer:
+        "Your neighbour has 14 days to respond. If they consent in writing, nothing more is needed under the Act. If they dissent, or don’t reply, party wall surveyors prepare a party wall award before the work starts.",
+    },
+    {
+      question: "Can you serve the notice for me?",
+      answer:
+        "Yes. We advise on, prepare, draft, review and serve notices: £50 per notice. See our party wall surveyors.",
+    },
+  ],
   // Mirrors SURVEY_FAQ in components/site/homebuyer/survey-sections.tsx
   // plus the areas question on app/(marketing)/homebuyer/page.tsx.
   "/homebuyer": [
