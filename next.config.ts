@@ -81,6 +81,10 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       { source: "/trade-services", destination: "/services", permanent: true },
+      // Old links the 2 Nov 2026 site audit found returning 404 (from the previous
+      // carpet-cleaning and stock-condition pages).
+      { source: "/services/residential", destination: "/services", permanent: true },
+      { source: "/stock-condition", destination: "/services/stock-condition", permanent: true },
 
       //Blog 
       {
