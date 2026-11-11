@@ -84,9 +84,9 @@ export const pageMetadata: Record<string, PageMeta> = {
   },
   "/landlord": {
     name: "Landlords",
-    title: "Housing Disrepair Surveys London | Landlord Compliance & Reports",
+    title: "Surveys for Landlords in London | Compliance, HHSRS & Damp",
     description:
-      "Dealing with housing disrepair or damp issues? We provide inspections, HHSRS reports and landlord advice across London to support compliance and disputes.",
+      "Inspections and reports for landlords and property owners in London: HHSRS assessments, damp and mould surveys, disrepair evidence and EPCs.",
   },
   "/legal": {
     name: "Legal professionals",

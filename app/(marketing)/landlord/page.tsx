@@ -134,8 +134,8 @@ export default function LandlordPage() {
 
       <PageHero
         breadcrumbs={[{ label: "Home", href: "/" }, { label: "Landlords and property owners" }]}
-        eyebrow="Housing disrepair surveys and landlord compliance reports, London"
-        title="Housing Disrepair and Awaab’s Law Advice for Landlords & Property Owners"
+        eyebrow="Landlord compliance, HHSRS and damp reports, London"
+        title="Surveys and Compliance Advice for Landlords & Property Owners"
         intro={
           <>
             <p>
