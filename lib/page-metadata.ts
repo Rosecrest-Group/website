@@ -72,9 +72,9 @@ export const pageMetadata: Record<string, PageMeta> = {
   },
   "/homebuyer/survey-level-2": {
     name: "RICS Level 2 Survey",
-    title: "RICS Level 2 Survey London | Homebuyer Report for Property Buyers",
+    title: "RICS Level 2 Survey London | Homebuyer Report from £330.99",
     description:
-      "Get a RICS Level 2 Survey in London. Our Homebuyer Reports highlight defects, risks and repairs, helping you make an informed property purchase decision.",
+      "RICS Level 2 Home Survey in London from £330.99 inc VAT for a studio. Condition ratings, repair advice and a Next Steps Action Plan. Get your fixed price.",
   },
   "/homebuyer/survey-level-3": {
     name: "RICS Level 3 Survey",

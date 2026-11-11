@@ -65,6 +65,10 @@ export const services: CatalogService[] = [
     summary:
       "The most common survey for conventional homes in reasonable condition, typically built within the last 30 years. Generally visual and non-invasive inspection of accessible areas, traffic-light ratings and advice on repairs and further investigation.",
     serviceType: "RICS Home Survey Level 2",
+    price: {
+      from: 330.99,
+      note: "From £330.99 for a studio, including VAT. The final quotation depends on the property’s size, type, location and complexity.",
+    },
     audiences: ["homebuyers"],
     turnaround:
       "2–3 hours on site; report within 5 working days of the inspection (typically 3–5). Express 48-hour report available.",

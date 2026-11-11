@@ -19,7 +19,53 @@ export interface FAQItem {
   answer: string;
 }
 
+// The Level 2 survey page renders this list directly, so the visible FAQ and
+// its FAQPage structured data always match. Shared answers mirror SURVEY_FAQ in
+// components/site/homebuyer/survey-sections.tsx; change both together.
+export const LEVEL_2_PAGE_FAQ: FAQItem[] = [
+  {
+    question: "Is a Level 2 the same as a HomeBuyer Report?",
+    answer:
+      "Yes. The RICS Level 2 survey is also known as the Homebuyer Report, and many people still use that name.",
+  },
+  {
+    question: "How much does a Level 2 survey cost in London?",
+    answer:
+      "Our RICS Level 2 survey starts from £330.99 for a studio, including VAT. The final quotation depends on the property’s size, type, location and complexity. HomeOwners Alliance reports that the average Level 2 survey in London cost approximately £590 in August 2026, based on Reallymoving data.",
+  },
+  {
+    question: "Is a Level 2 survey right for my property?",
+    answer:
+      "A Level 2 suits modern and conventional properties in reasonable condition, typically built in the last 30 years and not significantly altered or extended. For older, larger, altered or non-traditional properties, a Level 3 Building Survey provides a more detailed assessment. The final choice of survey is yours.",
+  },
+  {
+    question: "What is the difference between a Level 2 and a Level 3 survey?",
+    answer:
+      "A Level 2 (Homebuyer Survey) suits modern and conventional properties, with condition ratings showing the urgency of any defects. A Level 3 (Building Survey) suits older, altered or non-standard buildings and provides a more detailed assessment of the building’s construction, condition and defects, including more extensive advice on repairs and maintenance and repair cost estimates where applicable. Both Level 2 and Level 3 surveys are generally visual and non-invasive. Surveyors inspect accessible areas without opening up the building or carrying out destructive investigations.",
+  },
+  {
+    question: "Can the surveyor tell me whether to buy the property?",
+    answer:
+      "No. Our surveyors cannot advise whether to proceed with or withdraw from the purchase. As section 8 of our Terms of Engagement puts it: “The report is intended to assist decision-making only. The decision to proceed, renegotiate, or withdraw from a purchase is the Client’s responsibility.”",
+  },
+  {
+    question: "When will I receive my report?",
+    answer:
+      "As standard, a Level 1 report is delivered within 2 working days, a Level 2 within 3–5 working days and a Level 3 within 5–7 working days of the inspection. Need it sooner? Choose the Express 48-Hour Report option when you check availability and get your fixed price.",
+  },
+  {
+    question: "Will I receive photographs in my report?",
+    answer:
+      "Yes. Your report includes photographs of the defects identified during the inspection, with the surveyor’s explanation of each one.",
+  },
+  {
+    question: "Can you survey vacant or tenanted properties?",
+    answer: "Yes. We arrange access with the estate agent, seller or managing agent.",
+  },
+];
+
 const routeFAQs: Record<string, FAQItem[]> = {
+  "/homebuyer/survey-level-2": LEVEL_2_PAGE_FAQ,
   // Mirrors SURVEY_FAQ in components/site/homebuyer/survey-sections.tsx
   // plus the areas question on app/(marketing)/homebuyer/page.tsx.
   "/homebuyer": [

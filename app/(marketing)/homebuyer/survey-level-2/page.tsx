@@ -8,7 +8,6 @@ import {
   OtherSurveys,
   PriceSection,
   SampleExtract,
-  SURVEY_FAQ,
   SurveyFaqSection,
   SurveyHero,
   SurveyTrustStrip,
@@ -16,6 +15,8 @@ import {
   TurnaroundSection,
   faqItems,
 } from "@/components/site/homebuyer/survey-sections";
+import { formatPounds, surveyPrice } from "@/components/site/homebuyer/pricing";
+import { LEVEL_2_PAGE_FAQ } from "@/lib/faqs";
 
 export const metadata = getPageMetadata("/homebuyer/survey-level-2");
 
@@ -26,8 +27,16 @@ const INCLUDED = [
   "A visual appraisal of services such as gas/oil heating, electricity, water and drainage, with suggestions for further inspections if needed",
   "A traffic light grading system to indicate the severity of any identified issues",
   "Identification of urgent repair needs and future maintenance requirements",
+  "A Next Steps Action Plan, setting out what to do about the issues the report identifies",
   "Matters such as planning, building control or disputes flagged for your legal adviser to check, as a home survey isn’t a legal investigation",
 ];
+
+// Starting prices shown in the "What does it cost" section. They come from the same
+// price list as the booking form, so the two can't drift apart.
+const PRICE_ROWS = ["Studio", "1 Bedroom", "2 Bedroom", "3 Bedroom", "4 Bedroom"].map((bedrooms) => ({
+  label: bedrooms === "Studio" ? "Studio" : bedrooms.replace(" Bedroom", "-bedroom property"),
+  price: formatPounds(surveyPrice(2, bedrooms)),
+}));
 
 export default function Page() {
   return (
@@ -37,9 +46,9 @@ export default function Page() {
       <SurveyHero
         crumb="Level 2 Homebuyer Survey"
         pills={["Most common choice", "from £330.99", "Report in 3–5 working days"]}
-        eyebrow="RICS Level 2 survey in London"
-        title="RICS Level 2 Survey: Homebuyer Report"
-        lede="Also known as the Homebuyer Report, the RICS Level 2 survey provides a detailed visual inspection of the property to assess its overall condition, including any notable defects."
+        eyebrow="RICS Level 2 Home Survey"
+        title="RICS Level 2 Survey in London"
+        lede="A RICS Level 2 survey, also known as the Homebuyer Report, is a visual, non-invasive inspection of a conventional home in reasonable condition. It uses traffic-light condition ratings to show which defects need urgent attention, which need repair, and what to check further before you buy."
         sublede="The report helps buyers make an informed decision about whether to proceed with their purchase. Please note, however, that our surveyors cannot advise whether to proceed with or withdraw from the purchase."
         facts={[
           "Fixed price from £330.99 for a studio, VAT included. Your quote depends on the property’s size, type, location and complexity",
@@ -137,21 +146,53 @@ export default function Page() {
         </div>
       </Section>
 
+      <Section id="cost">
+        <SectionHeading
+          eyebrow="Level 2 survey cost"
+          title="What does a Level 2 survey cost in London?"
+          intro="Our Level 2 survey starts from £330.99 for a studio, including VAT. The final quotation depends on the property’s size, type, location and complexity, and you see your fixed price before you book."
+        />
+        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
+          <div className="flex flex-col gap-4 text-[17px] text-body">
+            <p>
+              HomeOwners Alliance reports that the average Level 2 survey in London cost approximately £590 in August
+              2026, based on Reallymoving data.
+            </p>
+            <p>
+              RICS also explains that survey costs vary according to the property and the level of inspection
+              required. More detailed surveys, particularly for larger or more complex properties, generally cost
+              more.
+            </p>
+            <p>All our quotations include VAT. Payment secures your booking.</p>
+            <TextLink href="#price" className="self-start">
+              Get your fixed price →
+            </TextLink>
+          </div>
+          <div className="rounded-[18px] border border-line bg-white p-6 sm:p-[30px]">
+            <h3 className="text-[19px] font-bold">Level 2 starting prices, including VAT</h3>
+            <ul className="m-0 mt-3 list-none p-0">
+              {PRICE_ROWS.map((row) => (
+                <li
+                  key={row.label}
+                  className="flex items-baseline justify-between gap-4 border-t border-line py-3 text-[17px] first:border-t-0"
+                >
+                  <span className="text-body">{row.label}</span>
+                  <b className="font-display">from {row.price}</b>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-sm text-muted-ink">
+              Larger properties are priced on the same basis. Enter the bedrooms below to see yours.
+            </p>
+          </div>
+        </div>
+      </Section>
+
       <PriceSection level={2} />
 
       <SurveyFaqSection
         title="About the RICS Level 2 Survey"
-        items={faqItems([
-          {
-            q: "Is a Level 2 the same as a HomeBuyer Report?",
-            a: "Yes. The RICS Level 2 survey is also known as the Homebuyer Report, and many people still use that name.",
-          },
-          SURVEY_FAQ.level2vs3,
-          SURVEY_FAQ.advise,
-          SURVEY_FAQ.whenReport,
-          SURVEY_FAQ.photos,
-          SURVEY_FAQ.vacant,
-        ])}
+        items={faqItems(LEVEL_2_PAGE_FAQ.map(({ question, answer }) => ({ q: question, a: answer })))}
       />
 
       <OtherSurveys
