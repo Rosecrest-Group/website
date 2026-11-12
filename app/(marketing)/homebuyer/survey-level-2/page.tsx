@@ -33,6 +33,51 @@ const INCLUDED = [
   "Matters such as planning, building control or disputes flagged for your legal adviser to check, as a home survey isn’t a legal investigation",
 ];
 
+// "What a Level 2 survey doesn't cover". Wording taken from Rosecrest's approved rules
+// (claude/article-writing-rules.md) and copy already published on this page.
+const NOT_COVERED = [
+  {
+    title: "No opening up",
+    text: "Level 2 surveys are generally visual and non-invasive. Surveyors inspect accessible areas without opening up the building or carrying out destructive investigations.",
+  },
+  {
+    title: "Hidden and inaccessible areas",
+    text: "Findings are based on accessible areas and the evidence available at the time of inspection.",
+  },
+  {
+    title: "Testing services",
+    text: "Heating, electricity, water and drainage are assessed visually, where visible and accessible. You can add a gas safety check or an Electrical Installation Condition Report (EICR) for an additional fee.",
+  },
+  {
+    title: "Legal matters",
+    text: "A home survey isn’t a legal investigation. The surveyor may flag matters such as planning, building control or disputes for your legal adviser to check.",
+  },
+  {
+    title: "A valuation",
+    text: "A Level 2 survey on its own doesn’t include a valuation. You can add a property valuation for an additional fee.",
+  },
+  {
+    title: "Whether to buy",
+    text: "Our surveyors cannot advise whether to proceed with or withdraw from the purchase. The decision is yours.",
+  },
+];
+
+// "London homes, conversions and flats". New wording (12 Nov 2026), awaiting Rosecrest's review.
+const LONDON_HOMES = [
+  {
+    title: "Flats",
+    text: "In a flat, the surveyor inspects the flat itself and the parts of the building that are visible and accessible, such as common areas where access is available. Parts you can’t reach, such as the roof or other flats, may be outside what can be inspected. Matters such as the lease, service charges and who is responsible for repairs are for your legal adviser.",
+  },
+  {
+    title: "Converted houses",
+    text: "Many London flats are in houses that have been converted. A Level 2 suits conventional, unaltered property in reasonable condition. Where a building has been converted or significantly altered, a Level 3 Building Survey may suit better, as it gives a more detailed assessment of construction, condition and defects.",
+  },
+  {
+    title: "Older terraces",
+    text: "A Level 2 can suit a conventional home in reasonable condition. For older properties, or where you plan major works, a Level 3 provides more extensive advice on repairs and maintenance, with repair cost estimates where applicable.",
+  },
+];
+
 // Starting prices shown in the "What does it cost" section. They come from the same
 // price list as the booking form, so the two can't drift apart.
 const PRICE_ROWS = ["Studio", "1 Bedroom", "2 Bedroom", "3 Bedroom", "4 Bedroom"].map((bedrooms) => ({
@@ -105,8 +150,27 @@ export default function Page() {
         </div>
       </Section>
 
+      <Section tone="mist" id="scope">
+        <SectionHeading
+          eyebrow="Level 2 Homebuyer Report"
+          title="What a Level 2 survey doesn’t cover"
+          intro="Knowing the limits helps you decide whether a Level 2 is enough, or whether you need further investigation before you buy."
+        />
+        <ul className="m-0 grid list-none gap-x-12 gap-y-4 p-0 text-[17px] text-body md:grid-cols-2">
+          {NOT_COVERED.map((item) => (
+            <Tick key={item.title} bad>
+              <b className="text-ink">{item.title}.</b> {item.text}
+            </Tick>
+          ))}
+        </ul>
+        <p className="max-w-[860px] text-[17px] text-body">
+          If the surveyor can’t draw conclusions about any part of the property with sufficient confidence, the
+          report will recommend further investigations.
+        </p>
+      </Section>
+
       <TurnaroundSection
-        tone="mist"
+        tone="white"
         paragraphs={[
           "Your detailed Level 2 HomeBuyer Report will be delivered within 5 working days of the inspection as standard.",
           "Need it sooner? Choose our Express 48-Hour Report option when you check availability and get your fixed price, ideal if you’re working to a tight purchase timeline.",
@@ -118,9 +182,9 @@ export default function Page() {
         ]}
       />
 
-      <ConditionRatingsSection tone="white" />
+      <ConditionRatingsSection tone="mist" />
 
-      <Section tone="mist">
+      <Section>
         <SectionHeading
           eyebrow="Level 2 Homebuyer Report"
           title="Key features of this survey"
@@ -148,7 +212,7 @@ export default function Page() {
         </div>
       </Section>
 
-      <Section id="cost">
+      <Section id="cost" tone="mist">
         <SectionHeading
           eyebrow="Level 2 survey cost"
           title="What does a Level 2 survey cost in London?"
@@ -190,7 +254,26 @@ export default function Page() {
         </div>
       </Section>
 
-      <Section id="which-survey">
+      <Section id="london-homes">
+        <SectionHeading
+          eyebrow="Buying in London"
+          title="London homes, conversions and flats"
+          intro="Much of what buyers look at in London is a flat, a converted house or an older terrace. Here is how a Level 2 works for each."
+        />
+        <div className="grid gap-[18px] md:grid-cols-3">
+          {LONDON_HOMES.map((item) => (
+            <div key={item.title} className="flex flex-col gap-3 rounded-[18px] border border-line bg-white p-6">
+              <h3 className="text-[20px] font-bold leading-[1.25]">{item.title}</h3>
+              <p className="text-[16px] text-body">{item.text}</p>
+            </div>
+          ))}
+        </div>
+        <TextLink href="#which-survey" className="self-start">
+          Not sure which survey suits the property? Use the Level 2 or Level 3 check →
+        </TextLink>
+      </Section>
+
+      <Section id="which-survey" tone="mist">
         <SectionHeading
           eyebrow="Level 2 or Level 3?"
           title="Should I get a Level 2 or a Level 3 survey?"
