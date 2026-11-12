@@ -23,8 +23,19 @@ const SIGNS = [
 
 type SignId = (typeof SIGNS)[number]["id"];
 
-/** "Level 2 or Level 3?" check on the Level 2 page. A guide only; the buyer chooses. */
-export default function SurveyLevelChooser() {
+/**
+ * "Level 2 or Level 3?" check on the Level 2 and Level 3 pages. A guide only; the buyer chooses.
+ * `page` is the survey page it sits on, so the links point at this page's price form or the other page.
+ */
+export default function SurveyLevelChooser({ page = 2 }: { page?: 2 | 3 }) {
+  const level2Link =
+    page === 2
+      ? { href: "#price", label: "Get your Level 2 price →" }
+      : { href: "/homebuyer/survey-level-2", label: "About the Level 2 Homebuyer Survey →" };
+  const level3Link =
+    page === 3
+      ? { href: "#price", label: "Get your Level 3 price →" }
+      : { href: "/homebuyer/survey-level-3", label: "About the Level 3 Building Survey →" };
   const [ticked, setTicked] = useState<Set<SignId>>(new Set());
   const strongTicked = SIGNS.some((sign) => sign.strong && ticked.has(sign.id));
   const softTicked = SIGNS.filter((sign) => !sign.strong && ticked.has(sign.id)).length;
@@ -94,8 +105,8 @@ export default function SurveyLevelChooser() {
               assessment of the building’s construction, condition and defects, including more extensive advice on
               repairs and maintenance and repair cost estimates where applicable.
             </p>
-            <TextLink href="/homebuyer/survey-level-3" className="self-start text-[15px]">
-              About the Level 3 Building Survey →
+            <TextLink href={level3Link.href} className="self-start text-[15px]">
+              {level3Link.label}
             </TextLink>
           </>
         )}
@@ -109,11 +120,11 @@ export default function SurveyLevelChooser() {
               the difference between the survey options.
             </p>
             <div className="flex flex-wrap gap-x-6 gap-y-2">
-              <TextLink href="#price" className="text-[15px]">
-                Get your Level 2 price →
+              <TextLink href={level2Link.href} className="text-[15px]">
+                {level2Link.label}
               </TextLink>
-              <TextLink href="/homebuyer/survey-level-3" className="text-[15px]">
-                About the Level 3 Building Survey →
+              <TextLink href={level3Link.href} className="text-[15px]">
+                {level3Link.label}
               </TextLink>
             </div>
           </>
@@ -125,8 +136,8 @@ export default function SurveyLevelChooser() {
               A Level 2 is designed for modern and conventional homes in reasonable condition, typically built in
               the last 30 years and not significantly altered or extended.
             </p>
-            <TextLink href="#price" className="self-start text-[15px]">
-              Get your Level 2 price →
+            <TextLink href={level2Link.href} className="self-start text-[15px]">
+              {level2Link.label}
             </TextLink>
           </>
         )}

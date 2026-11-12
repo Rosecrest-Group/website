@@ -79,6 +79,61 @@ export const LEVEL_2_PAGE_FAQ: FAQItem[] = [
   },
 ];
 
+// The Level 3 survey page renders this list directly (as the Level 2 page does), so the
+// visible FAQ and its FAQPage structured data always match.
+export const LEVEL_3_PAGE_FAQ: FAQItem[] = [
+  {
+    question: "What is a Level 3 survey?",
+    answer:
+      "A RICS Level 3 survey, also known as a Building Survey, is the most detailed RICS home survey. It provides a more detailed assessment of the building’s construction, condition and defects, including more extensive advice on repairs and maintenance and repair cost estimates where applicable.",
+  },
+  {
+    question: "Is a Level 3 survey the same as a full structural survey?",
+    answer:
+      "A Level 3 Building Survey is the survey that used to be called a full structural survey. It is not a structural engineer’s report. If a survey recommends further structural assessment, obtain a quotation from an appropriately qualified structural engineer.",
+  },
+  {
+    question: "How much does a Level 3 survey cost in London?",
+    answer:
+      "Our RICS Level 3 survey starts from £550.99 for a studio, including VAT. The final quotation depends on the property’s size, type, location and complexity. For Level 3 surveys, HomeOwners Alliance’s indicative national price range is £630 to £1,500, with costs varying according to property value, size, condition and complexity.",
+  },
+  {
+    question: "Will a Level 3 survey find every defect?",
+    answer:
+      "A Level 3 doesn’t guarantee finding concealed or hidden defects. Level 2 and Level 3 surveys are generally visual and non-invasive, and findings are based on accessible areas and the evidence available at the time of inspection. The additional detail can help identify visible signs of significant defects, assess their likely implications and highlight where further specialist investigation may be necessary before purchase.",
+  },
+    {
+      question: "Does a Level 3 survey include a valuation?",
+      answer:
+        "No. A valuation is not included with this survey, but a separate, discounted valuation can be provided upon request.",
+    },
+    {
+      question: "What is the difference between a Level 2 and a Level 3 survey?",
+      answer:
+        "A Level 2 (Homebuyer Survey) suits modern and conventional properties, with condition ratings showing the urgency of any defects. A Level 3 (Building Survey) suits older, altered or non-standard buildings and provides a more detailed assessment of the building’s construction, condition and defects, including more extensive advice on repairs and maintenance and repair cost estimates where applicable. Both Level 2 and Level 3 surveys are generally visual and non-invasive. Surveyors inspect accessible areas without opening up the building or carrying out destructive investigations.",
+    },
+    {
+      question: "Can the surveyor tell me whether to buy the property?",
+      answer:
+        "No. Our surveyors cannot advise whether to proceed with or withdraw from the purchase. As section 8 of our Terms of Engagement puts it: “The report is intended to assist decision-making only. The decision to proceed, renegotiate, or withdraw from a purchase is the Client’s responsibility.”",
+    },
+    {
+      question: "How long does a survey take?",
+      answer:
+        "The duration of the survey depends on the size of the property. A Level 1 typically takes 1–2 hours and a Level 3 typically 2–3 hours. Larger or more complex properties take longer.",
+    },
+    {
+      question: "When will I receive my report?",
+      answer:
+        "As standard, a Level 1 report is delivered within 2 working days, a Level 2 within 3–5 working days and a Level 3 within 5–7 working days of the inspection. Need it sooner? Choose the Express 48-Hour Report option when you check availability and get your fixed price.",
+    },
+    {
+      question: "Can you survey vacant or tenanted properties?",
+      answer:
+        "Yes. We arrange access with the estate agent, seller or managing agent.",
+    },
+];
+
 const routeFAQs: Record<string, FAQItem[]> = {
   "/homebuyer/survey-level-2": LEVEL_2_PAGE_FAQ,
   // Mirrors the FAQ rendered on /homebuyer/survey-level-1; update both together.
@@ -115,38 +170,7 @@ const routeFAQs: Record<string, FAQItem[]> = {
     },
   ],
   // Mirrors the FAQ rendered on /homebuyer/survey-level-3; update both together.
-  "/homebuyer/survey-level-3": [
-    {
-      question: "Does a Level 3 survey include a valuation?",
-      answer:
-        "No. A valuation is not included with this survey, but a separate, discounted valuation can be provided upon request.",
-    },
-    {
-      question: "What is the difference between a Level 2 and a Level 3 survey?",
-      answer:
-        "A Level 2 (Homebuyer Survey) suits modern and conventional properties, with condition ratings showing the urgency of any defects. A Level 3 (Building Survey) suits older, altered or non-standard buildings and provides a more detailed assessment of the building’s construction, condition and defects, including more extensive advice on repairs and maintenance and repair cost estimates where applicable. Both Level 2 and Level 3 surveys are generally visual and non-invasive. Surveyors inspect accessible areas without opening up the building or carrying out destructive investigations.",
-    },
-    {
-      question: "Can the surveyor tell me whether to buy the property?",
-      answer:
-        "No. Our surveyors cannot advise whether to proceed with or withdraw from the purchase. As section 8 of our Terms of Engagement puts it: “The report is intended to assist decision-making only. The decision to proceed, renegotiate, or withdraw from a purchase is the Client’s responsibility.”",
-    },
-    {
-      question: "How long does a survey take?",
-      answer:
-        "The duration of the survey depends on the size of the property. A Level 1 typically takes 1–2 hours and a Level 3 typically 2–3 hours. Larger or more complex properties take longer.",
-    },
-    {
-      question: "When will I receive my report?",
-      answer:
-        "As standard, a Level 1 report is delivered within 2 working days, a Level 2 within 3–5 working days and a Level 3 within 5–7 working days of the inspection. Need it sooner? Choose the Express 48-Hour Report option when you check availability and get your fixed price.",
-    },
-    {
-      question: "Can you survey vacant or tenanted properties?",
-      answer:
-        "Yes. We arrange access with the estate agent, seller or managing agent.",
-    },
-  ],
+  "/homebuyer/survey-level-3": LEVEL_3_PAGE_FAQ,
   // Mirrors the FAQ rendered on /services/environmental-reports; update both together.
   "/services/environmental-reports": [
     {

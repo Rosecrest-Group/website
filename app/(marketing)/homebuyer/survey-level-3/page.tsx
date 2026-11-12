@@ -2,20 +2,24 @@ import { Check } from "lucide-react";
 import { getPageMetadata } from "@/lib/page-metadata";
 import PageJsonLd from "@/components/common/PageJsonLd";
 import CallbackSection from "@/components/site/CallbackSection";
-import { Eyebrow, Section, SectionHeading } from "@/components/site/primitives";
+import { Eyebrow, Section, SectionHeading, TextLink } from "@/components/site/primitives";
 import {
   ConditionRatingsSection,
   KeyFeaturesCard,
   OtherSurveys,
   PriceSection,
   SampleExtract,
-  SURVEY_FAQ,
   SurveyFaqSection,
   SurveyHero,
   SurveyTrustStrip,
+  Tick,
   TurnaroundSection,
   faqItems,
 } from "@/components/site/homebuyer/survey-sections";
+import { formatPounds, surveyPrice } from "@/components/site/homebuyer/pricing";
+import HeroQuickPrice from "@/components/site/homebuyer/HeroQuickPrice";
+import SurveyLevelChooser from "@/components/site/homebuyer/SurveyLevelChooser";
+import { LEVEL_3_PAGE_FAQ } from "@/lib/faqs";
 
 export const metadata = getPageMetadata("/homebuyer/survey-level-3");
 
@@ -41,6 +45,57 @@ const WHY = [
   "Repair cost estimates where applicable",
 ];
 
+// "What a Level 3 survey doesn't cover". Wording from Rosecrest's approved rules
+// (claude/article-writing-rules.md) and copy already published on this page.
+const NOT_COVERED = [
+  {
+    title: "No opening up",
+    text: "Level 3 surveys are generally visual and non-invasive. Surveyors inspect accessible areas without opening up the building or carrying out destructive investigations.",
+  },
+  {
+    title: "Hidden defects",
+    text: "A Level 3 doesn’t guarantee finding concealed or hidden defects. Findings are based on accessible areas and the evidence available at the time of inspection.",
+  },
+  {
+    title: "Testing services",
+    text: "Building services are assessed where visible and accessible, rather than tested. Where needed, the report highlights where further specialist investigation may be necessary.",
+  },
+  {
+    title: "A structural engineer’s report",
+    text: "A Level 3 isn’t a structural engineer’s report. If a survey recommends further structural assessment, obtain a quotation from an appropriately qualified structural engineer.",
+  },
+  {
+    title: "Legal matters",
+    text: "A home survey isn’t a legal investigation, but the surveyor may flag matters for your legal adviser.",
+  },
+  {
+    title: "A valuation",
+    text: "A valuation is not included with this survey, but a separate, discounted valuation can be provided upon request.",
+  },
+];
+
+// "London homes". New wording (12 Nov 2026), awaiting Rosecrest's review.
+const LONDON_HOMES = [
+  {
+    title: "Period homes",
+    text: "Much of London’s housing is Victorian, Edwardian or interwar. A Level 3 is designed for older, altered or non-standard buildings, and gives more extensive advice on repairs and maintenance, with repair cost estimates where applicable.",
+  },
+  {
+    title: "Extensions, lofts and basements",
+    text: "Where a home has been extended, converted or had a loft or basement added, a Level 3 gives a more detailed assessment of its construction and defects, and highlights where further specialist investigation may be needed. Planning and building control matters are for your legal adviser; the surveyor may flag them.",
+  },
+  {
+    title: "Listed buildings and conservation areas",
+    text: "A Level 3 suits heritage and listed properties. Listing and conservation-area status are legal and planning matters for your legal adviser to check; the surveyor may flag things to look into.",
+  },
+];
+
+// Starting prices shown in the cost section, from the booking form's own price list.
+const PRICE_ROWS = ["Studio", "1 Bedroom", "2 Bedroom", "3 Bedroom", "4 Bedroom"].map((bedrooms) => ({
+  label: bedrooms === "Studio" ? "Studio" : bedrooms.replace(" Bedroom", "-bedroom property"),
+  price: formatPounds(surveyPrice(3, bedrooms)),
+}));
+
 function CheckHeading({ children }: { children: React.ReactNode }) {
   return (
     <span className="flex items-start gap-2.5 text-[17px]">
@@ -59,13 +114,14 @@ export default function Page() {
         crumb="Level 3 Building Survey"
         pills={["Most comprehensive", "from £550.99", "Report in 5–7 working days"]}
         title="RICS Level 3 Building Survey in London"
-        lede="The most detailed RICS home survey: a more detailed assessment of the building’s construction, condition and defects, including more extensive advice on repairs and maintenance."
+        lede="A RICS Level 3 survey, also known as a Building Survey and formerly called a full structural survey, is the most detailed RICS home survey. It gives a more detailed assessment of the building’s construction, condition and defects, including more extensive advice on repairs and maintenance."
         sublede="Carried out by qualified and experienced surveyors across London and areas within the M25."
         facts={[
           "Fixed price from £550.99 for a studio, VAT included. Your quote depends on the property’s size, type, location and complexity",
           "Inspection typically takes 2–3 hours",
           "Report within 5–7 working days, or choose our Express 48-Hour Report option",
         ]}
+        aside={<HeroQuickPrice level={3} />}
       />
 
       <SurveyTrustStrip />
@@ -127,8 +183,23 @@ export default function Page() {
         </p>
       </Section>
 
+      <Section id="scope">
+        <SectionHeading
+          eyebrow="Level 3 Building Survey"
+          title="What a Level 3 survey doesn’t cover"
+          intro="Knowing the limits helps you plan any further investigation before you buy."
+        />
+        <ul className="m-0 grid list-none gap-x-12 gap-y-4 p-0 text-[17px] text-body md:grid-cols-2">
+          {NOT_COVERED.map((item) => (
+            <Tick key={item.title} bad>
+              <b className="text-ink">{item.title}.</b> {item.text}
+            </Tick>
+          ))}
+        </ul>
+      </Section>
+
       <TurnaroundSection
-        tone="white"
+        tone="mist"
         paragraphs={[
           "The duration of the survey depends on the size of the property, but typically takes 2-3 hours.",
           "Your Level 3 Building Survey will be delivered within 5–7 working days of the inspection as standard.",
@@ -141,9 +212,9 @@ export default function Page() {
         ]}
       />
 
-      <ConditionRatingsSection tone="mist" />
+      <ConditionRatingsSection tone="white" />
 
-      <Section>
+      <Section tone="mist">
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-16">
           <SectionHeading
             eyebrow="Level 3 Building Survey"
@@ -162,7 +233,7 @@ export default function Page() {
         </div>
       </Section>
 
-      <Section tone="mist">
+      <Section>
         <SectionHeading
           eyebrow="Level 3 Building Survey"
           title="Why choose a Level 3 Building Survey?"
@@ -177,21 +248,78 @@ export default function Page() {
         </div>
       </Section>
 
+      <Section id="cost" tone="mist">
+        <SectionHeading
+          eyebrow="Level 3 survey cost"
+          title="What does a Level 3 survey cost in London?"
+          intro="Our Level 3 Building Survey starts from £550.99 for a studio, including VAT. The final quotation depends on the property’s size, type, location and complexity, and you see your fixed price before you book."
+        />
+        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
+          <div className="flex flex-col gap-4 text-[17px] text-body">
+            <p>
+              For Level 3 surveys, HomeOwners Alliance’s indicative national price range is £630 to £1,500, with costs
+              varying according to property value, size, condition and complexity.
+            </p>
+            <p>
+              RICS also explains that survey costs vary according to the property and the level of inspection
+              required. More detailed surveys, particularly for larger or more complex properties, generally cost
+              more.
+            </p>
+            <p>All our quotations include VAT. Payment secures your booking.</p>
+            <TextLink href="#price" className="self-start">
+              Get your fixed price →
+            </TextLink>
+          </div>
+          <div className="rounded-[18px] border border-line bg-white p-6 sm:p-[30px]">
+            <h3 className="text-[19px] font-bold">Level 3 starting prices, including VAT</h3>
+            <ul className="m-0 mt-3 list-none p-0">
+              {PRICE_ROWS.map((row) => (
+                <li
+                  key={row.label}
+                  className="flex items-baseline justify-between gap-4 border-t border-line py-3 text-[17px] first:border-t-0"
+                >
+                  <span className="text-body">{row.label}</span>
+                  <b className="font-display">from {row.price}</b>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-sm text-muted-ink">
+              Larger properties are priced on the same basis. Enter the bedrooms below to see yours.
+            </p>
+          </div>
+        </div>
+      </Section>
+
+      <Section id="london-homes">
+        <SectionHeading
+          eyebrow="Buying in London"
+          title="Older London homes, extensions and listed buildings"
+          intro="The properties where a Level 3 is most often the right choice."
+        />
+        <div className="grid gap-[18px] md:grid-cols-3">
+          {LONDON_HOMES.map((item) => (
+            <div key={item.title} className="flex flex-col gap-3 rounded-[18px] border border-line bg-white p-6">
+              <h3 className="text-[20px] font-bold leading-[1.25]">{item.title}</h3>
+              <p className="text-[16px] text-body">{item.text}</p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section id="which-survey" tone="mist">
+        <SectionHeading
+          eyebrow="Level 2 or Level 3?"
+          title="Should I get a Level 2 or a Level 3 survey?"
+          intro="Both are generally visual and non-invasive. The right one depends on the property. Tick anything that applies to see which survey is designed for it."
+        />
+        <SurveyLevelChooser page={3} />
+      </Section>
+
       <PriceSection level={3} />
 
       <SurveyFaqSection
         title="About the RICS Level 3 Survey"
-        items={faqItems([
-          {
-            q: "Does a Level 3 survey include a valuation?",
-            a: "No. A valuation is not included with this survey, but a separate, discounted valuation can be provided upon request.",
-          },
-          SURVEY_FAQ.level2vs3,
-          SURVEY_FAQ.advise,
-          SURVEY_FAQ.howLong,
-          SURVEY_FAQ.whenReport,
-          SURVEY_FAQ.vacant,
-        ])}
+        items={faqItems(LEVEL_3_PAGE_FAQ.map(({ question, answer }) => ({ q: question, a: answer })))}
       />
 
       <OtherSurveys

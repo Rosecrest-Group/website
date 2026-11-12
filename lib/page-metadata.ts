@@ -78,9 +78,9 @@ export const pageMetadata: Record<string, PageMeta> = {
   },
   "/homebuyer/survey-level-3": {
     name: "RICS Level 3 Survey",
-    title: "RICS Level 3 Survey London | Building Survey for Older Properties",
+    title: "RICS Level 3 Building Survey London | From £550.99",
     description:
-      "RICS Level 3 Survey in London: a more detailed assessment of construction, condition and defects, with repair cost estimates where applicable.",
+      "RICS Level 3 Building Survey in London (formerly a full structural survey) from £550.99 inc VAT for a studio, with repair cost estimates where applicable.",
   },
   "/landlord": {
     name: "Landlords",
