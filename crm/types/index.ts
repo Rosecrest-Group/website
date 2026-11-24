@@ -262,6 +262,7 @@ export interface DialpadCall {
   customerPhone: string | null;
   propertyPostcode: string | null;
   author: { id: string; fullName: string } | null;
+  websiteSource?: WebsiteCallSource | null;
 }
 
 export interface DialpadCallSummary {
@@ -620,6 +621,17 @@ export interface AttributionVisit {
   startedAt: string | null;
   utm: AttributionUtm;
   pages: { path: string; title: string; at: string }[];
+  clicks?: AttributionClick[];
+}
+
+/** A link or button the visitor pressed on the website. */
+export interface AttributionClick {
+  at: string;
+  path: string;
+  label: string;
+  section: string | null;
+  href: string | null;
+  kind: "call" | "email" | "link" | "button";
 }
 
 /**
@@ -635,8 +647,27 @@ export interface AttributionTouch {
   utm: AttributionUtm;
   pages: { path: string; title: string; at: string }[];
   visits?: AttributionVisit[];
-  form: { name: string; path: string; submittedAt: string };
+  form: { name: string; path: string; submittedAt: string; trigger?: AttributionClick | null };
+  /** Set when this touch is a phone call matched to a click on a website phone number. */
+  call?: { externalId: string; activityId: string | null; startedAt: string; secondsAfterClick: number };
   receivedAt: string;
+}
+
+/** The website phone-number click an inbound call was matched to, by time. */
+export interface WebsiteCallSource {
+  clickId: string;
+  clickedAt: string;
+  label: string;
+  section: string | null;
+  pagePath: string;
+  pageTitle: string;
+  device: "mobile" | "desktop" | null;
+  channel: AttributionChannel;
+  channelDetail: string | null;
+  referrer: string | null;
+  landingUrl: string | null;
+  secondsBeforeCall: number;
+  match: "time";
 }
 
 export interface LeadAttribution {

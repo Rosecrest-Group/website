@@ -1,10 +1,26 @@
 export type AttributionPage = { path: string; title: string; at: string };
 
+export type ClickKind = "call" | "email" | "link" | "button";
+
+/** One click on a link or button, with where on the site it happened. */
+export type AttributionClick = {
+  at: string;
+  /** Page the click happened on. */
+  path: string;
+  label: string;
+  /** Part of the page, such as "Site header" or a section heading. */
+  section: string | null;
+  /** Where a link pointed: a site path, an external URL, or a tel:/mailto: address. */
+  href: string | null;
+  kind: ClickKind;
+};
+
 export type AttributionVisit = {
   referrer: string | null;
   landingUrl: string;
   startedAt: string;
   pages: AttributionPage[];
+  clicks?: AttributionClick[];
 };
 
 export const JOURNEY_STORAGE_KEY = "rc_journey";
@@ -13,6 +29,9 @@ export const JOURNEY_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;
 export const SESSION_GAP_MS = 30 * 60 * 1000;
 export const MAX_VISITS = 20;
 export const MAX_PAGES = 50;
+export const MAX_CLICKS = 60;
+/** A second identical click inside this window is a double-click, not a new action. */
+const DOUBLE_CLICK_MS = 1000;
 
 const CAMPAIGN_PARAMS = [
   "utm_source",
@@ -167,4 +186,68 @@ export function setCurrentPageTitle(visits: AttributionVisit[], path: string, ti
   if (!visit || !page || page.path !== path || page.title === nextTitle) return visits;
   const pages = visit.pages.slice(0, -1).concat({ ...page, title: nextTitle });
   return visits.slice(0, -1).concat({ ...visit, pages });
+}
+
+function clickCount(visits: AttributionVisit[]): number {
+  return visits.reduce((total, visit) => total + (visit.clicks?.length ?? 0), 0);
+}
+
+/** Appends a click to the current visit. The oldest clicks go first once there are MAX_CLICKS. */
+export function applyClick(visits: AttributionVisit[], click: AttributionClick): AttributionVisit[] {
+  const current = visits.at(-1);
+  if (!current) return visits;
+  const entry: AttributionClick = {
+    at: click.at,
+    path: clip(click.path, 2048),
+    label: clip(click.label, 120),
+    section: click.section ? clip(click.section, 80) : null,
+    href: click.href ? clip(click.href, 2048) : null,
+    kind: click.kind,
+  };
+  const previous = current.clicks?.at(-1);
+  if (
+    previous &&
+    previous.path === entry.path &&
+    previous.label === entry.label &&
+    previous.href === entry.href &&
+    Math.abs(Date.parse(entry.at) - Date.parse(previous.at)) < DOUBLE_CLICK_MS
+  ) {
+    return visits;
+  }
+
+  let next = visits.slice(0, -1).concat({ ...current, clicks: [...(current.clicks ?? []), entry] });
+  while (clickCount(next) > MAX_CLICKS) {
+    const index = next.findIndex((visit) => (visit.clicks?.length ?? 0) > 0);
+    if (index === -1) break;
+    next = next.map((visit, i) => (i === index ? { ...visit, clicks: visit.clicks!.slice(1) } : visit));
+  }
+  return next;
+}
+
+function pathnameOf(pathOrHref: string): string | null {
+  try {
+    return new URL(pathOrHref, "https://site.invalid").pathname;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The click that brought the visitor to a form: the latest link to the form's page or, failing
+ * that, the latest button pressed on the form's page (a button that opens a pop-up form).
+ */
+export function findFormTrigger(visits: AttributionVisit[], formPath: string): AttributionClick | null {
+  const formPathname = pathnameOf(formPath);
+  const clicks = visits.flatMap((visit) => visit.clicks ?? []);
+  for (let i = clicks.length - 1; i >= 0; i -= 1) {
+    const click = clicks[i];
+    if (click.kind === "link" && click.href?.startsWith("/") && pathnameOf(click.href) === formPathname) {
+      return click;
+    }
+  }
+  for (let i = clicks.length - 1; i >= 0; i -= 1) {
+    const click = clicks[i];
+    if (click.kind === "button" && pathnameOf(click.path) === formPathname) return click;
+  }
+  return null;
 }

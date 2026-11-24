@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { AttributionTouch, AttributionVisit, LeadDetail } from "@/crm/types";
+import type { AttributionClick, AttributionTouch, AttributionVisit, LeadDetail } from "@/crm/types";
 import { cn } from "@/lib/utils";
 import { noJourneyText } from "@/crm/components/LeadAttributionPanel";
 import { channelLabel, formatJourneyTime, urlHost, urlPath } from "@/crm/lib/attribution";
@@ -70,13 +70,53 @@ function PageLink({ origin, path }: { origin: string; path: string }) {
   );
 }
 
+type JourneyEvent =
+  | { type: "page"; page: AttributionVisit["pages"][number]; first: boolean }
+  | { type: "click"; click: AttributionClick };
+
+/** Pages and clicks in the order they happened. A page with no time stays where it is. */
+function journeyEvents(pages: AttributionVisit["pages"], clicks: AttributionClick[]): JourneyEvent[] {
+  const events: JourneyEvent[] = pages.map((page, i) => ({ type: "page", page, first: i === 0 }));
+  for (const click of clicks) {
+    const at = Date.parse(click.at);
+    let index = events.length;
+    for (let i = 0; i < events.length; i += 1) {
+      const event = events[i];
+      const eventAt = Date.parse(event.type === "page" ? event.page.at : event.click.at);
+      if (Number.isFinite(eventAt) && Number.isFinite(at) && eventAt > at) {
+        index = i;
+        break;
+      }
+    }
+    events.splice(index, 0, { type: "click", click });
+  }
+  return events;
+}
+
+function clickTitle(click: AttributionClick): string {
+  if (click.kind === "call") return `Pressed phone number “${click.label}”`;
+  if (click.kind === "email") return `Pressed email “${click.label}”`;
+  if (click.kind === "button") return `Pressed “${click.label}”`;
+  if (click.href && !click.href.startsWith("/")) return `Clicked “${click.label}” to ${urlHost(click.href)}`;
+  return `Clicked “${click.label}”`;
+}
+
+function secondsText(seconds: number): string {
+  const s = Math.max(0, seconds);
+  if (s < 60) return `${s} second${s === 1 ? "" : "s"}`;
+  const m = Math.round(s / 60);
+  return `${m} minute${m === 1 ? "" : "s"}`;
+}
+
 function VisitBlock({
   visit,
   form,
+  call,
   solo,
 }: {
   visit: AttributionVisit;
   form?: AttributionTouch["form"];
+  call?: AttributionTouch["call"];
   solo: boolean;
 }) {
   const origin = siteOrigin(visit.landingUrl);
@@ -114,19 +154,44 @@ function VisitBlock({
         >
           {campaign ? `Campaign: ${campaign}` : null}
         </Step>
-        {pages.map((page, i) => (
-          <Step
-            key={`${page.path}-${i}`}
-            title={i === 0 ? "Landed on" : "Viewed"}
-            time={journeyTime(page.at)}
-          >
-            <PageLink origin={origin} path={page.path} />
-            {page.title ? <span className="block text-ink-muted">{page.title}</span> : null}
-          </Step>
-        ))}
+        {journeyEvents(pages, visit.clicks ?? []).map((event, i) =>
+          event.type === "page" ? (
+            <Step
+              key={`page-${event.page.path}-${i}`}
+              title={event.first ? "Landed on" : "Viewed"}
+              time={journeyTime(event.page.at)}
+            >
+              <PageLink origin={origin} path={event.page.path} />
+              {event.page.title ? <span className="block text-ink-muted">{event.page.title}</span> : null}
+            </Step>
+          ) : (
+            <Step
+              key={`click-${event.click.at}-${i}`}
+              title={<span className="font-normal">{clickTitle(event.click)}</span>}
+              time={journeyTime(event.click.at)}
+            >
+              {event.click.section ? `${event.click.section} · ` : ""}
+              {event.click.path}
+            </Step>
+          )
+        )}
         {form ? (
-          <Step accent title={`Submitted ${form.name}`} time={journeyTime(form.submittedAt)}>
-            on <PageLink origin={origin} path={form.path} />
+          <Step
+            accent
+            title={call ? "Phoned us" : `Submitted ${form.name}`}
+            time={journeyTime(call?.startedAt ?? form.submittedAt)}
+          >
+            {call ? (
+              <>
+                {secondsText(call.secondsAfterClick)} after pressing “{form.trigger?.label ?? "the phone number"}” on{" "}
+                <PageLink origin={origin} path={form.path} /> (matched by time)
+              </>
+            ) : (
+              <>
+                on <PageLink origin={origin} path={form.path} />
+                {form.trigger ? <span className="block">after clicking “{form.trigger.label}”</span> : null}
+              </>
+            )}
           </Step>
         ) : null}
       </ol>
@@ -169,6 +234,7 @@ export default function LeadJourney({ lead, className }: { lead: LeadDetail; cla
                       visit={visit}
                       solo={solo}
                       form={visitIndex === visits.length - 1 ? touch.form : undefined}
+                      call={visitIndex === visits.length - 1 ? touch.call : undefined}
                     />
                   ))
                 )}

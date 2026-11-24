@@ -50,6 +50,9 @@ export default function LeadAttributionPanel({
     ? [attribution.utm.source, attribution.utm.medium, attribution.utm.campaign].filter(Boolean).join(" / ")
     : "";
   const adClicks = attribution ? Object.keys(attribution.clickIds) : [];
+  // The first enquiry sets the source, so its trigger is the button that brought them in.
+  const firstTouch = attribution?.touches[0];
+  const trigger = firstTouch?.form.trigger ?? null;
 
   return (
     <CrmPanel title="How they found us">
@@ -74,6 +77,13 @@ export default function LeadAttributionPanel({
             {attribution.formName ? (
               <Row label="Enquired via">
                 {attribution.formPath ? `${attribution.formName} on ${attribution.formPath}` : attribution.formName}
+              </Row>
+            ) : null}
+            {trigger ? (
+              <Row label={firstTouch?.call ? "Called after" : "Clicked"}>
+                <span title={trigger.section ? `${trigger.label} · ${trigger.section} · ${trigger.path}` : `${trigger.label} · ${trigger.path}`}>
+                  “{trigger.label}” on {trigger.path}
+                </span>
               </Row>
             ) : null}
             <Row label="Pages viewed">{attribution.pageViews}</Row>

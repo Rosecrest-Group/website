@@ -30,7 +30,8 @@ import {
 import { formatChatDateSeparator, formatInboxListTime, initialsFromName } from "@/crm/lib/formatChatTime";
 import { usePhone } from "@/crm/lib/phoneContext";
 import { useInfiniteScroll } from "@/crm/lib/useInfiniteScroll";
-import type { DialpadCall } from "@/crm/types";
+import type { DialpadCall, WebsiteCallSource } from "@/crm/types";
+import { channelLabel, urlHost, urlPath } from "@/crm/lib/attribution";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 40;
@@ -612,8 +613,71 @@ function CallRow({
             {call.contactNumber}
           </span>
         ) : null}
+        {call.websiteSource ? (
+          <span className="mt-0.5 block truncate text-[11px] text-brand">
+            Website · {call.websiteSource.label} on {call.websiteSource.pagePath}
+          </span>
+        ) : null}
       </span>
     </button>
+  );
+}
+
+function secondsText(seconds: number): string {
+  const s = Math.max(0, seconds);
+  if (s < 60) return `${s} second${s === 1 ? "" : "s"}`;
+  const m = Math.round(s / 60);
+  return `${m} minute${m === 1 ? "" : "s"}`;
+}
+
+/** Where the caller was on the website. Matched by time, so it's the likely source, not a certainty. */
+function WebsiteSourceCard({ source }: { source: WebsiteCallSource }) {
+  const origin = source.landingUrl ? (() => {
+    try {
+      return new URL(source.landingUrl).origin;
+    } catch {
+      return "";
+    }
+  })() : "";
+  return (
+    <section className="rounded-xl border border-line bg-surface p-5">
+      <h3 className="text-base font-medium text-ink">Likely website source</h3>
+      <p className="mt-3 text-sm text-ink">
+        Pressed <span className="font-medium">“{source.label}”</span>
+        {source.section ? <> in {source.section}</> : null} on{" "}
+        <a
+          href={`${origin}${source.pagePath}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-brand hover:underline"
+        >
+          {source.pageTitle || source.pagePath}
+        </a>
+        , {secondsText(source.secondsBeforeCall)} before this call
+        {source.device ? ` (${source.device})` : ""}.
+      </p>
+      <dl className="mt-3 space-y-1 text-sm">
+        <div className="flex justify-between gap-3">
+          <dt className="text-ink-muted">Found us via</dt>
+          <dd className="text-right font-medium text-ink">{channelLabel(source.channel, source.channelDetail)}</dd>
+        </div>
+        {source.referrer ? (
+          <div className="flex justify-between gap-3">
+            <dt className="text-ink-muted">Came from</dt>
+            <dd className="truncate text-right text-ink">{urlHost(source.referrer)}</dd>
+          </div>
+        ) : null}
+        {source.landingUrl ? (
+          <div className="flex justify-between gap-3">
+            <dt className="text-ink-muted">Landed on</dt>
+            <dd className="truncate text-right text-ink">{urlPath(source.landingUrl)}</dd>
+          </div>
+        ) : null}
+      </dl>
+      <p className="mt-3 text-xs text-ink-subtle">
+        Matched by time: this was the latest click on the website phone number before the call.
+      </p>
+    </section>
   );
 }
 
@@ -748,6 +812,7 @@ function CallDetail({
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="mx-auto flex max-w-2xl flex-col gap-4">
+          {call.websiteSource ? <WebsiteSourceCard source={call.websiteSource} /> : null}
           {call.recordingUrl ? (
             <section className="rounded-xl border border-line bg-surface p-5">
               <h3 className="text-base font-medium text-ink">Recording</h3>
